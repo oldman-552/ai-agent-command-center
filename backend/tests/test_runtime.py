@@ -4,6 +4,7 @@ import asyncio
 import pytest
 from sqlalchemy import select
 
+import app.main  # noqa: F401  — registers real engines first, so the mock rebinding below sticks
 from app.models import Agent, AuditLog, Checkpoint, Execution, ExecutionEvent
 from app.runtime import contract, service
 from app.runtime.engines.mock import MockEngine
@@ -133,7 +134,7 @@ def test_retry_with_backoff_then_success(db):
     ex = db.get(Execution, ex.id)
     assert ex.attempt == 3 and ex.output["text"] == "step1 done"  # step1 not repeated: resumed from checkpoint
     retries = db.scalars(select(ExecutionEvent).where(ExecutionEvent.execution_id == ex.id,
-                                                      ExecutionEvent.type == "retry")).all()
+                                                      ExecutionEvent.type == "retry").order_by(ExecutionEvent.seq)).all()
     assert [r.payload["after_seconds"] for r in retries] == [0.01, 0.02]  # exponential backoff
 
 

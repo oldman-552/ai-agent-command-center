@@ -157,3 +157,20 @@ class Skill(TimestampMixin, Base):
     instructions: Mapped[str] = mapped_column(Text, default="")
     assessment: Mapped[dict | None] = mapped_column(JSONB)
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class A2AAccessKey(TimestampMixin, Base):
+    """Inbound A2A access (A2A-01). Nothing is exposed by default: a key lists exactly which agents it may reach.
+    Only a SHA-256 of the high-entropy token is stored; the token is shown once at creation."""
+
+    __tablename__ = "a2a_access_keys"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organization_id: Mapped[int] = org_fk()
+    name: Mapped[str] = mapped_column(String(128))
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    hint: Mapped[str] = mapped_column(String(16))
+    agent_ids: Mapped[list] = mapped_column(JSONB, default=list)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

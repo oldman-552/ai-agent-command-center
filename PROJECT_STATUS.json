@@ -1,12 +1,12 @@
 {
-  "date": "2026-11-09 23:30",
+  "date": "2026-11-09 23:50",
   "spec_version": "4.0",
-  "current_phase": "Phase 6",
+  "current_phase": "Phases 1, 19, 23, 25",
   "current_milestone": {
-    "id": 10,
-    "name": "A2A and Communication"
+    "id": 1,
+    "name": "Foundation"
   },
-  "overall_percent": 35.6,
+  "overall_percent": 38.7,
   "milestones": [
     {
       "id": 1,
@@ -44,8 +44,8 @@
       "id": 5,
       "name": "Execution Engines",
       "weight": 6,
-      "percent": 25.0,
-      "done": 1,
+      "percent": 50.0,
+      "done": 2,
       "total": 4
     },
     {
@@ -84,8 +84,8 @@
       "id": 10,
       "name": "A2A and Communication",
       "weight": 5,
-      "percent": 66.7,
-      "done": 4,
+      "percent": 100.0,
+      "done": 6,
       "total": 6
     },
     {
@@ -167,51 +167,53 @@
     "GW-06",
     "GW-09",
     "EE-01",
+    "EE-03",
     "MQ-01",
     "MQ-02",
     "MQ-03",
     "MQ-04",
+    "A2A-01",
+    "A2A-02",
     "SEC-01",
     "SEC-02",
     "SEC-07"
   ],
-  "in_progress": [
-    "A2A-01"
-  ],
+  "in_progress": [],
   "files_changed": [
     "PROJECT_STATUS.json",
-    "backend/app/config.py",
+    "backend/app/connectivity/providers.py",
+    "backend/app/main.py",
     "backend/app/models/__init__.py",
+    "backend/app/models/connectivity.py",
     "backend/app/runtime/api.py",
-    "backend/app/runtime/contract.py",
     "backend/app/worker.py",
-    "backend/pyproject.toml",
-    "backend/tests/conftest.py",
-    "backend/tests/test_gateway.py",
+    "backend/tests/test_bus.py",
+    "backend/tests/test_runtime.py",
     "docs/ARCHITECTURE_DECISIONS.md",
     "docs/REQUIREMENTS.md",
     "docs/requirements.json",
+    "frontend/messages/ar.json",
+    "frontend/messages/en.json",
     "progress.txt",
-    "scripts/dev-up.sh",
-    "backend/alembic/versions/efbfdbc8514d_message_bus_outbox_and_idempotency_.py",
-    "backend/app/bus/",
-    "backend/app/models/bus.py",
-    "backend/tests/test_bus.py"
+    "backend/alembic/versions/cdf7bd4f62d2_a2a_access_keys.py",
+    "backend/app/connectivity/a2a/",
+    "backend/app/runtime/dispatch.py",
+    "backend/tests/test_a2a.py"
   ],
   "tests": {
     "passed": [
-      "backend: 70/70 pytest on PostgreSQL 16 + live RabbitMQ 3.12 (vhost acc_test) — security, agents, runtime, gateway, message bus (topology, contract, outbox, retries/DLQ, idempotency, worker kill -9 recovery, broker restart) — run twice, 2026-11-09",
-      "migrations (v4 baseline 40 tables + bus outbox/ledger = 42): base → head → -1 → head; alembic check clean",
-      "frontend: i18n guard (207 keys), contrast 40/40, tsc, next build",
+      "backend: 94/94 pytest on PostgreSQL 16 + live RabbitMQ 3.12 — full suite twice and every module in isolation; incl. message bus (worker kill -9, broker restart) and A2A server/client/engine over real HTTP — 2026-11-09",
+      "migrations: v4 baseline + bus outbox/ledger + a2a_access_keys (43 tables); base → head → -1 → head; alembic check clean",
+      "frontend: i18n guard (264 keys), contrast, tsc, next build",
       "ruff: clean",
-      "frontend: 33/33 Playwright in real Chrome — i18n/RTL/LTR/layout, agents CRUD, templates, providers (add with write-only key, pricing, mock test, failure reporting, delete), axe WCAG 2.2 AA on every page × ar/en"
+      "frontend: 33/33 Playwright in real Chrome against API + worker in bus mode — i18n/RTL/LTR/layout, agents, templates, providers, axe WCAG 2.2 AA × ar/en"
     ],
     "failed": []
   },
   "known_issues": [
     "Docker stack verification predates the v4 schema; re-run with docker/offline override after next milestone",
     "Runtime uses a sync SQLAlchemy session inside async code (short blocking calls); acceptable now, revisit with workers",
-    "Frontend not rebuilt/re-run this session (no frontend changes in M10 bus slice); Docker stack not re-verified with the worker"
+    "A2A: no UI yet for access keys / A2A services beyond the Providers page (API only); streaming, push notifications and multi-turn follow-ups not implemented"
   ],
   "blockers": [
     "Dev environment blocks all container registries: official images cannot be pulled here; verified instead with locally-built equivalent images (docker/offline). Official images must be verified on the owner's machine",
@@ -220,5 +222,5 @@
   "requires_owner_approval": [
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
-  "next_action": "M10 remainder: A2A-01 agent card + task endpoint, A2A-02 client against a local server. Then M6 orchestration (LangGraph planner → task DAG → dispatch over the bus → review → approval) + Task Center UI"
+  "next_action": "M6 orchestration: LangGraph planner → task DAG (tasks/task_dependencies) → dispatch over the bus → review → approval; Task Center UI. Then M13 approvals/sandbox/audit UI"
 }

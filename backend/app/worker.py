@@ -20,6 +20,8 @@ from app.bus.consumer import connect
 from app.bus.handlers import execution_consumers
 from app.bus.outbox import Relay
 from app.config import get_settings
+from app.connectivity.a2a import engine as _a2a_engine  # noqa: F401  (registers the a2a engine)
+from app.connectivity.gateway import service as _gateway  # noqa: F401  (registers the api engine)
 from app.db import session_factory
 from app.runtime import service
 from app.runtime.engines import mock as _mock_engine  # noqa: F401  (registers the TEST-ONLY mock engine)

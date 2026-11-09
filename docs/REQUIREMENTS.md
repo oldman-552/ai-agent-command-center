@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 35.6%**
+**Overall verified completion: 38.7%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -65,13 +65,13 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | GW-09 | P0 | Providers & Models UI | E2E add provider, test connection | Playwright | GW-02 | done | Providers & models page: add provider (write-only key), set/rotate key, test, discover, enable/disable, delete, add/edit model prices; E2E + axe ar/en |
 | GW-10 | P0 | At least one real official API call verified | Live call with owner key succeeds | manual/live test | GW-01 | pending | — |
 
-## M5 — Execution Engines (weight 6%, 25%) — spec Phase 10
+## M5 — Execution Engines (weight 6%, 50%) — spec Phase 10
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
 | EE-01 | P0 | API execution engine (via gateway) | Runs task with Mock end-to-end | pytest | RT-01, GW-01 | done | real 'api' engine runs executions through the gateway end to end; tests |
 | EE-02 | P1 | CLI execution engine adapter (sandboxed subprocess) with documented support for Claude Code / Codex / Gemini CLI / OpenCode | Adapter + docs; verified flags only | pytest + docs | RT-01, SEC-04 | pending | — |
-| EE-03 | P1 | External agent runtime adapter (A2A client) | Adapter contract test | pytest | A2A-02 | pending | — |
+| EE-03 | P1 | External agent runtime adapter (A2A client) | Adapter contract test | pytest | A2A-02 | done | tests/test_a2a.py::test_a2a_engine_delegates_to_external_agent_and_reattaches_on_resume (platform agent → A2A provider → remote agent over HTTP; resume re-attaches without resubmitting), test_a2a_engine_unreachable_service_fails_cleanly |
 | EE-04 | P0 | Unsupported integrations explicitly documented | PROVIDER_INTEGRATION.md table | inspection | — | pending | — |
 
 ## M6 — Intelligent Orchestration (weight 9%, 0%) — spec Phases 4, 13
@@ -125,7 +125,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | MCP-03 | P0 | Skills & MCP registry UI with security assessment before enable | E2E | Playwright | MCP-01 | pending | — |
 | MCP-04 | P1 | Skill install with source inspection (dangerous commands, network, fs, credentials) | Scanner tests | pytest | — | pending | — |
 
-## M10 — A2A and Communication (weight 5%, 67%) — spec Phase 6
+## M10 — A2A and Communication (weight 5%, 100%) — spec Phase 6
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -133,8 +133,8 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | MQ-02 | P0 | Structured message contract (ids, correlation, schema version) + ack + retries + timeouts | Contract + consumer tests | pytest (live broker) | MQ-01 | done | test_contract_fields_and_validation, test_outbox_is_transactional_and_relay_publishes_with_confirms, test_retry_with_delay_then_success, test_timeout_poison_fatal_and_exhausted_go_to_dlq — live broker |
 | MQ-03 | P0 | Idempotent consumers (dedupe by idempotency key) | Duplicate delivery processed once | pytest | MQ-02 | done | test_duplicate_delivery_processed_once (same message twice + producer re-send → handler once, ledger 'done'), test_busy_work_key_is_deferred_not_run_twice |
 | MQ-04 | P0 | Recovery after broker/worker restart | Restart test | pytest/compose | MQ-02 | done | test_worker_killed_mid_execution_is_recovered_by_another (kill -9 mid-run → new worker resumes from checkpoint, output exact), test_broker_restart_loses_nothing (rabbitmqctl stop_app/start_app: outbox waits, worker reconnects; persistent queued message survives) |
-| A2A-01 | P1 | A2A agent card + task endpoint for platform agents | Spec-compatible JSON | pytest | — | in_progress | — |
-| A2A-02 | P1 | A2A client for external agent services | Client test against local server | pytest | A2A-01 | pending | — |
+| A2A-01 | P1 | A2A agent card + task endpoint for platform agents | Spec-compatible JSON | pytest | — | done | tests/test_a2a.py (21 tests): agent card fields, key-gated exposure (401/404), human-only hashed audited keys, revocation, SendMessage blocking/returnImmediately, idempotent messageId, GetTask, ListTasks filter+pagination, CancelTask, per-key task privacy, 11 spec error codes; test_bus::test_a2a_task_runs_through_bus_and_worker; live smoke on dev stack (API→outbox→RabbitMQ→worker) |
+| A2A-02 | P1 | A2A client for external agent services | Client test against local server | pytest | A2A-01 | done | tests/test_a2a.py::test_client_against_local_server (real uvicorn over TCP: card discovery, send blocking/non-blocking, wait, list, error mapping, bad token), test_client_refuses_card_that_redirects_credentials_elsewhere |
 
 ## M11 — Context and Memory (weight 7%, 0%) — spec Phases 7, 8
 

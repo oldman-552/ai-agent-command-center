@@ -9,14 +9,12 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, W
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
-from app.bus.contract import execution_run
-from app.bus.outbox import enqueue
-from app.config import get_settings
 from app.db import session_factory
 from app.models import Agent, Execution, ExecutionEvent, User
 from app.models import ExecutionStatus as X
 from app.runtime import service
 from app.runtime.contract import TERMINAL
+from app.runtime.dispatch import dispatch
 from app.security.auth import COOKIE_NAME, DB, require
 from app.security.crypto import decode_access_token
 from app.security.tenancy import get_scoped
@@ -33,12 +31,7 @@ class ExecutionCreate(BaseModel):
 
 
 def _dispatch(db, bg: BackgroundTasks, ex: Execution, actor: str, reason: str) -> None:
-    """Hand the execution to a worker: an outbox message committed with the caller's transaction (MQ-02)."""
-    if get_settings().execution_dispatch == "inline":
-        bg.add_task(service.run_execution, ex.id)
-        return
-    enqueue(db, execution_run(execution_id=ex.id, organization_id=ex.organization_id, engine=ex.engine,
-                              sender=actor, reason=reason, project_id=ex.project_id, task_id=ex.task_id))
+    dispatch(db, ex, actor, reason, run_inline=bg.add_task)
 
 
 def execution_out(ex: Execution) -> dict:

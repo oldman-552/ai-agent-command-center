@@ -14,6 +14,7 @@ import aio_pika
 import pytest
 from sqlalchemy import select, text
 
+import app.main  # noqa: F401  — registers real engines first, so the mock rebinding below sticks
 from app.bus import topology as topo
 from app.bus.consumer import Consumer, Fatal, connect
 from app.bus.contract import Envelope, MessageType, execution_run
@@ -245,10 +246,10 @@ async def test_busy_work_key_is_deferred_not_run_twice():
 
 # ---------------- end-to-end + MQ-04 recovery ----------------
 WORKER = (
-    "import asyncio,sys;"
+    "import asyncio,sys;import app.worker as w;"  # import first: it registers the real engines
     "from app.runtime import contract;from app.runtime.engines.mock import MockEngine;"
-    "contract._ENGINES['api']=MockEngine;"  # TEST-ONLY binding, same as the runtime tests
-    "import app.worker as w;sys.exit(asyncio.run(w.main()))"
+    "contract._ENGINES['api']=MockEngine;"  # then TEST-ONLY rebinding, same as the runtime tests
+    "sys.exit(asyncio.run(w.main()))"
 )
 
 
@@ -369,3 +370,26 @@ async def test_broker_restart_loses_nothing(admin_client, db, bus_mode, mock_api
     m = await get_one(await ch.get_queue(topo.work_queue("cli")))
     assert m and Envelope.from_bytes(m.body).payload == {"keep": True}
     await conn.close()
+
+
+async def test_a2a_task_runs_through_bus_and_worker(admin_client, client, db, bus_mode, mock_api_engine):
+    """A2A SendMessage in production dispatch mode: outbox → RabbitMQ → worker → blocking answer."""
+    a = _agent(db, "a2a", concurrency_limit=5)
+    token = admin_client.post("/api/a2a/keys", json={"name": "bus", "agent_ids": [a.id]}).json()["token"]
+    w = start_worker()
+    try:
+        r = client.post(f"/api/a2a/agents/{a.identifier}",
+                        headers={"Authorization": f"Bearer {token}", "A2A-Version": "1.0"},
+                        json={"jsonrpc": "2.0", "id": 7, "method": "SendMessage", "params": {"message": {
+                            "messageId": str(uuid.uuid4()), "role": "ROLE_USER", "parts": [{"text": "via bus"}]}}})
+        task = r.json()["result"]["task"]
+        assert task["status"]["state"] == "TASK_STATE_COMPLETED"
+        assert task["artifacts"][0]["parts"][0]["text"].endswith("via bus")
+        assert db.get(Execution, task["id"]).runtime_id != service_runtime_id()  # ran in the worker, not the API
+    finally:
+        stop_worker(w)
+
+
+def service_runtime_id():
+    from app.runtime import service
+    return service.RUNTIME_ID

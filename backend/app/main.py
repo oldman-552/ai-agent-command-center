@@ -9,6 +9,9 @@ from sqlalchemy import text
 
 from app.bootstrap import run_bootstrap
 from app.connectivity import providers
+from app.connectivity.a2a import engine as _a2a_engine  # noqa: F401  (registers the a2a engine + adapter)
+from app.connectivity.a2a import keys as a2a_keys
+from app.connectivity.a2a import server as a2a_server
 from app.control import agents, users
 from app.db import session_factory
 from app.observability import dashboard
@@ -52,6 +55,8 @@ app.include_router(users.router)
 app.include_router(agents.router)
 app.include_router(providers.router)
 app.include_router(runtime_api.router)
+app.include_router(a2a_keys.router)
+app.include_router(a2a_server.router)
 
 
 @app.get("/api/health", tags=["system"])

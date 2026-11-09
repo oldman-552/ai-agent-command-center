@@ -44,10 +44,12 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
   `tests/test_bus.py` uses `bus` + live RabbitMQ vhost `acc_test` and starts real worker subprocesses.
 - Never publish to RabbitMQ directly from request handlers — use `app.bus.outbox.enqueue(db, envelope)` before commit.
 - `app/bus/`: contract (Envelope, message types), topology, outbox+relay, consumer (lock → ledger → handler → ack), handlers.
+- `app/connectivity/a2a/`: `server.py` (A2A v1.0 JSON-RPC per platform agent, key-gated), `keys.py` (human-only keys API),
+  `client.py` (external A2A services), `engine.py` (`a2a` engine + `a2a` provider kind). ADR-015.
+- Tests that rebind the mock engine to 'api' must `import app.main` first, or a later import re-registers the real
+  ApiEngine over the mock (this caused order-dependent failures).
 - The dev DB is disposable; the super admin password in the dev container is `dev-only-password-123` (backend/.env, not committed).
 
 ### Next steps (in order)
-1. M10 remainder: A2A-01 (agent card + JSON-RPC task endpoint for platform agents), A2A-02 (client, tested against
-   a local A2A server); an `a2a` ExecutionEngine on top of the client.
-2. M6 orchestration (LangGraph planner → task DAG → dispatch → review → approval) + Task Center UI.
+1. M6 orchestration (LangGraph planner → task DAG → dispatch → review → approval) + Task Center UI.
 4. Then M13 approvals/sandbox/audit UI, M12, M7, M8, M11, M9, M5 CLI, M14, M15 (see IMPLEMENTATION_PLAN.md).

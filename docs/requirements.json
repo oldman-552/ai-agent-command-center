@@ -550,8 +550,8 @@
           "depends": [
             "A2A-02"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_a2a.py::test_a2a_engine_delegates_to_external_agent_and_reattaches_on_resume (platform agent → A2A provider → remote agent over HTTP; resume re-attaches without resubmitting), test_a2a_engine_unreachable_service_fails_cleanly"
         },
         {
           "id": "EE-04",
@@ -1025,8 +1025,8 @@
           "acceptance": "Spec-compatible JSON",
           "verification": "pytest",
           "depends": [],
-          "status": "in_progress",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_a2a.py (21 tests): agent card fields, key-gated exposure (401/404), human-only hashed audited keys, revocation, SendMessage blocking/returnImmediately, idempotent messageId, GetTask, ListTasks filter+pagination, CancelTask, per-key task privacy, 11 spec error codes; test_bus::test_a2a_task_runs_through_bus_and_worker; live smoke on dev stack (API→outbox→RabbitMQ→worker)"
         },
         {
           "id": "A2A-02",
@@ -1037,8 +1037,8 @@
           "depends": [
             "A2A-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_a2a.py::test_client_against_local_server (real uvicorn over TCP: card discovery, send blocking/non-blocking, wait, list, error mapping, bad token), test_client_refuses_card_that_redirects_credentials_elsewhere"
         }
       ]
     },
@@ -1470,14 +1470,14 @@
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
   "in_progress": [],
-  "next_step": "M10 remainder: A2A-01 agent card + task endpoint, A2A-02 client against a local server. Then M6 orchestration (LangGraph planner → task DAG → dispatch over the bus → review → approval) + Task Center UI",
+  "next_step": "M6 orchestration: LangGraph planner → task DAG (tasks/task_dependencies) → dispatch over the bus → review → approval; Task Center UI. Then M13 approvals/sandbox/audit UI",
   "tests": {
     "passed": [
-      "backend: 70/70 pytest on PostgreSQL 16 + live RabbitMQ 3.12 (vhost acc_test) — security, agents, runtime, gateway, message bus (topology, contract, outbox, retries/DLQ, idempotency, worker kill -9 recovery, broker restart) — run twice, 2026-11-09",
-      "migrations (v4 baseline 40 tables + bus outbox/ledger = 42): base → head → -1 → head; alembic check clean",
-      "frontend: i18n guard (207 keys), contrast 40/40, tsc, next build",
+      "backend: 94/94 pytest on PostgreSQL 16 + live RabbitMQ 3.12 — full suite twice and every module in isolation; incl. message bus (worker kill -9, broker restart) and A2A server/client/engine over real HTTP — 2026-11-09",
+      "migrations: v4 baseline + bus outbox/ledger + a2a_access_keys (43 tables); base → head → -1 → head; alembic check clean",
+      "frontend: i18n guard (264 keys), contrast, tsc, next build",
       "ruff: clean",
-      "frontend: 33/33 Playwright in real Chrome — i18n/RTL/LTR/layout, agents CRUD, templates, providers (add with write-only key, pricing, mock test, failure reporting, delete), axe WCAG 2.2 AA on every page × ar/en"
+      "frontend: 33/33 Playwright in real Chrome against API + worker in bus mode — i18n/RTL/LTR/layout, agents, templates, providers, axe WCAG 2.2 AA × ar/en"
     ],
     "failed": []
   },
@@ -1485,6 +1485,6 @@
   "known_issues": [
     "Docker stack verification predates the v4 schema; re-run with docker/offline override after next milestone",
     "Runtime uses a sync SQLAlchemy session inside async code (short blocking calls); acceptable now, revisit with workers",
-    "Frontend not rebuilt/re-run this session (no frontend changes in M10 bus slice); Docker stack not re-verified with the worker"
+    "A2A: no UI yet for access keys / A2A services beyond the Providers page (API only); streaming, push notifications and multi-turn follow-ups not implemented"
   ]
 }

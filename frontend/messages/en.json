@@ -300,6 +300,7 @@
       "openai": "OpenAI API",
       "openai_compatible": "OpenAI-compatible service",
       "google": "Google Gemini API",
+      "a2a": "External agent service (A2A)",
       "mock": "Mock (testing)"
     },
     "key": "Key",

@@ -12,6 +12,7 @@ from app.models.agents import (
 )
 from app.models.bus import OutboxMessage, ProcessedMessage
 from app.models.connectivity import (
+                               A2AAccessKey,
                                ApiCredential,
                                AuthType,
                                BrowserSession,

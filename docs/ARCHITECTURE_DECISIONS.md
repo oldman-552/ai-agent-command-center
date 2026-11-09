@@ -103,3 +103,27 @@ idempotency, retries, DLQ and acks; MQ-04 requires surviving broker and worker r
 **Consequences:** at-least-once delivery with exactly-once effects per consumer. The execution state table gained
 READY → FAILED (runtime lost before the engine started). Long executions rely on RabbitMQ's consumer timeout
 (30 min default) exceeding the agent timeout (default 15 min); raise it with the agent timeout if needed.
+
+## ADR-015 — A2A: v1.0 JSON-RPC, key-gated exposure, tasks are executions (2026-11-09)
+**Context:** Phase 6.3 asks for A2A between independent agent runtimes, distinct from MCP (agent↔tool) and the
+internal bus. A2A v1.0 (JSON-RPC binding: `SendMessage`/`GetTask`/`ListTasks`/`CancelTask`, `A2A-Version` header,
+`/.well-known/agent-card.json`, ProtoJSON enum names such as `TASK_STATE_COMPLETED`, `ROLE_USER`).
+**Decision:**
+- Server (`app/connectivity/a2a/server.py`): one A2A agent per platform agent under `/api/a2a/agents/{identifier}`.
+  Nothing is exposed by default: an `a2a_access_keys` row (SHA-256 of a high-entropy token, created only by a human
+  with `security.manage`, audited, revocable) lists the agents it may reach. The card itself requires the key, and
+  unlisted agents answer 404. Tasks are private to the key that created them.
+- An A2A Task *is* an Execution (same runtime, tool gate, budgets, audit; dispatched over the bus). `messageId` is the
+  idempotency key. Blocking `SendMessage` waits up to min(agent timeout, 120 s). Only v1.0 is accepted; a request
+  without `A2A-Version` (= 0.3 per spec) gets `VersionNotSupportedError` (-32009).
+- Not yet: streaming, push notifications, extended card, multi-turn follow-ups — advertised `false` and answered with
+  the spec's error codes.
+- Client (`client.py`): the RPC URL must come from the card's JSONRPC interface **on the same host** as the card, so a
+  hostile card cannot redirect the bearer token; only http(s); size-capped, validated responses; transport errors →
+  retryable.
+- Engine `a2a` (`engine.py`, EE-03): a platform agent whose provider is a Provider of kind `a2a` (auth type
+  "external agent service") delegates to the remote agent; the remote task id is checkpointed and the messageId is
+  derived from the execution id, so a resumed execution re-attaches instead of resubmitting.
+**Uncertainty:** the v1.0 spec pages available rendered some data-model tables incompletely; `securitySchemes`
+(`httpAuthSecurityScheme`) and `securityRequirements` follow the ProtoJSON mapping of the proto and should be
+re-checked against `spec/a2a.proto` when interoperating with a third-party SDK.

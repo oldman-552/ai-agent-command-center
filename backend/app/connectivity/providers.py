@@ -116,7 +116,7 @@ def list_providers(db: DB, user: User = Depends(require("providers.read"))) -> l
 @router.get("/provider-kinds")
 def provider_kinds(_: User = Depends(require("providers.read"))) -> list[dict]:
     return [{"kind": k, "is_mock": a.is_mock, "needs_api_key": k in NEEDS_KEY,
-             "needs_base_url": k == "openai_compatible"} for k, a in ADAPTERS.items()]
+             "needs_base_url": k in ("openai_compatible", "a2a")} for k, a in ADAPTERS.items()]
 
 
 @router.post("/providers", status_code=201)
@@ -125,7 +125,7 @@ def create_provider(body: ProviderCreate, db: DB, user: User = Depends(require("
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "unknown_kind")
     if body.kind in NEEDS_KEY and not body.api_key:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "api_key_required")
-    if body.kind == "openai_compatible" and not body.base_url:
+    if body.kind in ("openai_compatible", "a2a") and not body.base_url:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "base_url_required")
     if body.api_key and "credentials.manage" not in {p.key for p in user.role.permissions}:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "forbidden")
@@ -134,7 +134,8 @@ def create_provider(body: ProviderCreate, db: DB, user: User = Depends(require("
         raise HTTPException(status.HTTP_409_CONFLICT, "name_taken")
     p = Provider(organization_id=user.organization_id, name=body.name, kind=body.kind,
                  is_mock=ADAPTERS[body.kind].is_mock, base_url=body.base_url, priority=body.priority,
-                 enabled=body.enabled, auth_type="none" if body.kind == "mock" else "api_key")
+                 enabled=body.enabled,
+                 auth_type={"mock": "none", "a2a": "external"}.get(body.kind, "api_key"))
     db.add(p)
     db.flush()
     if body.api_key:

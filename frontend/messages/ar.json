@@ -300,6 +300,7 @@
       "openai": "OpenAI API",
       "openai_compatible": "خدمة متوافقة مع OpenAI",
       "google": "Google Gemini API",
+      "a2a": "خدمة وكيل خارجية (A2A)",
       "mock": "تجريبي (للاختبار)"
     },
     "key": "المفتاح",
