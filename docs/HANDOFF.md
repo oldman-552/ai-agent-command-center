@@ -26,7 +26,10 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - `backend/app/models/` — schema per plane (identity, agents, work, runtime, connectivity, governance); `__init__` re-exports.
 - `backend/app/security/` — auth (JWT cookie + CSRF), rbac (roles/permissions as data), tenancy (`scoped`, `get_scoped`), crypto, audit.
 - `backend/app/control/` — users, agents (+ templates, lifecycle). `backend/app/runtime/tools.py` — tool catalog + profile ceilings.
-- `backend/app/connectivity/providers.py` — minimal list (expand in M4). `backend/app/observability/dashboard.py`.
+- `backend/app/runtime/` — `contract.py` (engine protocol, 13-state table), `service.py` (lifecycle owner), `api.py`
+  (executions + WebSocket stream), `engines/mock.py` (TEST-ONLY engine; tests bind it to 'api' via monkeypatch).
+- `backend/app/connectivity/gateway/` — adapters (httpx2 stack, ADR-013), `service.py` (fallback, usage/cost, real `ApiEngine`).
+- `backend/app/connectivity/providers.py` — providers/models/credentials API. `backend/app/observability/dashboard.py`.
 - `frontend/src/components/providers.tsx` — QueryClient + `useUser`/`useCan`; `lib/agents.ts` hooks; `lib/toast.ts`.
 - Every new page: add nav entry in `components/app-shell.tsx`, messages in `messages/{ar,en}.json`, E2E + axe in `e2e/`.
 
@@ -34,4 +37,14 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - Backend tests: move `backend/.env` aside (`mv .env .env.local-dev`) so tests use `acc_test`; restore after.
 - next-intl treats dots in keys as nesting — never put dotted strings as JSON keys.
 - After `rm -rf .next` + build, copy `.next/static` into `.next/standalone/.next/` before `dev-up.sh` starts the web server.
+- Gateway tests: inject `httpx2.AsyncClient(transport=httpx2.MockTransport(h))` into `gateway.service.HTTP_CLIENTS[kind]`.
+  Anthropic SDK v2 authenticates with `Authorization: Bearer`.
+- Executions currently run as API background tasks (TestClient runs them before returning). M10 moves them to workers.
 - The dev DB is disposable; the super admin password in the dev container is `dev-only-password-123` (backend/.env, not committed).
+
+### Next steps (in order)
+1. GW-09 Providers & Models UI (list, add provider with key, test, discover, edit prices) + E2E/axe.
+2. M10: RabbitMQ topology + structured messages + idempotent consumers; `app/worker.py` runs `run_execution`
+   (call `mark_orphans_terminated` on start); API publishes instead of BackgroundTasks.
+3. M6 orchestration (LangGraph planner → task DAG → dispatch → review → approval) + Task Center UI.
+4. Then M13 approvals/sandbox/audit UI, M12, M7, M8, M11, M9, M5 CLI, M14, M15 (see IMPLEMENTATION_PLAN.md).
