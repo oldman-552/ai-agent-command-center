@@ -10,6 +10,7 @@ from app.models.agents import (
                                SecurityProfile,
                                project_agents,
 )
+from app.models.bus import OutboxMessage, ProcessedMessage
 from app.models.connectivity import (
                                ApiCredential,
                                AuthType,

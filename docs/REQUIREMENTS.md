@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 32.2%**
+**Overall verified completion: 35.6%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -125,15 +125,15 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | MCP-03 | P0 | Skills & MCP registry UI with security assessment before enable | E2E | Playwright | MCP-01 | pending | — |
 | MCP-04 | P1 | Skill install with source inspection (dangerous commands, network, fs, credentials) | Scanner tests | pytest | — | pending | — |
 
-## M10 — A2A and Communication (weight 5%, 0%) — spec Phase 6
+## M10 — A2A and Communication (weight 5%, 67%) — spec Phase 6
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| MQ-01 | P0 | RabbitMQ topology: exchanges by event type, queues by specialty/priority, DLQ | Topology declared; test | pytest (live broker) | — | in_progress | — |
-| MQ-02 | P0 | Structured message contract (ids, correlation, schema version) + ack + retries + timeouts | Contract + consumer tests | pytest (live broker) | MQ-01 | pending | — |
-| MQ-03 | P0 | Idempotent consumers (dedupe by idempotency key) | Duplicate delivery processed once | pytest | MQ-02 | pending | — |
-| MQ-04 | P0 | Recovery after broker/worker restart | Restart test | pytest/compose | MQ-02 | pending | — |
-| A2A-01 | P1 | A2A agent card + task endpoint for platform agents | Spec-compatible JSON | pytest | — | pending | — |
+| MQ-01 | P0 | RabbitMQ topology: exchanges by event type, queues by specialty/priority, DLQ | Topology declared; test | pytest (live broker) | — | done | tests/test_bus.py::test_topology_declared_with_dlq_priorities_and_specialty_routing — live RabbitMQ 3.12: exchanges, specialty routing, mandatory unroutable refusal, priority order, DLQ |
+| MQ-02 | P0 | Structured message contract (ids, correlation, schema version) + ack + retries + timeouts | Contract + consumer tests | pytest (live broker) | MQ-01 | done | test_contract_fields_and_validation, test_outbox_is_transactional_and_relay_publishes_with_confirms, test_retry_with_delay_then_success, test_timeout_poison_fatal_and_exhausted_go_to_dlq — live broker |
+| MQ-03 | P0 | Idempotent consumers (dedupe by idempotency key) | Duplicate delivery processed once | pytest | MQ-02 | done | test_duplicate_delivery_processed_once (same message twice + producer re-send → handler once, ledger 'done'), test_busy_work_key_is_deferred_not_run_twice |
+| MQ-04 | P0 | Recovery after broker/worker restart | Restart test | pytest/compose | MQ-02 | done | test_worker_killed_mid_execution_is_recovered_by_another (kill -9 mid-run → new worker resumes from checkpoint, output exact), test_broker_restart_loses_nothing (rabbitmqctl stop_app/start_app: outbox waits, worker reconnects; persistent queued message survives) |
+| A2A-01 | P1 | A2A agent card + task endpoint for platform agents | Spec-compatible JSON | pytest | — | in_progress | — |
 | A2A-02 | P1 | A2A client for external agent services | Client test against local server | pytest | A2A-01 | pending | — |
 
 ## M11 — Context and Memory (weight 7%, 0%) — spec Phases 7, 8

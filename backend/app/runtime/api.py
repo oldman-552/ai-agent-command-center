@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
+from app.bus.contract import execution_run
+from app.bus.outbox import enqueue
+from app.config import get_settings
 from app.db import session_factory
 from app.models import Agent, Execution, ExecutionEvent, User
 from app.models import ExecutionStatus as X
@@ -28,6 +32,15 @@ class ExecutionCreate(BaseModel):
     idempotency_key: str | None = Field(default=None, max_length=128)
 
 
+def _dispatch(db, bg: BackgroundTasks, ex: Execution, actor: str, reason: str) -> None:
+    """Hand the execution to a worker: an outbox message committed with the caller's transaction (MQ-02)."""
+    if get_settings().execution_dispatch == "inline":
+        bg.add_task(service.run_execution, ex.id)
+        return
+    enqueue(db, execution_run(execution_id=ex.id, organization_id=ex.organization_id, engine=ex.engine,
+                              sender=actor, reason=reason, project_id=ex.project_id, task_id=ex.task_id))
+
+
 def execution_out(ex: Execution) -> dict:
     cols = ["id", "agent_id", "project_id", "task_id", "runtime_id", "provider", "model", "engine", "status",
             "started_at", "ended_at", "deadline_at", "output", "input_tokens", "output_tokens", "cached_tokens",
@@ -45,9 +58,9 @@ def create(body: ExecutionCreate, bg: BackgroundTasks, db: DB,
     ex = service.create_execution(db, organization_id=user.organization_id, agent=agent, input=body.input,
                                   actor=f"user:{user.id}", task_id=body.task_id,
                                   idempotency_key=body.idempotency_key)
-    db.commit()
     if ex.status == X.CREATED.value:
-        bg.add_task(service.run_execution, ex.id)
+        _dispatch(db, bg, ex, f"user:{user.id}", "create")
+    db.commit()
     return execution_out(ex)
 
 
@@ -92,8 +105,8 @@ def resume(execution_id: str, bg: BackgroundTasks, db: DB,
     if X(ex.status) not in (X.FAILED, X.TERMINATED, X.CHECKPOINTED):
         raise HTTPException(status.HTTP_409_CONFLICT, f"not_resumable:{ex.status}")
     ex.cancel_requested = False
+    _dispatch(db, bg, ex, f"user:{user.id}", f"resume:{uuid.uuid4()}")
     db.commit()
-    bg.add_task(service.run_execution, ex.id)
     return execution_out(ex)
 
 

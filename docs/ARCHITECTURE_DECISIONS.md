@@ -81,3 +81,25 @@ chaining rename migrations. From now on every schema change is a new incremental
 SSE, models list) instead of adding the google-genai SDK. Tests drive every adapter through `httpx2.MockTransport`
 with each provider's real streaming format, so SDK parsing is exercised. Revisit google-genai if features beyond
 chat streaming (files, caching) are needed.
+
+## ADR-014 — Internal bus: transactional outbox, idempotency ledger, DB work locks (2026-11-09)
+**Context:** Executions ran as API background tasks. Phase 6.1 requires durable dispatch with IDs, correlation,
+idempotency, retries, DLQ and acks; MQ-04 requires surviving broker and worker restarts.
+**Decision:**
+- Producers never publish directly. `app/bus/outbox.enqueue()` writes the `Envelope` into `outbox_messages` in the
+  same transaction as the state change; the worker's relay publishes with publisher confirms (`FOR UPDATE SKIP
+  LOCKED`, so several workers can relay). Broker down → rows wait; nothing lost, nothing phantom.
+- Topology (`app/bus/topology.py`): `acc.commands` topic → one classic priority queue per engine specialty
+  (`acc.work.execution.<engine>`, priorities 0-9 need classic queues); `acc.events` topic for domain events;
+  fanout retry tiers 5s/30s/300s whose TTL dead-letters back to the *origin queue* via the default exchange;
+  `acc.dlx` → `acc.dlq` for poison, expired and retry-exhausted messages.
+- Consumers (`app/bus/consumer.py`): validate → expiry → PostgreSQL session advisory lock on the work key (e.g. the
+  execution) on a dedicated connection → `processed_messages` ledger (unique consumer+idempotency key) → handler →
+  ledger then ack. A dead worker's lock vanishes with its connection and the broker redelivers its un-acked message;
+  the next worker, holding the lock, knows the previous owner is gone and recovers the execution from its checkpoint.
+  A busy key is deferred through a retry tier, never run twice concurrently.
+- Business failures stay the runtime's job (its own retry budget); the bus retries only infrastructure failures.
+- `EXECUTION_DISPATCH=inline` exists only for unit tests / single-process debugging; production is `bus`.
+**Consequences:** at-least-once delivery with exactly-once effects per consumer. The execution state table gained
+READY → FAILED (runtime lost before the engine started). Long executions rely on RabbitMQ's consumer timeout
+(30 min default) exceeding the agent timeout (default 15 min); raise it with the agent timeout if needed.

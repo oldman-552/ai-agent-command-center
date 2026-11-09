@@ -2,6 +2,7 @@
 providers' real streaming formats, so the official SDKs are exercised end to end."""
 import asyncio
 import json
+import uuid
 from decimal import Decimal
 
 import httpx2 as httpx
@@ -119,7 +120,7 @@ def test_missing_key_explains_subscription_is_not_api():
 @pytest.fixture()
 def anthropic_provider(admin_client):
     gw.HTTP_CLIENTS["anthropic"] = httpx.AsyncClient(transport=httpx.MockTransport(anthropic_handler()))
-    r = admin_client.post("/api/providers", json={"name": f"Anthropic {id(object())}", "kind": "anthropic", "api_key": KEY})
+    r = admin_client.post("/api/providers", json={"name": f"Anthropic {uuid.uuid4().hex[:8]}", "kind": "anthropic", "api_key": KEY})
     assert r.status_code == 201, r.text
     yield r.json()
     gw.HTTP_CLIENTS.pop("anthropic", None)

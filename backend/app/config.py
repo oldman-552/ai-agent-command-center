@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -9,6 +10,9 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://acc:acc_dev@localhost:5432/acc"
     rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
+    # "bus": the API writes an outbox message and workers run executions (production).
+    # "inline": run in the API process — unit tests and single-process debugging only.
+    execution_dispatch: Literal["bus", "inline"] = "bus"
 
     jwt_secret: str = Field(min_length=32)
     jwt_algorithm: str = "HS256"

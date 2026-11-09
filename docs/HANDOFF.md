@@ -5,7 +5,7 @@ Live status is in `PROJECT_STATUS.json` / `progress.txt` (generated) and `docs/R
 
 ## How to resume (Linux dev container)
 ```bash
-scripts/dev-up.sh                 # local Postgres + RabbitMQ (+ Redis when added), API :8000, web :3000
+scripts/dev-up.sh                 # local Postgres + RabbitMQ (user acc, vhost acc_test), API :8000, worker, web :3000
 cd backend && mv .env .env.local-dev; uv run pytest -q; mv .env.local-dev .env   # tests use acc_test DB
 cd frontend && npm run check && CHROME_PATH=/usr/bin/google-chrome E2E_PASSWORD=dev-only-password-123 npx playwright test
 python3 scripts/progress.py --check
@@ -39,12 +39,15 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - After `rm -rf .next` + build, copy `.next/static` into `.next/standalone/.next/` before `dev-up.sh` starts the web server.
 - Gateway tests: inject `httpx2.AsyncClient(transport=httpx2.MockTransport(h))` into `gateway.service.HTTP_CLIENTS[kind]`.
   Anthropic SDK v2 authenticates with `Authorization: Bearer`.
-- Executions currently run as API background tasks (TestClient runs them before returning). M10 moves them to workers.
+- Executions are dispatched over the bus (ADR-014): API writes an outbox row, the worker (`python -m app.worker`)
+  relays it and runs the execution. Tests default to `EXECUTION_DISPATCH=inline` (TestClient runs it before returning);
+  `tests/test_bus.py` uses `bus` + live RabbitMQ vhost `acc_test` and starts real worker subprocesses.
+- Never publish to RabbitMQ directly from request handlers — use `app.bus.outbox.enqueue(db, envelope)` before commit.
+- `app/bus/`: contract (Envelope, message types), topology, outbox+relay, consumer (lock → ledger → handler → ack), handlers.
 - The dev DB is disposable; the super admin password in the dev container is `dev-only-password-123` (backend/.env, not committed).
 
 ### Next steps (in order)
-1. GW-09 Providers & Models UI (list, add provider with key, test, discover, edit prices) + E2E/axe.
-2. M10: RabbitMQ topology + structured messages + idempotent consumers; `app/worker.py` runs `run_execution`
-   (call `mark_orphans_terminated` on start); API publishes instead of BackgroundTasks.
-3. M6 orchestration (LangGraph planner → task DAG → dispatch → review → approval) + Task Center UI.
+1. M10 remainder: A2A-01 (agent card + JSON-RPC task endpoint for platform agents), A2A-02 (client, tested against
+   a local A2A server); an `a2a` ExecutionEngine on top of the client.
+2. M6 orchestration (LangGraph planner → task DAG → dispatch → review → approval) + Task Center UI.
 4. Then M13 approvals/sandbox/audit UI, M12, M7, M8, M11, M9, M5 CLI, M14, M15 (see IMPLEMENTATION_PLAN.md).

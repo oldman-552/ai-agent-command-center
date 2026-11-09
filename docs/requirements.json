@@ -979,8 +979,8 @@
           "acceptance": "Topology declared; test",
           "verification": "pytest (live broker)",
           "depends": [],
-          "status": "in_progress",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_bus.py::test_topology_declared_with_dlq_priorities_and_specialty_routing — live RabbitMQ 3.12: exchanges, specialty routing, mandatory unroutable refusal, priority order, DLQ"
         },
         {
           "id": "MQ-02",
@@ -991,8 +991,8 @@
           "depends": [
             "MQ-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_contract_fields_and_validation, test_outbox_is_transactional_and_relay_publishes_with_confirms, test_retry_with_delay_then_success, test_timeout_poison_fatal_and_exhausted_go_to_dlq — live broker"
         },
         {
           "id": "MQ-03",
@@ -1003,8 +1003,8 @@
           "depends": [
             "MQ-02"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_duplicate_delivery_processed_once (same message twice + producer re-send → handler once, ledger 'done'), test_busy_work_key_is_deferred_not_run_twice"
         },
         {
           "id": "MQ-04",
@@ -1015,8 +1015,8 @@
           "depends": [
             "MQ-02"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_worker_killed_mid_execution_is_recovered_by_another (kill -9 mid-run → new worker resumes from checkpoint, output exact), test_broker_restart_loses_nothing (rabbitmqctl stop_app/start_app: outbox waits, worker reconnects; persistent queued message survives)"
         },
         {
           "id": "A2A-01",
@@ -1025,7 +1025,7 @@
           "acceptance": "Spec-compatible JSON",
           "verification": "pytest",
           "depends": [],
-          "status": "pending",
+          "status": "in_progress",
           "evidence": ""
         },
         {
@@ -1470,11 +1470,11 @@
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
   "in_progress": [],
-  "next_step": "M10: RabbitMQ topology + structured message contract + idempotent consumers; worker runs executions (mark_orphans_terminated on start); API publishes instead of BackgroundTasks",
+  "next_step": "M10 remainder: A2A-01 agent card + task endpoint, A2A-02 client against a local server. Then M6 orchestration (LangGraph planner → task DAG → dispatch over the bus → review → approval) + Task Center UI",
   "tests": {
     "passed": [
-      "backend: 60/60 pytest on PostgreSQL 16 — security, agents, runtime, gateway (Anthropic/OpenAI/Google adapters over real SSE formats via HTTP mocks, error classification, encrypted write-only keys, discovery without invented prices, exact cost math, fallback + audit) — 2026-11-09",
-      "migration v4 baseline (40 tables): upgrade → downgrade → upgrade",
+      "backend: 70/70 pytest on PostgreSQL 16 + live RabbitMQ 3.12 (vhost acc_test) — security, agents, runtime, gateway, message bus (topology, contract, outbox, retries/DLQ, idempotency, worker kill -9 recovery, broker restart) — run twice, 2026-11-09",
+      "migrations (v4 baseline 40 tables + bus outbox/ledger = 42): base → head → -1 → head; alembic check clean",
       "frontend: i18n guard (207 keys), contrast 40/40, tsc, next build",
       "ruff: clean",
       "frontend: 33/33 Playwright in real Chrome — i18n/RTL/LTR/layout, agents CRUD, templates, providers (add with write-only key, pricing, mock test, failure reporting, delete), axe WCAG 2.2 AA on every page × ar/en"
@@ -1484,7 +1484,7 @@
   "files_changed": [],
   "known_issues": [
     "Docker stack verification predates the v4 schema; re-run with docker/offline override after next milestone",
-    "Executions run in-process (API background task) until M10 moves dispatch to RabbitMQ workers",
-    "Runtime uses a sync SQLAlchemy session inside async code (short blocking calls); acceptable now, revisit with workers"
+    "Runtime uses a sync SQLAlchemy session inside async code (short blocking calls); acceptable now, revisit with workers",
+    "Frontend not rebuilt/re-run this session (no frontend changes in M10 bus slice); Docker stack not re-verified with the worker"
   ]
 }

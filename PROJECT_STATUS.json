@@ -1,12 +1,12 @@
 {
-  "date": "2026-11-09 23:14",
+  "date": "2026-11-09 23:30",
   "spec_version": "4.0",
   "current_phase": "Phase 6",
   "current_milestone": {
     "id": 10,
     "name": "A2A and Communication"
   },
-  "overall_percent": 32.2,
+  "overall_percent": 35.6,
   "milestones": [
     {
       "id": 1,
@@ -84,8 +84,8 @@
       "id": 10,
       "name": "A2A and Communication",
       "weight": 5,
-      "percent": 0.0,
-      "done": 0,
+      "percent": 66.7,
+      "done": 4,
       "total": 6
     },
     {
@@ -167,26 +167,41 @@
     "GW-06",
     "GW-09",
     "EE-01",
+    "MQ-01",
+    "MQ-02",
+    "MQ-03",
+    "MQ-04",
     "SEC-01",
     "SEC-02",
     "SEC-07"
   ],
   "in_progress": [
-    "MQ-01"
+    "A2A-01"
   ],
   "files_changed": [
+    "PROJECT_STATUS.json",
+    "backend/app/config.py",
+    "backend/app/models/__init__.py",
+    "backend/app/runtime/api.py",
+    "backend/app/runtime/contract.py",
+    "backend/app/worker.py",
+    "backend/pyproject.toml",
+    "backend/tests/conftest.py",
+    "backend/tests/test_gateway.py",
+    "docs/ARCHITECTURE_DECISIONS.md",
+    "docs/REQUIREMENTS.md",
     "docs/requirements.json",
-    "frontend/messages/ar.json",
-    "frontend/messages/en.json",
-    "frontend/src/components/app-shell.tsx",
+    "progress.txt",
     "scripts/dev-up.sh",
-    "frontend/e2e/providers.spec.ts",
-    "frontend/src/app/(app)/providers/"
+    "backend/alembic/versions/efbfdbc8514d_message_bus_outbox_and_idempotency_.py",
+    "backend/app/bus/",
+    "backend/app/models/bus.py",
+    "backend/tests/test_bus.py"
   ],
   "tests": {
     "passed": [
-      "backend: 60/60 pytest on PostgreSQL 16 — security, agents, runtime, gateway (Anthropic/OpenAI/Google adapters over real SSE formats via HTTP mocks, error classification, encrypted write-only keys, discovery without invented prices, exact cost math, fallback + audit) — 2026-11-09",
-      "migration v4 baseline (40 tables): upgrade → downgrade → upgrade",
+      "backend: 70/70 pytest on PostgreSQL 16 + live RabbitMQ 3.12 (vhost acc_test) — security, agents, runtime, gateway, message bus (topology, contract, outbox, retries/DLQ, idempotency, worker kill -9 recovery, broker restart) — run twice, 2026-11-09",
+      "migrations (v4 baseline 40 tables + bus outbox/ledger = 42): base → head → -1 → head; alembic check clean",
       "frontend: i18n guard (207 keys), contrast 40/40, tsc, next build",
       "ruff: clean",
       "frontend: 33/33 Playwright in real Chrome — i18n/RTL/LTR/layout, agents CRUD, templates, providers (add with write-only key, pricing, mock test, failure reporting, delete), axe WCAG 2.2 AA on every page × ar/en"
@@ -195,8 +210,8 @@
   },
   "known_issues": [
     "Docker stack verification predates the v4 schema; re-run with docker/offline override after next milestone",
-    "Executions run in-process (API background task) until M10 moves dispatch to RabbitMQ workers",
-    "Runtime uses a sync SQLAlchemy session inside async code (short blocking calls); acceptable now, revisit with workers"
+    "Runtime uses a sync SQLAlchemy session inside async code (short blocking calls); acceptable now, revisit with workers",
+    "Frontend not rebuilt/re-run this session (no frontend changes in M10 bus slice); Docker stack not re-verified with the worker"
   ],
   "blockers": [
     "Dev environment blocks all container registries: official images cannot be pulled here; verified instead with locally-built equivalent images (docker/offline). Official images must be verified on the owner's machine",
@@ -205,5 +220,5 @@
   "requires_owner_approval": [
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
-  "next_action": "M10: RabbitMQ topology + structured message contract + idempotent consumers; worker runs executions (mark_orphans_terminated on start); API publishes instead of BackgroundTasks"
+  "next_action": "M10 remainder: A2A-01 agent card + task endpoint, A2A-02 client against a local server. Then M6 orchestration (LangGraph planner → task DAG → dispatch over the bus → review → approval) + Task Center UI"
 }
