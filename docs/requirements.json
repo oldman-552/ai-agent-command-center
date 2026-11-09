@@ -1,0 +1,1487 @@
+{
+  "version": "4.0",
+  "spec": "docs/MASTER_PROMPT.md",
+  "milestones": [
+    {
+      "id": 1,
+      "name": "Foundation",
+      "weight": 8,
+      "spec_ref": "Phases 1, 19, 23, 25",
+      "requirements": [
+        {
+          "id": "FND-01",
+          "priority": "P0",
+          "description": "Monorepo structure backend/frontend/docs/scripts",
+          "acceptance": "Dirs exist with build files",
+          "verification": "inspection",
+          "depends": [],
+          "status": "done",
+          "evidence": "backend/, frontend/, docs/, scripts/, design-system/ in repo"
+        },
+        {
+          "id": "FND-02",
+          "priority": "P0",
+          "description": "FastAPI backend with settings from env + health",
+          "acceptance": "GET /api/health 200 with DB check",
+          "verification": "pytest test_health",
+          "depends": [],
+          "status": "done",
+          "evidence": "GET /api/health tested (test_health); pydantic-settings from env"
+        },
+        {
+          "id": "FND-03",
+          "priority": "P0",
+          "description": "PostgreSQL schema via SQLAlchemy + Alembic",
+          "acceptance": "upgrade/downgrade/upgrade on clean DB",
+          "verification": "alembic + pytest builds schema via migration",
+          "depends": [],
+          "status": "done",
+          "evidence": "alembic b3061ddef85a upgrade/downgrade/upgrade on clean Postgres; tests build schema via migration"
+        },
+        {
+          "id": "FND-04",
+          "priority": "P0",
+          "description": "Authentication: argon2id, JWT HttpOnly cookie, rate limit, logout-all",
+          "acceptance": "Auth tests pass",
+          "verification": "pytest",
+          "depends": [
+            "FND-03"
+          ],
+          "status": "done",
+          "evidence": "login/logout/logout-all/me, argon2id, JWT cookie, rate limit — 6 tests pass"
+        },
+        {
+          "id": "FND-05",
+          "priority": "P0",
+          "description": "Super Admin bootstrap from env, no hardcoded credentials",
+          "acceptance": "Idempotent bootstrap test",
+          "verification": "pytest",
+          "depends": [
+            "FND-04"
+          ],
+          "status": "done",
+          "evidence": "bootstrap from ADMIN_USERNAME/ADMIN_PASSWORD, idempotent — tests pass"
+        },
+        {
+          "id": "FND-06",
+          "priority": "P0",
+          "description": "Encrypted credential storage + secret hints + log redaction",
+          "acceptance": "Roundtrip + redaction tests",
+          "verification": "pytest",
+          "depends": [],
+          "status": "done",
+          "evidence": "tests: encryption roundtrip, hint, redaction (test_foundation.py)"
+        },
+        {
+          "id": "FND-07",
+          "priority": "P0",
+          "description": "Next.js bilingual shell: ar default RTL, en LTR, persisted switcher",
+          "acceptance": "E2E lang/dir/persistence",
+          "verification": "Playwright",
+          "depends": [],
+          "status": "done",
+          "evidence": "switcher in login + app shell; cookie + user profile; persistence E2E tests pass"
+        },
+        {
+          "id": "FND-08",
+          "priority": "P0",
+          "description": "No hardcoded UI strings; ar/en key parity",
+          "acceptance": "check-i18n passes",
+          "verification": "script",
+          "depends": [
+            "FND-07"
+          ],
+          "status": "done",
+          "evidence": "messages/ar.json + en.json; scripts/check-i18n.mjs passes and catches hardcoded text"
+        },
+        {
+          "id": "FND-09",
+          "priority": "P0",
+          "description": "Dashboard with live DB-derived data",
+          "acceptance": "Backend test asserts DB counts; E2E shows data",
+          "verification": "pytest + Playwright",
+          "depends": [
+            "FND-07"
+          ],
+          "status": "done",
+          "evidence": "dashboard reads /api/dashboard/summary; backend test asserts DB-derived counts, mock usage excluded"
+        },
+        {
+          "id": "FND-10",
+          "priority": "P0",
+          "description": "Design system from UI UX Pro Max skill (installed)",
+          "acceptance": "Skill installed; MASTER.md; tokens",
+          "verification": "inspection",
+          "depends": [],
+          "status": "done",
+          "evidence": "official skill v2.15.0 (MIT) installed at .claude/skills/ui-ux-pro-max (marketplace layout); script execution blocked here, documented"
+        },
+        {
+          "id": "FND-11",
+          "priority": "P0",
+          "description": "WCAG 2.2 AA: contrast + axe on all pages, ar/en, light/dark",
+          "acceptance": "check-contrast + axe pass",
+          "verification": "script + Playwright",
+          "depends": [
+            "FND-10"
+          ],
+          "status": "done",
+          "evidence": "check-contrast 40/40; axe WCAG 2.2 AA 8/8 (login, dashboard × ar/en × light/dark)"
+        },
+        {
+          "id": "FND-12",
+          "priority": "P0",
+          "description": "Responsive 375/768/1024/1440 without horizontal overflow",
+          "acceptance": "E2E overflow checks pass",
+          "verification": "Playwright",
+          "depends": [
+            "FND-07"
+          ],
+          "status": "done",
+          "evidence": "Playwright overflow checks 8/8 at 375/768/1024/1440 ar/en"
+        },
+        {
+          "id": "FND-13",
+          "priority": "P0",
+          "description": "docker-compose stack: healthchecks, migrate job, persistent volumes",
+          "acceptance": "Stack healthy; data survives stop/start",
+          "verification": "docker compose (offline images in dev env)",
+          "depends": [],
+          "status": "done",
+          "evidence": "compose config valid; offline-image stack: 6 services healthy, data persists stop/start"
+        },
+        {
+          "id": "FND-14",
+          "priority": "P1",
+          "description": "Redis service + health",
+          "acceptance": "Redis reachable, health endpoint reports it",
+          "verification": "pytest + compose",
+          "depends": [
+            "FND-13"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "FND-15",
+          "priority": "P1",
+          "description": "Organizations/teams schema for multi-tenant readiness; tenant scoping in authz",
+          "acceptance": "Every project-scoped query filtered by org; test cross-org denial",
+          "verification": "pytest",
+          "depends": [
+            "FND-03"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "FND-16",
+          "priority": "P1",
+          "description": "Requirements matrix, decision log (ADRs), progress.txt + PROJECT_STATUS.json",
+          "acceptance": "Files generated from requirements.json",
+          "verification": "inspection",
+          "depends": [],
+          "status": "done",
+          "evidence": "docs/requirements.json (115 reqs), REQUIREMENTS.md, ARCHITECTURE_DECISIONS.md (11 ADRs), progress.txt + PROJECT_STATUS.json generated"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Universal Agent Runtime",
+      "weight": 9,
+      "spec_ref": "Phase 2",
+      "requirements": [
+        {
+          "id": "RT-01",
+          "priority": "P0",
+          "description": "Provider-independent runtime interface (ExecutionEngine adapter contract)",
+          "acceptance": "Abstract contract + registry; no provider imports in core",
+          "verification": "pytest + import-lint",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "RT-02",
+          "priority": "P0",
+          "description": "Execution record with full contract fields (ids, provider, model, engine, context, permissions, timestamps, status, output, usage, cost, logs, errors, evidence, checkpoints)",
+          "acceptance": "Model + migration + API",
+          "verification": "pytest",
+          "depends": [
+            "RT-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "RT-03",
+          "priority": "P0",
+          "description": "13-state execution state machine with recorded transitions; illegal transitions rejected",
+          "acceptance": "State machine tests",
+          "verification": "pytest",
+          "depends": [
+            "RT-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "RT-04",
+          "priority": "P0",
+          "description": "Streaming output events (WebSocket) for executions",
+          "acceptance": "Client receives ordered events",
+          "verification": "pytest + Playwright",
+          "depends": [
+            "RT-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "RT-05",
+          "priority": "P0",
+          "description": "Cancellation and timeout handling",
+          "acceptance": "Cancel/timeout tests end in CANCELLED/FAILED with reason",
+          "verification": "pytest",
+          "depends": [
+            "RT-03"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "RT-06",
+          "priority": "P0",
+          "description": "Checkpointing and resume from last checkpoint",
+          "acceptance": "Kill mid-run, resume continues",
+          "verification": "pytest",
+          "depends": [
+            "RT-03"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "RT-07",
+          "priority": "P0",
+          "description": "Tool registry + per-agent tool permission validation (default deny)",
+          "acceptance": "Unpermitted tool call blocked + audited",
+          "verification": "pytest",
+          "depends": [
+            "RT-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "RT-08",
+          "priority": "P1",
+          "description": "Retry policy with exponential backoff + retry budget",
+          "acceptance": "Retry tests",
+          "verification": "pytest",
+          "depends": [
+            "RT-03"
+          ],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Dynamic Agent Management",
+      "weight": 7,
+      "spec_ref": "Phase 3",
+      "requirements": [
+        {
+          "id": "AG-01",
+          "priority": "P0",
+          "description": "Agent CRUD with all 23 configuration fields",
+          "acceptance": "API tests for create/edit/read/list",
+          "verification": "pytest",
+          "depends": [
+            "FND-03"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "AG-02",
+          "priority": "P0",
+          "description": "Clone, enable, disable, archive, delete",
+          "acceptance": "API tests",
+          "verification": "pytest",
+          "depends": [
+            "AG-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "AG-03",
+          "priority": "P0",
+          "description": "18 customizable agent templates (DB-stored, editable)",
+          "acceptance": "Seeded + CRUD tests",
+          "verification": "pytest",
+          "depends": [
+            "AG-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "AG-04",
+          "priority": "P0",
+          "description": "Agent lifecycle states with recorded transitions",
+          "acceptance": "Transition history persisted",
+          "verification": "pytest",
+          "depends": [
+            "AG-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "AG-05",
+          "priority": "P0",
+          "description": "Configuration versioning (snapshot per change)",
+          "acceptance": "Version increments on edit",
+          "verification": "pytest",
+          "depends": [
+            "AG-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "AG-06",
+          "priority": "P0",
+          "description": "Agents UI: list, create/edit form, details, templates — ar/en",
+          "acceptance": "E2E create/edit flow",
+          "verification": "Playwright",
+          "depends": [
+            "AG-01",
+            "FND-07"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "AG-07",
+          "priority": "P1",
+          "description": "Agent teams",
+          "acceptance": "Team CRUD + membership",
+          "verification": "pytest",
+          "depends": [
+            "AG-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Multi-Provider AI Gateway",
+      "weight": 8,
+      "spec_ref": "Phases 9, 20",
+      "requirements": [
+        {
+          "id": "GW-01",
+          "priority": "P0",
+          "description": "Provider adapter interface + registry (Anthropic, OpenAI, Google, Mock)",
+          "acceptance": "Adapters implement contract; Mock clearly labeled",
+          "verification": "pytest",
+          "depends": [
+            "RT-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GW-02",
+          "priority": "P0",
+          "description": "Provider + model registry with metadata/capabilities and pricing",
+          "acceptance": "CRUD + model list",
+          "verification": "pytest",
+          "depends": [
+            "GW-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GW-03",
+          "priority": "P0",
+          "description": "Encrypted API credentials, never returned in full, never in prompts",
+          "acceptance": "Masking tests",
+          "verification": "pytest",
+          "depends": [
+            "FND-06"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GW-04",
+          "priority": "P0",
+          "description": "Connection test per provider",
+          "acceptance": "Mock passes; real adapters tested with HTTP mocks",
+          "verification": "pytest",
+          "depends": [
+            "GW-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GW-05",
+          "priority": "P0",
+          "description": "Token + cost accounting per execution (usage_records/cost_records); no fabricated prices",
+          "acceptance": "Recorded per call; unknown price = null",
+          "verification": "pytest",
+          "depends": [
+            "GW-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GW-06",
+          "priority": "P0",
+          "description": "Fallback provider/model on failure",
+          "acceptance": "Primary failure → fallback used + logged",
+          "verification": "pytest",
+          "depends": [
+            "GW-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GW-07",
+          "priority": "P1",
+          "description": "Routing by complexity/capability/cost/availability",
+          "acceptance": "Routing tests",
+          "verification": "pytest",
+          "depends": [
+            "GW-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GW-08",
+          "priority": "P1",
+          "description": "Budgets: agent/project/task/daily/monthly; stop new work at limit + approval request",
+          "acceptance": "Budget tests",
+          "verification": "pytest",
+          "depends": [
+            "GW-05"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GW-09",
+          "priority": "P0",
+          "description": "Providers & Models UI",
+          "acceptance": "E2E add provider, test connection",
+          "verification": "Playwright",
+          "depends": [
+            "GW-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GW-10",
+          "priority": "P0",
+          "description": "At least one real official API call verified",
+          "acceptance": "Live call with owner key succeeds",
+          "verification": "manual/live test",
+          "depends": [
+            "GW-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Execution Engines",
+      "weight": 6,
+      "spec_ref": "Phase 10",
+      "requirements": [
+        {
+          "id": "EE-01",
+          "priority": "P0",
+          "description": "API execution engine (via gateway)",
+          "acceptance": "Runs task with Mock end-to-end",
+          "verification": "pytest",
+          "depends": [
+            "RT-01",
+            "GW-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "EE-02",
+          "priority": "P1",
+          "description": "CLI execution engine adapter (sandboxed subprocess) with documented support for Claude Code / Codex / Gemini CLI / OpenCode",
+          "acceptance": "Adapter + docs; verified flags only",
+          "verification": "pytest + docs",
+          "depends": [
+            "RT-01",
+            "SEC-04"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "EE-03",
+          "priority": "P1",
+          "description": "External agent runtime adapter (A2A client)",
+          "acceptance": "Adapter contract test",
+          "verification": "pytest",
+          "depends": [
+            "A2A-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "EE-04",
+          "priority": "P0",
+          "description": "Unsupported integrations explicitly documented",
+          "acceptance": "PROVIDER_INTEGRATION.md table",
+          "verification": "inspection",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Intelligent Orchestration",
+      "weight": 9,
+      "spec_ref": "Phases 4, 13",
+      "requirements": [
+        {
+          "id": "OR-01",
+          "priority": "P0",
+          "description": "Objective → plan → task DAG (LangGraph)",
+          "acceptance": "Plan creates tasks + dependencies (mock provider)",
+          "verification": "pytest",
+          "depends": [
+            "RT-01",
+            "AG-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "OR-02",
+          "priority": "P0",
+          "description": "Agent selection by skills, permissions, workload, availability, cost, history",
+          "acceptance": "Selection tests",
+          "verification": "pytest",
+          "depends": [
+            "OR-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "OR-03",
+          "priority": "P0",
+          "description": "Parallel fan-out/fan-in of independent tasks; dependency-driven scheduling",
+          "acceptance": "Independent tasks run concurrently",
+          "verification": "pytest",
+          "depends": [
+            "MQ-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "OR-04",
+          "priority": "P0",
+          "description": "Review loop and human approval stage",
+          "acceptance": "Review requests revision; approval stage blocks",
+          "verification": "pytest",
+          "depends": [
+            "OR-01",
+            "SEC-03"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "OR-05",
+          "priority": "P0",
+          "description": "Workflow persistence and resume after restart",
+          "acceptance": "Restart mid-workflow resumes",
+          "verification": "pytest",
+          "depends": [
+            "OR-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "OR-06",
+          "priority": "P0",
+          "description": "Duplicate execution prevention",
+          "acceptance": "Same idempotency key never runs twice",
+          "verification": "pytest",
+          "depends": [
+            "MQ-03"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "OR-07",
+          "priority": "P0",
+          "description": "Task center: Kanban (9 columns) + list + details with acceptance criteria, evidence, history",
+          "acceptance": "E2E",
+          "verification": "Playwright",
+          "depends": [
+            "OR-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "OR-08",
+          "priority": "P0",
+          "description": "Tasks never marked complete on agent claim alone (evidence gate)",
+          "acceptance": "Completion requires passing evaluation",
+          "verification": "pytest",
+          "depends": [
+            "EV-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "OR-09",
+          "priority": "P1",
+          "description": "Project modes: new / existing (repo inspection, tech detection) / maintenance",
+          "acceptance": "Existing-repo analysis produces map",
+          "verification": "pytest",
+          "depends": [
+            "GH-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Agent Supervisor",
+      "weight": 6,
+      "spec_ref": "Phase 5",
+      "requirements": [
+        {
+          "id": "SV-01",
+          "priority": "P0",
+          "description": "Independent supervisor service monitoring agent/execution states",
+          "acceptance": "Separate module/worker",
+          "verification": "pytest",
+          "depends": [
+            "RT-03"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "SV-02",
+          "priority": "P0",
+          "description": "Detect stalled, repeatedly failing, runaway-cost, excessive-retry executions",
+          "acceptance": "Detection tests",
+          "verification": "pytest",
+          "depends": [
+            "SV-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "SV-03",
+          "priority": "P0",
+          "description": "Policy-authorized reversible actions: retry, reassign, stop runaway, isolate agent, fallback model",
+          "acceptance": "Action tests + audit",
+          "verification": "pytest",
+          "depends": [
+            "SV-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "SV-04",
+          "priority": "P1",
+          "description": "Detect deadlocks, duplicate work, conflicting changes",
+          "acceptance": "Detection tests",
+          "verification": "pytest",
+          "depends": [
+            "SV-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "SV-05",
+          "priority": "P0",
+          "description": "Supervisor never overrides security/approval policies",
+          "acceptance": "Test: approval-gated op not executed by supervisor",
+          "verification": "pytest",
+          "depends": [
+            "SEC-03"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "SV-06",
+          "priority": "P0",
+          "description": "Supervisor UI: health, findings, actions log",
+          "acceptance": "E2E",
+          "verification": "Playwright",
+          "depends": [
+            "SV-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "GitHub Development",
+      "weight": 7,
+      "spec_ref": "Phase 12",
+      "requirements": [
+        {
+          "id": "GH-01",
+          "priority": "P0",
+          "description": "GitHub auth (fine-grained token or GitHub App) stored encrypted",
+          "acceptance": "Credential tests",
+          "verification": "pytest",
+          "depends": [
+            "GW-03"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GH-02",
+          "priority": "P0",
+          "description": "Repos, branches, commits, PRs, diffs via API",
+          "acceptance": "Tests with HTTP mocks",
+          "verification": "pytest",
+          "depends": [
+            "GH-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GH-03",
+          "priority": "P0",
+          "description": "Per-agent git worktree + feature branch; track files/ownership/conflicts",
+          "acceptance": "Real git worktree tests",
+          "verification": "pytest",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GH-04",
+          "priority": "P0",
+          "description": "Protected branches cannot be modified by agents",
+          "acceptance": "Push to main rejected by policy",
+          "verification": "pytest",
+          "depends": [
+            "GH-03",
+            "SEC-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GH-05",
+          "priority": "P0",
+          "description": "PR creation with description + test results",
+          "acceptance": "PR payload test",
+          "verification": "pytest",
+          "depends": [
+            "GH-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GH-06",
+          "priority": "P0",
+          "description": "Merge only via approved approval request",
+          "acceptance": "Unapproved merge blocked",
+          "verification": "pytest",
+          "depends": [
+            "SEC-03"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GH-07",
+          "priority": "P1",
+          "description": "Webhooks + CI check status",
+          "acceptance": "Webhook signature verified",
+          "verification": "pytest",
+          "depends": [
+            "GH-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "GH-08",
+          "priority": "P0",
+          "description": "GitHub UI page",
+          "acceptance": "E2E",
+          "verification": "Playwright",
+          "depends": [
+            "GH-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Browser Bridge and MCP",
+      "weight": 7,
+      "spec_ref": "Phases 11, 18",
+      "requirements": [
+        {
+          "id": "BB-01",
+          "priority": "P0",
+          "description": "Reference evaluation of ai-browser-bridge (license, platform, security, ToS)",
+          "acceptance": "Report in docs",
+          "verification": "inspection",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "BB-02",
+          "priority": "P0",
+          "description": "Browser Bridge service: isolated profiles, 9 session states, Playwright, DISABLED by default + EXPERIMENTAL label",
+          "acceptance": "State machine tests against local test page",
+          "verification": "pytest/Playwright",
+          "depends": [
+            "BB-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "BB-03",
+          "priority": "P0",
+          "description": "Per-provider ToS gate: provider adapter cannot be enabled until owner acknowledges terms",
+          "acceptance": "Gate test",
+          "verification": "pytest",
+          "depends": [
+            "BB-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "BB-04",
+          "priority": "P0",
+          "description": "Never expose cookies/secrets; no CAPTCHA bypass; dedicated profiles only",
+          "acceptance": "Security tests",
+          "verification": "pytest",
+          "depends": [
+            "BB-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "MCP-01",
+          "priority": "P0",
+          "description": "MCP client: register servers, discover tools/resources, health, permission enforcement",
+          "acceptance": "Test against local MCP server",
+          "verification": "pytest",
+          "depends": [
+            "RT-07"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "MCP-02",
+          "priority": "P0",
+          "description": "MCP server exposing platform tools (incl. Browser Bridge tools)",
+          "acceptance": "MCP client can list/call tools",
+          "verification": "pytest",
+          "depends": [
+            "MCP-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "MCP-03",
+          "priority": "P0",
+          "description": "Skills & MCP registry UI with security assessment before enable",
+          "acceptance": "E2E",
+          "verification": "Playwright",
+          "depends": [
+            "MCP-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "MCP-04",
+          "priority": "P1",
+          "description": "Skill install with source inspection (dangerous commands, network, fs, credentials)",
+          "acceptance": "Scanner tests",
+          "verification": "pytest",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "A2A and Communication",
+      "weight": 5,
+      "spec_ref": "Phase 6",
+      "requirements": [
+        {
+          "id": "MQ-01",
+          "priority": "P0",
+          "description": "RabbitMQ topology: exchanges by event type, queues by specialty/priority, DLQ",
+          "acceptance": "Topology declared; test",
+          "verification": "pytest (live broker)",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "MQ-02",
+          "priority": "P0",
+          "description": "Structured message contract (ids, correlation, schema version) + ack + retries + timeouts",
+          "acceptance": "Contract + consumer tests",
+          "verification": "pytest (live broker)",
+          "depends": [
+            "MQ-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "MQ-03",
+          "priority": "P0",
+          "description": "Idempotent consumers (dedupe by idempotency key)",
+          "acceptance": "Duplicate delivery processed once",
+          "verification": "pytest",
+          "depends": [
+            "MQ-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "MQ-04",
+          "priority": "P0",
+          "description": "Recovery after broker/worker restart",
+          "acceptance": "Restart test",
+          "verification": "pytest/compose",
+          "depends": [
+            "MQ-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "A2A-01",
+          "priority": "P1",
+          "description": "A2A agent card + task endpoint for platform agents",
+          "acceptance": "Spec-compatible JSON",
+          "verification": "pytest",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "A2A-02",
+          "priority": "P1",
+          "description": "A2A client for external agent services",
+          "acceptance": "Client test against local server",
+          "verification": "pytest",
+          "depends": [
+            "A2A-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Context and Memory",
+      "weight": 7,
+      "spec_ref": "Phases 7, 8",
+      "requirements": [
+        {
+          "id": "CX-01",
+          "priority": "P0",
+          "description": "Context assembler with per-task-type profiles and token budget",
+          "acceptance": "Assembles within budget; tests",
+          "verification": "pytest",
+          "depends": [
+            "RT-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "CX-02",
+          "priority": "P0",
+          "description": "Trust separation: system/policy/requirements/user/retrieved/tool-output segments; retrieved content cannot override policy",
+          "acceptance": "Injection tests",
+          "verification": "pytest",
+          "depends": [
+            "CX-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "CX-03",
+          "priority": "P0",
+          "description": "Context dedup, prioritization, compression/summarization",
+          "acceptance": "Tests",
+          "verification": "pytest",
+          "depends": [
+            "CX-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "MEM-01",
+          "priority": "P0",
+          "description": "Scoped memory store (9 types) with provenance, verified vs assumption flag, versioning, expiry",
+          "acceptance": "CRUD + scope isolation tests",
+          "verification": "pytest",
+          "depends": [
+            "FND-03"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "MEM-02",
+          "priority": "P0",
+          "description": "Semantic retrieval",
+          "acceptance": "Relevant memories ranked first",
+          "verification": "pytest",
+          "depends": [
+            "MEM-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "MEM-03",
+          "priority": "P0",
+          "description": "Project isolation of memory",
+          "acceptance": "Cross-project retrieval denied",
+          "verification": "pytest",
+          "depends": [
+            "MEM-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "MEM-04",
+          "priority": "P0",
+          "description": "Context & Memory UI with human correction/deletion",
+          "acceptance": "E2E",
+          "verification": "Playwright",
+          "depends": [
+            "MEM-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Evaluation and Recovery",
+      "weight": 6,
+      "spec_ref": "Phases 14, 15",
+      "requirements": [
+        {
+          "id": "EV-01",
+          "priority": "P0",
+          "description": "Evaluation engine: deterministic checks (tests, lint, diff, acceptance criteria) + optional LLM review",
+          "acceptance": "Evidence-based result",
+          "verification": "pytest",
+          "depends": [
+            "RT-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "EV-02",
+          "priority": "P0",
+          "description": "Performance profiles by agent/role/provider/model/task type; feed assignment",
+          "acceptance": "Profiles update; used by OR-02",
+          "verification": "pytest",
+          "depends": [
+            "EV-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "EV-03",
+          "priority": "P0",
+          "description": "Failure categorization + recovery workflow + circuit breaker",
+          "acceptance": "Recovery tests",
+          "verification": "pytest",
+          "depends": [
+            "RT-06",
+            "RT-08"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "EV-04",
+          "priority": "P0",
+          "description": "Graceful shutdown preserving partial results",
+          "acceptance": "Shutdown test",
+          "verification": "pytest",
+          "depends": [
+            "RT-06"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "EV-05",
+          "priority": "P0",
+          "description": "Evaluation UI",
+          "acceptance": "E2E",
+          "verification": "Playwright",
+          "depends": [
+            "EV-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "Enterprise Security",
+      "weight": 7,
+      "spec_ref": "Phases 16, 17, 22",
+      "requirements": [
+        {
+          "id": "SEC-01",
+          "priority": "P0",
+          "description": "RBAC: 6 roles + permissions, server-side enforcement on every endpoint",
+          "acceptance": "Authorization matrix tests",
+          "verification": "pytest",
+          "depends": [
+            "FND-04"
+          ],
+          "status": "in_progress",
+          "evidence": ""
+        },
+        {
+          "id": "SEC-02",
+          "priority": "P0",
+          "description": "Agents cannot escalate own permissions or change security policy",
+          "acceptance": "Tests",
+          "verification": "pytest",
+          "depends": [
+            "SEC-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "SEC-03",
+          "priority": "P0",
+          "description": "Approval Center: risk levels, evidence, decision records; critical ops blocked until approved",
+          "acceptance": "Tests + E2E",
+          "verification": "pytest + Playwright",
+          "depends": [
+            "SEC-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "SEC-04",
+          "priority": "P0",
+          "description": "Docker sandbox: CPU/mem/time/pids limits, no network by default, workspace-only mount, no secrets",
+          "acceptance": "Real container tests",
+          "verification": "pytest (docker)",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "SEC-05",
+          "priority": "P0",
+          "description": "Command policy (default deny, allowlist per tool permission)",
+          "acceptance": "Tests",
+          "verification": "pytest",
+          "depends": [
+            "SEC-04"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "SEC-06",
+          "priority": "P0",
+          "description": "Audit log searchable/filterable, redacted; Audit UI",
+          "acceptance": "Tests + E2E",
+          "verification": "pytest + Playwright",
+          "depends": [
+            "FND-06"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "SEC-07",
+          "priority": "P1",
+          "description": "CSRF protection for cookie auth, secure CORS, security headers",
+          "acceptance": "Tests",
+          "verification": "pytest",
+          "depends": [
+            "FND-04"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "SEC-08",
+          "priority": "P1",
+          "description": "Dependency + container scanning in CI scripts",
+          "acceptance": "Scan runs",
+          "verification": "script",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "Enterprise Experience",
+      "weight": 5,
+      "spec_ref": "Phases 21, 23, 24",
+      "requirements": [
+        {
+          "id": "UX-01",
+          "priority": "P0",
+          "description": "20-item navigation, every page functional (no dead buttons)",
+          "acceptance": "E2E visits each page",
+          "verification": "Playwright",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "UX-02",
+          "priority": "P0",
+          "description": "Real-time updates via WebSocket across dashboard/tasks/executions",
+          "acceptance": "E2E sees live change",
+          "verification": "Playwright",
+          "depends": [
+            "RT-04"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "UX-03",
+          "priority": "P0",
+          "description": "Execution timeline view",
+          "acceptance": "E2E",
+          "verification": "Playwright",
+          "depends": [
+            "RT-02"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "UX-04",
+          "priority": "P0",
+          "description": "Analytics: cost/usage by provider/model/agent/project",
+          "acceptance": "API + UI tests",
+          "verification": "pytest + Playwright",
+          "depends": [
+            "GW-05"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "UX-05",
+          "priority": "P1",
+          "description": "Observability: structured logs, OpenTelemetry traces, health of all services",
+          "acceptance": "Health endpoint covers all; traces exported",
+          "verification": "pytest",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "UX-06",
+          "priority": "P1",
+          "description": "Automation & scheduling (pause/resume/edit/delete/history), in-app only",
+          "acceptance": "Tests",
+          "verification": "pytest",
+          "depends": [
+            "OR-01"
+          ],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "name": "Final Integration",
+      "weight": 3,
+      "spec_ref": "Phases 25, 26, F",
+      "requirements": [
+        {
+          "id": "FI-01",
+          "priority": "P0",
+          "description": "Windows scripts: START/STOP/UPDATE/RESET-DEV.bat, INSTALL.ps1, HEALTH-CHECK.ps1",
+          "acceptance": "Static checks here; real Windows run",
+          "verification": "script + Windows",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "FI-02",
+          "priority": "P0",
+          "description": "Linux/macOS scripts: start/stop/update/install/health-check.sh",
+          "acceptance": "Run in dev env",
+          "verification": "shell",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "FI-03",
+          "priority": "P0",
+          "description": "Production compose config",
+          "acceptance": "docker compose config",
+          "verification": "compose",
+          "depends": [
+            "FND-13"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "FI-04",
+          "priority": "P0",
+          "description": "21 documentation files reflecting actual implementation",
+          "acceptance": "Exist + reviewed",
+          "verification": "inspection",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "FI-05",
+          "priority": "P0",
+          "description": "End-to-end Definition-of-Done scenario with Mock provider",
+          "acceptance": "E2E passes",
+          "verification": "Playwright + pytest",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "FI-06",
+          "priority": "P0",
+          "description": "End-to-end with real provider + GitHub",
+          "acceptance": "Live run",
+          "verification": "manual/live",
+          "depends": [
+            "GW-10"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "FI-07",
+          "priority": "P0",
+          "description": "Release readiness report + known limitations",
+          "acceptance": "Docs",
+          "verification": "inspection",
+          "depends": [],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
+    }
+  ],
+  "blockers": [
+    "Dev environment blocks all container registries: official images cannot be pulled here; verified instead with locally-built equivalent images (docker/offline). Official images must be verified on the owner's machine",
+    "Executing the UI UX Pro Max search.py script is blocked by the environment's safety policy; skill files are installed and its rules/data applied manually"
+  ],
+  "requires_approval": [],
+  "in_progress": [],
+  "next_step": "Security core: RBAC with 6 roles + organizations/teams + CSRF (SEC-01, SEC-02, FND-15, SEC-07), then Agents (M3)",
+  "tests": {
+    "passed": [
+      "backend: 15/15 pytest on PostgreSQL 16 (auth, encryption, redaction, bootstrap, dashboard) — 2026-11-09",
+      "alembic upgrade → downgrade → upgrade on clean DB (19 tables)",
+      "frontend: i18n guard (71 keys, ar/en identical, no hardcoded strings), tsc clean, next build OK",
+      "docker compose config (valid; refuses missing secrets)",
+      "ruff check: clean",
+      "frontend: 22/22 Playwright in real Chrome (14 i18n/layout + 8 axe-core WCAG 2.2 AA: login & dashboard × ar/en × light/dark)",
+      "contrast: scripts/check-contrast.mjs — 40/40 token pairs pass WCAG AA (light + dark)",
+      "docker: full stack via docker/offline override — 6 services healthy, login via frontend proxy, data persists across stop/start"
+    ],
+    "failed": []
+  },
+  "files_changed": [],
+  "known_issues": []
+}

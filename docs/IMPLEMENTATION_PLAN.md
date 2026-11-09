@@ -1,84 +1,62 @@
-# Implementation Plan — AI Agent Command Center
+# Implementation Plan — Spec v4.0
 
-Spec: [`MASTER_PROMPT.md`](MASTER_PROMPT.md). Acceptance criteria and their status: [`acceptance.json`](acceptance.json).
-`progress.txt` is generated from `acceptance.json` by `scripts/progress.py` — never edited by hand.
+Spec: [`MASTER_PROMPT.md`](MASTER_PROMPT.md) (v4.0). Previous spec and plan: `MASTER_PROMPT.v1.md`, `IMPLEMENTATION_PLAN.v1.md`.
+Requirements matrix (115 requirements, IDs, acceptance, verification): [`REQUIREMENTS.md`](REQUIREMENTS.md), source `requirements.json`.
+Decisions: [`ARCHITECTURE_DECISIONS.md`](ARCHITECTURE_DECISIONS.md). Resuming work: [`HANDOFF.md`](HANDOFF.md).
 
-## Weighted phases (total 100%)
+## Milestone weights (total 100%)
 
-| # | Phase | Weight |
-|---|-------|-------:|
-| 1 | Project Foundation | 5 |
-| 2 | UI UX Design System | 4 |
-| 3 | Bilingual Frontend | 10 |
-| 4 | Backend and Database | 10 |
-| 5 | Agent Management | 8 |
-| 6 | AI Providers | 7 |
-| 7 | Manager Agent | 8 |
-| 8 | LangGraph Orchestration | 8 |
-| 9 | RabbitMQ Parallel Execution | 7 |
-| 10 | GitHub Integration | 8 |
-| 11 | Docker Sandbox | 7 |
-| 12 | Approval and Security | 7 |
-| 13 | Windows Launcher | 4 |
-| 14 | Testing | 5 |
-| 15 | Documentation and Release | 2 |
+| M | Milestone | Weight |
+|---|---|---:|
+| 1 | Foundation | 8 |
+| 2 | Universal Agent Runtime | 9 |
+| 3 | Dynamic Agent Management | 7 |
+| 4 | Multi-Provider AI Gateway | 8 |
+| 5 | Execution Engines | 6 |
+| 6 | Intelligent Orchestration | 9 |
+| 7 | Agent Supervisor | 6 |
+| 8 | GitHub Development | 7 |
+| 9 | Browser Bridge and MCP | 7 |
+| 10 | A2A and Communication | 5 |
+| 11 | Context and Memory | 7 |
+| 12 | Evaluation and Recovery | 6 |
+| 13 | Enterprise Security | 7 |
+| 14 | Enterprise Experience | 5 |
+| 15 | Final Integration | 3 |
 
-Phase % = verified criteria / total criteria in that phase. Overall % = Σ weight × phase %.
-A criterion is marked done only with evidence (a passing test, a command output, a commit).
+Milestone % = verified requirements / requirements. A requirement is verified only with evidence (passing test,
+command output). `scripts/progress.py` computes everything; `progress.txt` and `PROJECT_STATUS.json` are generated.
 
-## Architecture
+## Build order (dependency-driven, not milestone number)
 
-```
-Browser (Next.js, ar/en, RTL/LTR)
-   │  REST + WebSocket
-   ▼
-api  (FastAPI) ── PostgreSQL (SQLAlchemy/Alembic; also LangGraph checkpoints)
-   │  publishes                     ▲
-   ▼                                │
-RabbitMQ  ──►  orchestrator (LangGraph Manager workflow)
-   │                │ dispatches task messages by specialty/priority
-   ▼                ▼
-worker(s)  ──► Provider adapters (Anthropic / OpenAI / Mock) + Sandbox runner (Docker)
-   │                                  │
-   └──► git worktrees per agent/task ─┘ ──► GitHub (branches, PRs; merge only via approval)
-```
+1. **Security core** — RBAC + roles (SEC-01/02), orgs/teams (FND-15), CSRF (SEC-07). Everything else authorizes through it.
+2. **Agents** — templates, CRUD, lifecycle, config versions (M3) + UI.
+3. **Runtime contract** — execution model, state machine, events, cancel/timeout, checkpoints, tool permissions (M2).
+4. **Gateway** — adapters (Anthropic, OpenAI, Google, OpenAI-compatible, Mock), models, credentials, usage/cost, fallback (M4) + UI.
+5. **Bus** — RabbitMQ topology, message contract, idempotent consumers, recovery (M10 MQ-*).
+6. **API engine + worker** — executions run end-to-end with Mock (EE-01).
+7. **Orchestration** — LangGraph planner → DAG → parallel dispatch → review → approval → persistence (M6) + Task Center UI.
+8. **Approvals + sandbox + audit** (M13).
+9. **Evaluation + recovery** (M12), then **Supervisor** (M7).
+10. **GitHub + worktrees** (M8).
+11. **Context + memory** (M11).
+12. **MCP, skills registry, Browser Bridge** (M9), **A2A** (M10), **CLI engine** (EE-02).
+13. **Experience** — remaining pages, realtime, timeline, analytics, observability, automation (M14).
+14. **Final integration** — scripts (Windows/Linux/macOS), prod compose, 21 docs, DoD E2E (M15).
 
-Responsibilities (per spec T9/T10):
-- **LangGraph** decides: plan, decompose, dependencies, review, retry, reassignment, persisted state.
-- **RabbitMQ** delivers: task messages to workers, acks, retries, DLQ, priorities.
-- **Backend policies** enforce: RBAC, approvals, protected branches. The frontend never is the only check.
+## Risk register
 
-## Repository layout
-
-```
-backend/        FastAPI app (app/), Alembic, tests, Dockerfile
-frontend/       Next.js app, i18n messages (messages/ar.json, en.json)
-docs/           spec, plan, acceptance criteria, architecture/security notes
-scripts/        progress.py and dev helpers
-START.bat STOP.bat UPDATE.bat RESET-DEV.bat   Windows launchers
-docker-compose.yml  .env.example  progress.txt
-```
-
-## Engineering decisions (non-critical, documented per spec)
-
-| Decision | Choice | Reason |
+| Risk | Impact | Mitigation |
 |---|---|---|
-| Auth | Local username/password + JWT (HTTP-only cookie) | Single-owner platform; no external IdP needed |
-| Admin bootstrap | `ADMIN_USERNAME` / `ADMIN_PASSWORD` from `.env`, created on first start | No hardcoded credentials |
-| Secret encryption | Fernet (AES-128-CBC + HMAC) with `APP_ENCRYPTION_KEY` from `.env` | Standard, audited library |
-| Python deps | `uv` + `pyproject.toml` | Fast, lockable |
-| Frontend i18n | `next-intl` | App Router support, RTL via `dir` on `<html>` |
-| Live updates | WebSocket from FastAPI, fan-out of events stored in DB | Bidirectional, simple |
-| LangGraph persistence | Postgres checkpointer | Survives restarts (spec rule 28) |
-| GitHub auth (v1) | Fine-grained personal access token, encrypted; GitHub App as later option | Works without registering an App; App needs owner action |
-| Claude access | Anthropic **API key** only. A Claude subscription is not API access | Spec T11 |
-| Arena AI | Integrate only if an official API exists (see `docs/ARENA_AI.md`) | Spec T12 |
+| No real provider key in dev env | Can't verify live calls (GW-10, FI-06) | Mock + HTTP-mocked adapter tests; live check documented as owner step |
+| Container registries blocked in dev env | Official images unverified here | Offline equivalent images (ADR-010); owner verifies |
+| Consumer AI terms vs Browser Bridge | Account suspension | Disabled by default + terms gate (ADR-005) |
+| Prompt injection via repo/web content | Unsafe tool use | Trust-segmented context (CX-02), default-deny tools, sandbox, approvals |
+| Scope size vs session limits | Partial delivery | Requirements matrix + HANDOFF.md; verified-only progress |
+| Windows-only behaviours | Scripts untested here | Static checks + owner run (FI-01) |
 
-## Environment notes (development container, not the user's machine)
-
-- Docker daemon runs, but Docker Hub is blocked by the network policy here, so images
-  can't be pulled; compose files are validated with `docker compose config` and services
-  are tested against locally installed PostgreSQL 16 and RabbitMQ 3.12.
-- Windows `.bat` scripts can only be statically checked here; real Windows testing is required (W4).
-- progress.txt is updated at every milestone during active sessions. It does not update
-  when no session is running, and no background service is installed.
+## Testing strategy
+- Backend: pytest against real PostgreSQL + RabbitMQ (no SQLite substitutes); HTTP-level mocks for external APIs.
+- Frontend: Playwright in real Chrome, axe-core WCAG 2.2 AA, i18n guard, contrast check, tsc, next build.
+- Stack: docker compose (offline images here, official on owner machines).
+- Every requirement's verification method is listed in the matrix.

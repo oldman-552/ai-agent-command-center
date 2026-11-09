@@ -1,175 +1,211 @@
 #!/usr/bin/env python3
-"""Render progress.txt from docs/acceptance.json.
+"""Render progress.txt, PROJECT_STATUS.json and docs/REQUIREMENTS.md from docs/requirements.json.
 
-Progress is computed only from acceptance criteria marked "done" (each with
-evidence). Phase % = done criteria / total criteria; overall % = weighted sum.
+Completion is computed ONLY from requirements marked "done" with evidence.
+Milestone % = done / total requirements in the milestone; overall % = Σ weight × milestone %.
 
 Usage:
   python scripts/progress.py --note "what happened"
-  python scripts/progress.py --done F1="committed 6d40fe7" --done F2="file exists" --note "..."
-  python scripts/progress.py --undo F4 --note "regression"
-  python scripts/progress.py --check     # print numbers only, write nothing
+  python scripts/progress.py --done RT-01="pytest tests/test_runtime.py 12 passed" --note "..."
+  python scripts/progress.py --undo RT-03 --note "regression found"
+  python scripts/progress.py --check
 """
 from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent.parent
-ACCEPTANCE = ROOT / "docs" / "acceptance.json"
+REQS = ROOT / "docs" / "requirements.json"
 PROGRESS = ROOT / "progress.txt"
+STATUS = ROOT / "PROJECT_STATUS.json"
+MATRIX = ROOT / "docs" / "REQUIREMENTS.md"
 TZ = ZoneInfo("Europe/Berlin")
 HISTORY_HEADER = "UPDATE HISTORY:"
 
 
 def load() -> dict:
-    return json.loads(ACCEPTANCE.read_text(encoding="utf-8"))
+    return json.loads(REQS.read_text(encoding="utf-8"))
 
 
-def save(data: dict) -> None:
-    ACCEPTANCE.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+def all_reqs(d: dict):
+    for m in d["milestones"]:
+        yield from ((m, r) for r in m["requirements"])
 
 
-def phase_pct(phase: dict) -> float:
-    crit = phase["criteria"]
-    return 100.0 * sum(c["status"] == "done" for c in crit) / len(crit) if crit else 0.0
+def ms_pct(m: dict) -> float:
+    rs = m["requirements"]
+    return 100.0 * sum(r["status"] == "done" for r in rs) / len(rs) if rs else 0.0
 
 
-def overall_pct(data: dict) -> float:
-    total_w = sum(p["weight"] for p in data["phases"])
-    if total_w != 100:
-        raise SystemExit(f"Phase weights must total 100, got {total_w}")
-    return sum(p["weight"] * phase_pct(p) / 100.0 for p in data["phases"])
+def overall(d: dict) -> float:
+    w = sum(m["weight"] for m in d["milestones"])
+    if w != 100:
+        raise SystemExit(f"milestone weights must total 100, got {w}")
+    return sum(m["weight"] * ms_pct(m) / 100 for m in d["milestones"])
 
 
-def current_phase(data: dict) -> str:
-    for p in data["phases"]:
-        if phase_pct(p) < 100:
-            return p["name"]
-    return "Complete"
+def current(d: dict) -> dict | None:
+    for m in d["milestones"]:
+        if any(r["status"] == "in_progress" for r in m["requirements"]):
+            return m
+    return next((m for m in d["milestones"] if ms_pct(m) < 100), None)
 
 
-def find(data: dict, cid: str) -> dict:
-    for p in data["phases"]:
-        for c in p["criteria"]:
-            if c["id"] == cid:
-                return c
-    raise SystemExit(f"Unknown criterion id: {cid}")
+def find(d: dict, rid: str) -> dict:
+    for _, r in all_reqs(d):
+        if r["id"] == rid:
+            return r
+    raise SystemExit(f"unknown requirement {rid}")
+
+
+def changed_files() -> list[str]:
+    try:
+        out = subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True, check=True).stdout
+        files = [ln[3:] for ln in out.splitlines() if ln.strip()]
+        if not files:
+            out = subprocess.run(["git", "show", "--name-only", "--format=", "HEAD"], cwd=ROOT,
+                                 capture_output=True, text=True, check=True).stdout
+            files = [f for f in out.splitlines() if f]
+        return files[:40]
+    except Exception:  # noqa: BLE001 — git may be unavailable
+        return []
 
 
 def old_history() -> list[str]:
     if not PROGRESS.exists():
         return []
     lines = PROGRESS.read_text(encoding="utf-8").splitlines()
-    if HISTORY_HEADER not in lines:
-        return []
-    idx = lines.index(HISTORY_HEADER)
-    return [ln for ln in lines[idx + 1:] if ln.strip()]
+    return [ln for ln in lines[lines.index(HISTORY_HEADER) + 1:] if ln.strip()] if HISTORY_HEADER in lines else []
 
 
-def render(data: dict, now: str, history: list[str], recent: list[str]) -> str:
-    out: list[str] = []
-    w = out.append
-    w("AI AGENT COMMAND CENTER")
-    w("PROJECT DEVELOPMENT PROGRESS")
+def render_progress(d: dict, now: str, recent: list[str], history: list[str], files: list[str]) -> str:
+    cur = current(d)
+    done = [(m, r) for m, r in all_reqs(d) if r["status"] == "done"]
+    total = sum(1 for _ in all_reqs(d))
+    L: list[str] = []
+    w = L.append
+    w("AI AGENT COMMAND CENTER — PROJECT DEVELOPMENT PROGRESS")
+    w(f"Spec: {d['spec']} (v{d['version']}). Generated by scripts/progress.py from docs/requirements.json — do not edit by hand.")
     w("")
-    w(f"Last Updated: {now}")
-    w(f"Overall Completion: {overall_pct(data):.0f}%")
-    w("(Computed only from verified acceptance criteria in docs/acceptance.json)")
-    w("")
-    w("CURRENT PHASE:")
-    w(current_phase(data))
-    w("")
-    w("PHASE PROGRESS:")
-    w("")
-    for p in data["phases"]:
-        done = sum(c["status"] == "done" for c in p["criteria"])
-        w(f"{p['id']}. {p['name']} (weight {p['weight']}%): {phase_pct(p):.0f}%  [{done}/{len(p['criteria'])}]")
-    w("")
-    w("COMPLETED TASKS:")
-    for p in data["phases"]:
-        for c in p["criteria"]:
-            if c["status"] == "done":
-                w(f"- [{c['id']}] {c['text']} — evidence: {c['evidence']}")
-    w("")
-    w("IN PROGRESS:")
-    for item in data.get("in_progress", []):
-        w(f"- {item}")
-    w("")
-    w("PENDING TASKS:")
-    for p in data["phases"]:
-        for c in p["criteria"]:
-            if c["status"] != "done":
-                w(f"- [{c['id']}] {c['text']}")
-    w("")
-    w("SUCCESSFUL TESTS:")
-    for t in data["tests"].get("passed", []):
-        w(f"- {t}")
-    w("")
-    w("FAILED TESTS:")
-    for t in data["tests"].get("failed", []):
-        w(f"- {t}")
-    w("")
+    w(f"DATE: {now}")
+    w(f"CURRENT_PHASE: {cur['spec_ref'] if cur else 'Complete'}")
+    milestone = f"M{cur['id']} — {cur['name']}" if cur else "All milestones complete"
+    w(f"CURRENT_MILESTONE: {milestone}")
+    w(f"COMPLETED: {len(done)}/{total} requirements verified")
+    for x in recent:
+        w(f"  + {x}")
+    w("FILES_CHANGED:")
+    for f in files:
+        w(f"  - {f}")
+    w("TESTS_RUN:")
+    for t in d["tests"].get("passed", []) + d["tests"].get("failed", []):
+        w(f"  - {t.split(':')[0]}")
+    w("TEST_RESULTS:")
+    for t in d["tests"].get("passed", []):
+        w(f"  PASS {t}")
+    for t in d["tests"].get("failed", []):
+        w(f"  FAIL {t}")
+    w("KNOWN_ISSUES:")
+    for k in d.get("known_issues", []):
+        w(f"  - {k}")
     w("BLOCKERS:")
-    for b in data.get("blockers", []):
-        w(f"- {b}")
+    for b in d.get("blockers", []):
+        w(f"  - {b}")
+    w("REQUIRES_OWNER_APPROVAL:")
+    for a in d.get("requires_approval", []):
+        w(f"  - {a}")
+    w(f"NEXT_ACTION: {d.get('next_step', '')}")
+    w(f"OVERALL_STATUS: {overall(d):.1f}% verified (weighted by milestone)")
     w("")
-    w("REQUIRES ADMIN APPROVAL:")
-    for a in data.get("requires_approval", []):
-        w(f"- {a}")
-    w("")
-    w("RECENTLY COMPLETED:")
-    for r in recent:
-        w(f"- {r}")
-    w("")
-    w("NEXT STEP:")
-    w(data.get("next_step", ""))
+    w("MILESTONES:")
+    for m in d["milestones"]:
+        n = sum(r["status"] == "done" for r in m["requirements"])
+        w(f"  M{m['id']:>2} {m['name']:<30} weight {m['weight']:>2}%  {ms_pct(m):5.1f}%  [{n}/{len(m['requirements'])}]")
     w("")
     w(HISTORY_HEADER)
     w("")
-    out.extend(history)
-    return "\n".join(out) + "\n"
+    L.extend(history)
+    return "\n".join(L) + "\n"
+
+
+def render_matrix(d: dict) -> str:
+    L = ["# Requirements Matrix", "",
+         f"Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `{d['spec']}` v{d['version']}.", "",
+         f"**Overall verified completion: {overall(d):.1f}%**", ""]
+    for m in d["milestones"]:
+        L += [f"## M{m['id']} — {m['name']} (weight {m['weight']}%, {ms_pct(m):.0f}%) — spec {m['spec_ref']}", "",
+              "| ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |",
+              "|---|---|---|---|---|---|---|---|"]
+        for r in m["requirements"]:
+            cells = [r["id"], r["priority"], r["description"], r["acceptance"], r["verification"],
+                     ", ".join(r["depends"]) or "—", r["status"], r["evidence"] or "—"]
+            L.append("| " + " | ".join(c.replace("|", "\\|") for c in cells) + " |")
+        L.append("")
+    return "\n".join(L)
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--done", action="append", default=[], help="ID=evidence")
-    ap.add_argument("--undo", action="append", default=[], help="ID")
+    ap.add_argument("--done", action="append", default=[])
+    ap.add_argument("--start", action="append", default=[], help="mark requirement in_progress")
+    ap.add_argument("--undo", action="append", default=[])
     ap.add_argument("--note", default="")
     ap.add_argument("--check", action="store_true")
-    args = ap.parse_args(argv)
-
-    data = load()
+    a = ap.parse_args(argv)
+    d = load()
     recent: list[str] = []
-    for item in args.done:
-        cid, _, evidence = item.partition("=")
-        if not evidence.strip():
-            raise SystemExit(f"--done {cid} requires evidence (ID=evidence)")
-        c = find(data, cid.strip())
-        c["status"], c["evidence"] = "done", evidence.strip()
-        recent.append(f"[{c['id']}] {c['text']}")
-    for cid in args.undo:
-        c = find(data, cid.strip())
-        c["status"], c["evidence"] = "pending", ""
-
-    pct = overall_pct(data)
-    if args.check:
-        print(f"overall={pct:.1f}%")
-        for p in data["phases"]:
-            print(f"  {p['id']:>2} {p['name']}: {phase_pct(p):.0f}%")
+    for item in a.done:
+        rid, _, ev = item.partition("=")
+        if not ev.strip():
+            raise SystemExit(f"--done {rid} needs evidence: ID=evidence")
+        r = find(d, rid.strip())
+        r["status"], r["evidence"] = "done", ev.strip()
+        recent.append(f"[{r['id']}] {r['description']}")
+    for rid in a.start:
+        r = find(d, rid.strip())
+        if r["status"] != "done":
+            r["status"] = "in_progress"
+    for rid in a.undo:
+        r = find(d, rid.strip())
+        r["status"], r["evidence"] = "pending", ""
+    if a.check:
+        print(f"overall={overall(d):.1f}%")
+        for m in d["milestones"]:
+            print(f"  M{m['id']:>2} {m['name']}: {ms_pct(m):.0f}%")
         return 0
-
     now = datetime.now(TZ).strftime("%Y-%m-%d %H:%M")
     history = old_history()
-    note = args.note or "Progress update"
-    history.append(f"- {now} — {note} — {pct:.0f}%")
-    save(data)
-    PROGRESS.write_text(render(data, now, history, recent), encoding="utf-8")
-    print(f"progress.txt updated: {pct:.1f}%")
+    history.append(f"- {now} — {a.note or 'Progress update'} — {overall(d):.1f}%")
+    files = changed_files()
+    REQS.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    PROGRESS.write_text(render_progress(d, now, recent, history, files), encoding="utf-8")
+    MATRIX.write_text(render_matrix(d), encoding="utf-8")
+    cur = current(d)
+    STATUS.write_text(json.dumps({
+        "date": now,
+        "spec_version": d["version"],
+        "current_phase": cur["spec_ref"] if cur else None,
+        "current_milestone": {"id": cur["id"], "name": cur["name"]} if cur else None,
+        "overall_percent": round(overall(d), 1),
+        "milestones": [{"id": m["id"], "name": m["name"], "weight": m["weight"], "percent": round(ms_pct(m), 1),
+                        "done": sum(r["status"] == "done" for r in m["requirements"]),
+                        "total": len(m["requirements"])} for m in d["milestones"]],
+        "completed": [r["id"] for _, r in all_reqs(d) if r["status"] == "done"],
+        "in_progress": [r["id"] for _, r in all_reqs(d) if r["status"] == "in_progress"],
+        "files_changed": files,
+        "tests": d["tests"],
+        "known_issues": d.get("known_issues", []),
+        "blockers": d.get("blockers", []),
+        "requires_owner_approval": d.get("requires_approval", []),
+        "next_action": d.get("next_step", ""),
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"progress updated: {overall(d):.1f}%")
     return 0
 
 

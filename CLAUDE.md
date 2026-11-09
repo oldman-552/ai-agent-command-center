@@ -1,19 +1,20 @@
 # AI Agent Command Center — Instructions for Claude
 
-**The single source of truth for this project is [`docs/MASTER_PROMPT.md`](docs/MASTER_PROMPT.md).**
-Read it in full at the start of every session before doing any work, and follow it.
+**The single source of truth is [`docs/MASTER_PROMPT.md`](docs/MASTER_PROMPT.md) (spec v4.0).**
+Read it in full at the start of every session, then [`docs/HANDOFF.md`](docs/HANDOFF.md) to resume.
+The previous spec (v1.0) is kept in `docs/MASTER_PROMPT.v1.md` for reference only.
 
 ## Working rules (summary — the master prompt wins on any conflict)
 
 - Communicate with the owner in **Arabic**.
-- Follow the phase sequence in the master prompt (Phase 1 → Phase 9).
-- Keep `progress.txt` (UTF-8, project root) updated with **verified** progress only:
-  - weighted phases totaling 100%, defined in `docs/IMPLEMENTATION_PLAN.md`;
-  - append to UPDATE HISTORY, never overwrite it;
-  - a feature counts as done only when its acceptance criteria are met and its tests pass.
-- Never claim a test passed without running it. Document anything untested (e.g. Windows `.bat` scripts when not on Windows).
-- Never commit `.env` or secrets. Never hardcode API keys.
-- Mock providers must be clearly labeled as mock.
-- Agents must never merge to protected branches or bypass Super Admin approval; enforce in the backend.
-- No unofficial Arena AI integration (no browser automation, scraping or stored passwords).
-- After each phase report: what was implemented, files changed, tests run / passed / failed, what remains, verified %.
+- Work autonomously: no routine questions or approvals for ordinary engineering inside the workspace.
+  Ask only for irreversible or out-of-boundary actions (production, spending, external exposure, destroying user data).
+- Requirements live in `docs/requirements.json` (115 IDs, matrix in `docs/REQUIREMENTS.md`).
+  Progress is **verified-only**: `python3 scripts/progress.py --done ID="evidence" --note "..."` regenerates
+  `progress.txt`, `PROJECT_STATUS.json`, `docs/REQUIREMENTS.md`. Never edit those three by hand. Update at every milestone.
+- Record significant decisions in `docs/ARCHITECTURE_DECISIONS.md`.
+- Never claim a test passed without running it. Document anything untested.
+- Never commit `.env` or secrets. Mock providers must be clearly labelled as mock.
+- Agents never merge to protected branches or bypass Super Admin approval — enforced in the backend.
+- Browser Bridge: disabled by default, per-provider terms acknowledgement required (ADR-005, owner-approved).
+- Use the installed UI UX Pro Max skill (`.claude/skills/ui-ux-pro-max`) for all UI work.

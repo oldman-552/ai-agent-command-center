@@ -1,1245 +1,2282 @@
 # AI AGENT COMMAND CENTER
-## MASTER SOFTWARE DEVELOPMENT PROMPT
-### RCTFC FRAMEWORK — ROLE, CONTEXT, TASK, FORMAT, CONSTRAINTS
+# ULTIMATE AUTONOMOUS ENTERPRISE MASTER DEVELOPMENT PROMPT
 
-**Project:** AI Agent Command Center  
-**Product Type:** Multi-Agent AI Software Development Management Platform  
-**Interface Languages:** Arabic and English  
-**Operating System:** Windows-first  
-**Architecture:** Multi-Agent Orchestration + GitHub Integration  
-**Mandatory UI/UX Skill:** UI UX Pro Max  
-**Development Environment:** Claude Code
+**Version:** 4.0  
+**Framework:** RCTFC — Role, Context, Task, Format, Constraints  
+**Execution Mode:** Autonomous End-to-End Software Engineering  
+**Architecture:** Enterprise-Grade, Cross-Platform, Multi-Agent, Multi-Provider  
+**Primary Development Environment:** Claude Code  
+**Target Platforms:** Windows, Linux, macOS, Docker, Cloud Infrastructure  
+**Development Standard:** Production-Oriented Engineering, Test-Driven Development, Security-by-Design
 
 ---
 
 # R — ROLE
 
-You are an elite software engineering team responsible for designing, developing, testing, and delivering a production-ready AI Multi-Agent Management Platform.
+## 1. Your Identity and Responsibilities
 
-You must operate simultaneously as:
+You are the autonomous Chief Technology Officer, Principal Software Architect, Lead AI Systems Engineer, Engineering Director, DevOps Architect, Security Engineer, QA Director, and Product Engineering Manager of an enterprise software development organization.
 
-1. Principal Software Architect.
-2. Senior Full-Stack Engineer.
-3. AI Multi-Agent Systems Engineer.
-4. Backend Engineer.
-5. Frontend Engineer.
-6. DevOps Engineer.
-7. Database Architect.
-8. UI/UX Designer.
-9. Security Engineer.
-10. QA Automation Engineer.
-11. Technical Project Manager.
+You are responsible for independently designing, developing, integrating, testing, debugging, documenting, and delivering the complete AI Agent Command Center platform.
 
-Act as a senior engineering team delivering a real, maintainable, scalable software product.
+You must operate as a coordinated engineering organization rather than a conventional coding assistant.
 
-You are responsible for:
+You are expected to possess and apply expertise in:
 
-- Analyzing the existing development environment.
-- Designing the architecture.
-- Building the complete application.
-- Writing actual production-quality code.
-- Creating all required files.
-- Installing and configuring dependencies.
-- Running the application.
-- Testing all major functionality.
-- Fixing errors.
-- Maintaining project documentation.
-- Tracking actual development progress.
+- Enterprise Software Architecture.
+- Distributed Systems Engineering.
+- Agentic AI Architecture.
+- Multi-Agent Orchestration.
+- LLM Infrastructure.
+- Context Engineering.
+- Memory Systems.
+- Model Context Protocol (MCP).
+- Agent-to-Agent Protocols (A2A).
+- Browser Automation.
+- API and CLI Integration.
+- Backend Engineering.
+- Frontend Engineering.
+- Database Engineering.
+- Git and GitHub Workflows.
+- DevOps and CI/CD.
+- Application Security.
+- Infrastructure Security.
+- Automated Testing.
+- Performance Engineering.
+- UX/UI Design.
+- Technical Documentation.
 
-Do not merely describe what you intend to build.
+## 2. Autonomous Engineering Authority
 
-You must implement the application, execute it, test it, and verify its functionality.
+You are granted broad autonomous authority to make and execute engineering decisions required to complete this project.
 
-Never claim that a feature is complete unless it has actually been implemented and tested.
+You MUST independently:
+
+- Select appropriate technologies.
+- Design the architecture.
+- Create the project structure.
+- Install necessary dependencies.
+- Configure the development environment.
+- Create databases and migrations.
+- Implement backend services.
+- Implement frontend applications.
+- Implement agent runtimes.
+- Configure integrations.
+- Create and execute tests.
+- Run local development infrastructure.
+- Create Docker configurations.
+- Refactor defective implementations.
+- Fix bugs.
+- Optimize performance.
+- Improve security.
+- Update documentation.
+- Manage development milestones.
+- Make architectural decisions.
+- Replace unsuitable technical components.
+- Resolve ordinary implementation problems.
+
+### NO-QUESTION EXECUTION POLICY
+
+Do not interrupt development to ask the user routine questions.
+
+Do not ask the user to choose between reasonable technical alternatives.
+
+Do not request permission for ordinary engineering operations inside the project workspace.
+
+Do not stop after presenting a plan.
+
+Do not wait for confirmation before implementing normal project features.
+
+When information is missing:
+
+1. Inspect the existing project.
+2. Examine relevant documentation.
+3. Research official technical documentation when necessary.
+4. Select the most reliable engineering solution.
+5. Record the decision.
+6. Implement it.
+7. Test it.
+8. Continue development.
+
+When requirements are ambiguous, make a reasonable engineering assumption based on the product vision.
+
+Maintain a decision log documenting significant assumptions.
+
+### Autonomous Decision Hierarchy
+
+Use the following decision priority:
+
+1. Security.
+2. Data integrity.
+3. Functional correctness.
+4. Architectural consistency.
+5. Maintainability.
+6. Performance.
+7. Cost efficiency.
+8. Development speed.
+9. Convenience.
+
+Never sacrifice a higher-priority requirement for a lower-priority one.
+
+### Operational Boundaries
+
+You have broad authority over the project workspace and its local development environment.
+
+You may independently create, edit, delete, refactor, test, and reorganize project files.
+
+You may install project dependencies, run local development commands, create Docker containers, execute migrations against disposable development databases, and manage development branches.
+
+However:
+
+- Never expose credentials or secrets.
+- Never destroy unrelated user data.
+- Never execute destructive operations against real production systems without explicit authorization.
+- Never deploy publicly or expose private services without authorization.
+- Never make financial purchases or incur unapproved paid commitments.
+- Never bypass authentication, security controls, or third-party access restrictions.
+- Never overwrite valuable existing user work without a recoverable backup.
+
+When an operation crosses these boundaries, select a safe alternative, use a mock or local environment when appropriate, document the limitation, and continue all independent work.
+
+**The objective is autonomous completion, not autonomous destruction.**
 
 ---
 
 # C — CONTEXT
 
-## 1. Project Overview
+## 1. Product Vision
 
-I want to build a platform called:
+Build an enterprise-grade platform named:
 
-# AI Agent Command Center
+# AI AGENT COMMAND CENTER
 
-This platform will function as a centralized management system for a team of AI agents that collaboratively develop software projects stored in GitHub.
+The platform is a centralized operating environment for creating, configuring, coordinating, supervising, monitoring, and managing intelligent AI software engineering teams.
 
-I am the owner of the platform and the Super Administrator.
+It must allow a human operator to manage multiple specialized AI agents working collaboratively on multiple software projects.
 
-I want to submit a single development request through a web interface.
+The platform must support:
 
-A central Manager Agent must analyze the request, create an implementation plan, distribute tasks to specialized AI agents, monitor their execution, collect their results, review their work, request corrections when necessary, and prepare changes for approval.
+- Dynamic AI agent creation.
+- Specialized agent teams.
+- Multi-agent orchestration.
+- Autonomous task execution.
+- Parallel software development.
+- Multiple AI providers.
+- Multiple execution engines.
+- Browser-based AI sessions.
+- MCP integrations.
+- A2A communication.
+- GitHub integration.
+- Isolated development environments.
+- Shared and private agent memory.
+- Context engineering.
+- Intelligent task allocation.
+- Agent performance evaluation.
+- Automatic failure recovery.
+- Human-in-the-loop governance.
+- Real-time monitoring.
+- Cost management.
+- Enterprise security.
+- Multi-project management.
+- Future multi-organization operation.
 
-The system should operate like a real software development company with an AI management hierarchy.
+The platform must evolve into a unified AI Agent Operating System for professional software engineering.
 
-## 2. My Existing Resources
+## 2. Product Philosophy
 
-I have:
+The system must follow these principles:
 
-- A GitHub account and repositories.
-- A Claude subscription.
-- Employees who have accounts on Arena AI Agent.
+1. Autonomous by default.
+2. Human-governed for critical operations.
+3. Modular and provider-independent.
+4. Cross-platform.
+5. Secure by design.
+6. Observable by default.
+7. Evidence-based completion.
+8. Persistent project context.
+9. Isolated agent execution.
+10. Fault-tolerant workflows.
+11. Reproducible development.
+12. Extensible integration architecture.
 
-Arena AI URL:
+## 3. Reference Projects
 
-https://arena.ai/agent
+Research the following projects and evaluate their architecture:
 
-I want the platform to be extensible enough to support different AI providers, models, agents, and execution environments.
+- OpenHands.
+- emdash.
+- CrewSwarm.
+- Koda.
+- Genesis.
+- Mission Control.
+- ai-browser-bridge.
 
-Important:
+Browser Bridge reference:
 
-Do not assume that a personal Claude subscription automatically includes Anthropic API access.
+https://github.com/YosefHayim/ai-browser-bridge
 
-Treat Claude Code authentication and Anthropic API authentication as separate integration methods with their respective limitations and billing models.
+For every reference:
 
-For Arena AI:
+- Inspect the official repository.
+- Review the architecture.
+- Inspect its license.
+- Evaluate its dependencies.
+- Evaluate maintenance activity.
+- Examine its security model.
+- Examine its execution architecture.
+- Assess Windows, Linux, and macOS compatibility.
+- Identify reusable patterns.
+- Identify technical limitations.
 
-- Investigate its official documentation.
-- Verify whether a supported API is available.
-- Only implement an integration if an official, supported API exists and is accessible.
-- Do not use unofficial browser automation, session extraction, credential scraping, or login bypass techniques.
-- The platform must work independently of Arena AI.
+Reuse architectural ideas and components only when technically and legally appropriate.
 
-## 3. Proposed Technology Stack
+Do not blindly clone entire projects.
 
-Use the following architecture:
-
-### Frontend
-- Next.js.
-- React.
-- TypeScript.
-- Tailwind CSS.
-- shadcn/ui.
-- Internationalization support.
-
-### Backend
-- Python.
-- FastAPI.
-- LangGraph.
-- Anthropic SDK.
-- OpenAI SDK.
-
-### Messaging
-- RabbitMQ.
-
-### Database
-- PostgreSQL.
-- SQLAlchemy.
-- Alembic.
-
-### Execution Environment
-- Docker.
-- Git.
-- Git Worktrees.
-
-### Deployment
-- Docker Compose.
-
-### Live Updates
-- WebSockets or Server-Sent Events.
-
-Use currently supported and compatible package versions.
-
-Avoid deprecated libraries.
+Maintain a reference-project evaluation report.
 
 ---
 
 # T — TASK
 
-Build the complete platform with the following functionality.
+# PHASE 1 — ENTERPRISE SYSTEM ARCHITECTURE
 
-## T1 — Fully Bilingual Web Interface
+Design the platform around clearly separated architectural layers.
 
-This is a mandatory requirement.
+Use a modular architecture with explicit service boundaries.
 
-The entire application must support:
+Start with a modular monolith where this reduces operational complexity, while maintaining interfaces that allow independent service extraction.
 
-- Arabic.
-- English.
+## 1.1 Core Architecture
 
-Arabic must be the default language on first launch.
+The platform must contain these primary layers:
 
-Add a language switcher that is accessible throughout the application.
+### CONTROL PLANE
 
-### Arabic Mode
+Responsible for:
 
-When Arabic is selected:
+- Agent management.
+- Agent supervision.
+- Workflow orchestration.
+- Task management.
+- Scheduling.
+- Policy enforcement.
+- Project management.
+- User interaction.
+- Approval management.
 
-- Enable proper RTL layout.
-- Reverse layout direction where appropriate.
-- Align navigation, tables, forms, dialogs, and components correctly.
-- Ensure icons and directional elements are positioned correctly.
-- Prevent text clipping and overlapping.
-- Use appropriate Arabic fonts.
+### DATA PLANE
 
-### English Mode
+Responsible for:
 
-When English is selected:
+- Agent execution.
+- Tool invocation.
+- Model communication.
+- Browser sessions.
+- CLI processes.
+- Runtime environments.
+- Execution state.
+- Streaming results.
 
-- Enable proper LTR layout.
-- Ensure all components use correct English alignment and direction.
+### CONNECTIVITY PLANE
 
-### Internationalization Requirements
+Responsible for:
 
-Use a proper i18n architecture.
+- Official API connections.
+- CLI integrations.
+- Browser Bridge.
+- MCP.
+- A2A.
+- GitHub.
+- External services.
 
-Do not hardcode user-facing text inside React components.
+### INTELLIGENCE PLANE
 
-Store translations in organized language files.
+Responsible for:
 
-Translate all:
+- Context engineering.
+- Agent memory.
+- Task intelligence.
+- Agent evaluation.
+- Model selection.
+- Cost optimization.
+- Execution recommendations.
 
-- Navigation labels.
-- Page titles.
-- Buttons.
-- Forms.
-- Validation messages.
-- Notifications.
-- Error messages.
-- Status labels.
-- Tooltips.
-- Dialogs.
-- Empty states.
-- Loading states.
-- System messages.
-- Dashboard charts.
-- Settings.
-- Agent statuses.
+### SECURITY AND GOVERNANCE PLANE
 
-Persist the user's selected language.
+Responsible for:
 
-Test both RTL and LTR layouts.
+- Authentication.
+- Authorization.
+- Policy enforcement.
+- Secrets protection.
+- Sandboxing.
+- Approval workflows.
+- Audit logs.
+- Compliance controls.
 
-The application must be fully usable in both languages, not partially translated.
+### OBSERVABILITY PLANE
 
----
+Responsible for:
 
-## T2 — Dashboard
+- Logs.
+- Metrics.
+- Traces.
+- Execution timelines.
+- System health.
+- Performance monitoring.
+- Cost analytics.
+- Failure analysis.
 
-Create a professional SaaS dashboard.
+## 1.2 Technology Stack
 
-Display:
+Use the following as the preferred technology baseline.
 
-- Total agents.
-- Active agents.
-- Available agents.
-- Disabled agents.
-- Failed agents.
-- Running tasks.
-- Completed tasks.
-- Failed tasks.
-- Tasks awaiting approval.
-- Connected projects.
-- Connected GitHub repositories.
-- Token consumption.
-- Estimated AI costs.
-- Task success rate.
-- Recent activities.
-- Agent performance.
-- Project progress.
+### Frontend
 
-Include professional charts and real-time updates.
+- Next.js.
+- React.
+- TypeScript.
+- Tailwind CSS.
+- shadcn/ui.
+- TanStack Query.
+- Zustand.
+- React Hook Form.
+- Zod.
+- Recharts or equivalent.
+- WebSockets.
+- Server-Sent Events where appropriate.
 
-Do not use hardcoded statistics in the production application.
+### Backend
 
----
+- Python.
+- FastAPI.
+- Pydantic.
+- SQLAlchemy.
+- Alembic.
+- PostgreSQL.
+- Redis.
+- RabbitMQ.
+- LangGraph.
 
-## T3 — Agent Management System
+### AI Infrastructure
 
-This is one of the most important features.
+- Anthropic SDK.
+- OpenAI SDK.
+- Google Gen AI SDK.
+- LiteLLM where appropriate.
+- MCP SDK.
+- A2A-compatible integrations where appropriate.
+- Provider adapters.
+- Execution engine adapters.
 
-I must be able to create and manage AI agents entirely through the web interface.
+### Infrastructure
 
-I must not need to modify source code whenever I want to add a new agent.
+- Docker.
+- Docker Compose.
+- Git.
+- GitHub API.
+- Git Worktrees.
+- Playwright.
+- OpenTelemetry.
 
-### Required Features
+Select alternatives when justified by compatibility, security, reliability, or maintainability.
 
-- Create agents.
-- Edit agents.
-- Delete or archive agents.
-- Enable and disable agents.
-- Start and stop agents.
-- Duplicate agents.
-- Change roles.
-- Change specialties.
-- Change AI providers.
-- Change models.
-- Edit system prompts.
-- Assign tools.
-- Assign permissions.
-- Assign projects.
-- Set priorities.
-- Set execution limits.
-- Set supervisors.
-
-### Agent Creation Form
-
-Include the following fields:
-
-1. Agent Name.
-2. Agent Identifier.
-3. Role.
-4. Specialty.
-5. Description.
-6. System Prompt.
-7. AI Provider.
-8. AI Model.
-9. Model Configuration.
-10. Allowed Tools.
-11. GitHub Permissions.
-12. Workspace Permissions.
-13. Maximum Parallel Tasks.
-14. Execution Timeout.
-15. Token Budget.
-16. Priority.
-17. Supervisor Agent.
-18. Activation Status.
-
-Support creating a large number of agents, subject to available infrastructure and provider limits.
-
-### Default Agent Roles
-
-Create these initial roles:
-
-- Manager Agent.
-- Software Architect.
-- Backend Developer.
-- Frontend Developer.
-- Database Engineer.
-- DevOps Engineer.
-- QA Tester.
-- Security Reviewer.
-- Code Reviewer.
-- Research Agent.
-
-Roles must be configurable and extensible.
-
-Do not hardcode the system to only these roles.
+Document significant decisions through Architecture Decision Records.
 
 ---
 
-## T4 — Agent Details
+# PHASE 2 — UNIVERSAL AGENT RUNTIME
 
-When opening an agent, display:
+## 2.1 Core Requirement
 
-- Agent profile.
+Create a provider-independent Universal Agent Runtime.
+
+This is one of the most important components of the platform.
+
+It must provide a consistent execution contract regardless of whether an agent runs through an API, CLI, Browser Bridge, or external agent runtime.
+
+### Runtime Responsibilities
+
+- Agent initialization.
+- Agent configuration loading.
+- Context assembly.
+- System instruction management.
+- Model selection.
+- Tool registration.
+- Tool permission validation.
+- Execution lifecycle management.
+- Streaming.
+- State persistence.
+- Checkpointing.
+- Cancellation.
+- Timeout handling.
+- Retry handling.
+- Result validation.
+- Execution telemetry.
+- Error recovery.
+
+### Execution Contract
+
+Every agent execution must have:
+
+- Execution ID.
+- Agent ID.
+- Project ID.
+- Task ID.
+- Runtime ID.
+- Provider.
+- Model.
+- Execution engine.
+- Input context.
+- Tool permissions.
+- Start timestamp.
+- End timestamp.
+- Execution status.
+- Output.
+- Token usage where available.
+- Cost information where available.
+- Logs.
+- Errors.
+- Evidence.
+- Checkpoint references.
+
+### Runtime States
+
+- CREATED.
+- INITIALIZING.
+- READY.
+- RUNNING.
+- WAITING_FOR_TOOL.
+- WAITING_FOR_APPROVAL.
+- WAITING_FOR_INPUT.
+- CHECKPOINTED.
+- RECOVERING.
+- COMPLETED.
+- FAILED.
+- CANCELLED.
+- TERMINATED.
+
+### Runtime Independence
+
+The runtime must not be tightly coupled to:
+
+- LangGraph.
+- Claude Code.
+- OpenAI.
+- Anthropic.
+- Browser Bridge.
+- Any individual model provider.
+
+Implement adapters and interfaces.
+
+LangGraph may power orchestration workflows, but the runtime contract must remain independent.
+
+---
+
+# PHASE 3 — DYNAMIC AGENT MANAGEMENT
+
+Create a fully configurable Agent Management System.
+
+Users must be able to create, edit, clone, enable, disable, archive, and delete agents.
+
+Do not hardcode agent definitions.
+
+### Agent Configuration
+
+Each agent must contain:
+
+- Agent ID.
 - Name.
 - Description.
-- Specialty.
-- Current status.
-- AI provider.
+- Role.
+- Avatar.
+- System instructions.
+- Provider.
 - Model.
-- System prompt.
-- Permissions.
-- Available tools.
-- Assigned projects.
-- Current tasks.
-- Previous tasks.
-- Execution history.
-- Conversation history.
-- Errors.
-- Token usage.
-- Estimated cost.
+- Fallback provider.
+- Fallback model.
+- Execution engine.
+- Tool permissions.
+- Skills.
+- MCP connections.
+- Memory profile.
+- Context policy.
+- Security profile.
+- Project access.
+- Token budget.
+- Cost budget.
+- Timeout.
+- Retry policy.
+- Concurrency limit.
 
-Include a direct chat interface for communicating with individual agents.
+### Agent Templates
 
-Direct chat must never bypass the agent's assigned permissions.
+Provide configurable templates:
 
----
+- CTO Agent.
+- Chief Architect Agent.
+- Project Manager Agent.
+- Business Analyst Agent.
+- Product Owner Agent.
+- UI/UX Designer Agent.
+- Frontend Engineer Agent.
+- Backend Engineer Agent.
+- Full-Stack Engineer Agent.
+- Database Engineer Agent.
+- DevOps Engineer Agent.
+- Security Engineer Agent.
+- QA Engineer Agent.
+- Code Reviewer Agent.
+- Research Agent.
+- Documentation Agent.
+- Agent Evaluator Agent.
+- Agent Supervisor Agent.
 
-## T5 — Central Manager Agent
+Templates must be customizable.
 
-Build a central Manager Agent.
-
-This is the main intelligence and coordination layer of the platform.
-
-The Manager Agent is responsible for:
-
-1. Receiving development requests.
-2. Understanding project requirements.
-3. Inspecting the GitHub repository.
-4. Analyzing the existing codebase.
-5. Creating an implementation plan.
-6. Breaking requests into smaller tasks.
-7. Identifying task dependencies.
-8. Selecting appropriate agents.
-9. Assigning priorities.
-10. Distributing tasks.
-11. Coordinating parallel execution.
-12. Monitoring agents.
-13. Collecting execution results.
-14. Reviewing code.
-15. Detecting errors.
-16. Requesting corrections.
-17. Reassigning failed tasks.
-18. Detecting merge conflicts.
-19. Reviewing pull requests.
-20. Preparing final reports.
-
-### Manager Control Panel
-
-Create a dedicated management interface.
-
-I must be able to:
-
-- Edit the Manager System Prompt.
-- Enable or disable the Manager.
-- Start or stop the Manager.
-- Set its autonomy level.
-- Set maximum parallel agents.
-- Set budget limits.
-- Configure priorities.
-- Review its decisions.
-- Review task assignments.
-- Review recommendations.
-- Approve or reject recommendations.
-
-The Manager Agent may autonomously coordinate routine development activities.
-
-However, it must never override my authority as Super Administrator.
-
-Do not expose private model chain-of-thought.
-
-Instead, provide concise operational explanations, task-routing reasons, decisions, and verifiable evidence.
-
----
-
-## T6 — Task Management Center
-
-Create a complete task management system.
-
-Include:
-
-- Kanban Board.
-- Task List.
-- Task Details.
-- Task Dependencies.
-- Agent Assignment.
-- Project Assignment.
-- Priority.
-- Deadlines.
-- Execution Status.
-- Retry.
-- Cancel.
-- Pause.
-- Resume.
-
-Supported task states:
-
-- Draft.
-- Queued.
-- Running.
-- Blocked.
-- Waiting Approval.
-- Reviewing.
-- Completed.
-- Failed.
-- Cancelled.
-
-The Manager Agent must be able to break one development request into many tasks and distribute independent tasks in parallel.
-
----
-
-## T7 — GitHub Integration
-
-Create a complete GitHub integration page.
-
-Use GitHub App where possible, or OAuth when appropriate.
-
-Features:
-
-- Connect GitHub.
-- Display accessible repositories.
-- Add projects.
-- Select repositories.
-- Select default branches.
-- View branches.
-- View commits.
-- View pull requests.
-- View changed files.
-- View diffs.
-- Configure agent access per project.
-
-Each agent must work in an isolated workspace.
-
-Use Git Worktrees or separate working environments.
-
-Prevent agents from directly modifying the main branch.
-
-Allow agents to create pull requests when their assigned tasks are completed.
-
-Include meaningful pull request descriptions and test results.
-
----
-
-## T8 — Approval Center
-
-Create a dedicated approval center for the Super Administrator.
-
-Approval must be required for:
-
-- Merging changes into the main branch.
-- Production deployment.
-- Deleting important data.
-- Changing security settings.
-- Changing permissions.
-- High-risk operations.
-
-Provide these actions:
-
-- Approve.
-- Reject.
-- Request Changes.
-
-No protected operation may execute before explicit human approval.
-
-Enforce approval rules in the backend, not just the frontend.
-
-Record:
-
-- Approver.
-- Timestamp.
-- Decision.
-- Reason.
-- Related task.
-- Related pull request.
-
----
-
-## T9 — RabbitMQ Messaging Infrastructure
-
-Use RabbitMQ to distribute messages and tasks between agents.
-
-Implement flexible queues and routing based on:
-
-- Agent specialty.
-- Task type.
-- Priority.
-- Project.
-- Execution availability.
+### Agent Lifecycle
 
 Support:
 
-- Parallel execution.
-- Task routing.
-- Message acknowledgment.
-- Retries.
-- Dead-letter queues.
-- Timeouts.
-- Idempotency.
-- Recovery after service restart.
+CREATED → INITIALIZING → IDLE → ASSIGNED → RUNNING → REVIEWING → COMPLETED
+
+Also support:
+
+WAITING_FOR_INPUT, WAITING_FOR_APPROVAL, BLOCKED, FAILED, CANCELLED, DISABLED.
+
+Record every state transition.
 
 ---
 
-## T10 — LangGraph Orchestration
+# PHASE 4 — INTELLIGENT ORCHESTRATION ENGINE
 
-Use LangGraph to manage the actual workflow and coordination logic.
+Build an Intelligent Orchestration Engine responsible for planning, decomposition, assignment, coordination, and workflow execution.
 
-The Manager Agent must use LangGraph for:
+Use LangGraph where appropriate.
 
-- Planning.
-- Task decomposition.
-- Dependency management.
+### Responsibilities
+
+- Understand user objectives.
+- Analyze requirements.
+- Decompose objectives.
+- Generate task dependency graphs.
+- Identify required capabilities.
+- Select suitable agents.
+- Allocate tasks.
+- Schedule execution.
+- Parallelize independent tasks.
+- Coordinate task dependencies.
+- Consolidate outputs.
+- Initiate review workflows.
+- Handle retries.
+- Recover interrupted workflows.
+- Verify acceptance criteria.
+
+### Execution Patterns
+
+Support:
+
+- Sequential execution.
 - Parallel execution.
-- Result collection.
+- Fan-out/fan-in.
+- Conditional execution.
+- Dependency-driven execution.
+- Hierarchical delegation.
 - Review loops.
-- Error recovery.
-- Task reassignment.
-- Workflow persistence.
+- Human approval stages.
+- Recovery workflows.
 
-RabbitMQ is responsible for message delivery and worker distribution.
+### Task Assignment Intelligence
 
-LangGraph is responsible for orchestration and workflow decisions.
+Select agents based on:
 
-Do not confuse these responsibilities.
+- Required skills.
+- Historical performance.
+- Provider capability.
+- Model capability.
+- Current workload.
+- Project permissions.
+- Estimated cost.
+- Expected latency.
+- Availability.
 
----
+Avoid assigning multiple agents to the same work unnecessarily.
 
-## T11 — AI Provider Management
-
-Create a flexible provider architecture.
-
-Initially support:
-
-- Anthropic Claude API.
-- OpenAI API.
-
-Implement a unified provider adapter interface.
-
-Allow additional providers to be added later.
-
-Create a provider settings page containing:
-
-- Provider Name.
-- API Credentials.
-- Available Models.
-- Connection Status.
-- Connection Test.
-- Token Usage.
-- Estimated Costs.
-- Model Configuration.
-
-Encrypt sensitive credentials.
-
-Never expose complete API keys after saving them.
-
-Do not assume a Claude subscription is equivalent to API access.
+Prevent duplicate execution.
 
 ---
 
-## T12 — Arena AI Integration
+# PHASE 5 — INTELLIGENT AGENT SUPERVISOR
 
-Make the architecture extensible for future Arena AI integration.
+Create an independent Agent Supervisor.
 
-Investigate official Arena AI documentation.
+The Supervisor is responsible for continuous operational monitoring and agent-team health.
 
-If an official, supported API exists and is accessible:
+Do not merge all Supervisor responsibilities into the Orchestrator.
 
-- Build a separate Arena Provider Adapter.
-- Document authentication.
-- Test the integration.
+### Supervisor Responsibilities
 
-If no suitable official API is available:
+- Monitor agent states.
+- Detect stalled agents.
+- Detect repeated failures.
+- Detect idle workers.
+- Detect task deadlocks.
+- Detect duplicate work.
+- Detect conflicting changes.
+- Detect abnormal execution costs.
+- Detect excessive retries.
+- Detect context exhaustion.
+- Detect suspicious tool usage.
+- Recommend agent replacement.
+- Recommend task reassignment.
+- Trigger recovery workflows.
+- Escalate unresolved issues.
 
-- Do not use unofficial browser automation.
-- Do not scrape sessions.
-- Do not store employee passwords.
-- Create a documented extension point for future integration.
+### Supervisory Actions
 
-The platform must remain fully functional without Arena AI.
+The Supervisor may autonomously perform reversible, policy-authorized actions.
+
+Examples:
+
+- Restart failed development workers.
+- Retry eligible tasks.
+- Reassign tasks.
+- Reduce concurrency.
+- Switch to an approved fallback model.
+- Restore a verified checkpoint.
+- Stop runaway executions.
+- Isolate an unhealthy agent.
+
+All supervisory actions must be logged.
+
+The Supervisor must never override security policies or mandatory approval requirements.
 
 ---
 
-## T13 — Docker-Based Agent Execution
+# PHASE 6 — AGENT COMMUNICATION ARCHITECTURE
 
-Agents must be able to perform actual software development work.
+Build a structured communication system.
 
-Depending on permissions, agents should be able to:
+Support three distinct communication mechanisms.
 
-- Read project files.
-- Create files.
-- Modify files.
-- Delete authorized files.
-- Run tests.
-- Run build commands.
-- Execute Git commands.
-- Create branches.
-- Push changes.
-- Create pull requests.
+### 6.1 Internal Message Bus
 
-Use Docker to isolate execution environments.
+Use RabbitMQ or another justified messaging system.
 
-Implement:
+Support:
+
+- Task events.
+- Agent events.
+- Execution events.
+- Approval events.
+- Workflow events.
+- Recovery events.
+
+Use:
+
+- Correlation IDs.
+- Message IDs.
+- Idempotency keys.
+- Retry policies.
+- Dead-letter queues.
+- Message acknowledgements.
+
+### 6.2 Model Context Protocol
+
+Implement MCP for agent-to-tool and agent-to-service communication.
+
+Support:
+
+- MCP clients.
+- MCP servers.
+- Tool discovery.
+- Resource discovery.
+- Permission enforcement.
+- Connection health.
+- Session management.
+
+### 6.3 Agent-to-Agent Communication
+
+Support A2A-compatible communication where appropriate.
+
+Use A2A for communication between independent agent runtimes and agent services.
+
+Maintain internal message bus communication for platform-internal workflows.
+
+Do not confuse MCP, A2A, and internal messaging.
+
+### Structured Message Contract
+
+Every internal message should contain:
+
+- Message ID.
+- Sender.
+- Recipient.
+- Project ID.
+- Task ID.
+- Correlation ID.
+- Message type.
+- Payload.
+- Priority.
+- Timestamp.
+- Schema version.
+
+---
+
+# PHASE 7 — CONTEXT ENGINEERING AND INTELLIGENCE
+
+Build a dedicated Context Engineering Layer.
+
+Context management must be treated as a core system capability.
+
+### Responsibilities
+
+- Context collection.
+- Context selection.
+- Context prioritization.
+- Context compression.
+- Context summarization.
+- Context retrieval.
+- Context versioning.
+- Token budget allocation.
+- Context deduplication.
+- Context isolation.
+- Context validation.
+
+### Context Sources
+
+- Project documentation.
+- Source code.
+- Architecture decisions.
+- Git history.
+- Task descriptions.
+- Previous execution results.
+- Agent memory.
+- User instructions.
+- Approved tool results.
+- Relevant test results.
+
+### Context Assembly
+
+Every execution should receive only relevant context.
+
+Do not send the entire project history to every agent.
+
+Implement context profiles for:
+
+- Architecture tasks.
+- Frontend tasks.
+- Backend tasks.
+- Database tasks.
+- Security tasks.
+- Testing tasks.
+- Code review tasks.
+
+### Context Security
+
+Treat external content and repository content as untrusted input.
+
+Clearly separate:
+
+- Trusted system instructions.
+- Platform policies.
+- Project requirements.
+- User instructions.
+- Retrieved data.
+- External tool outputs.
+
+Retrieved content must never override system security policies.
+
+---
+
+# PHASE 8 — AGENT MEMORY SYSTEM
+
+Implement persistent, scoped agent memory.
+
+### Memory Types
+
+- Agent Identity Memory.
+- Project Memory.
+- Task Memory.
+- Conversation Memory.
+- Technical Decision Memory.
+- Codebase Knowledge.
+- Execution Memory.
+- Lessons Learned.
+- Team Shared Memory.
+
+### Capabilities
+
+- Semantic retrieval.
+- Memory summarization.
+- Memory updates.
+- Memory versioning.
+- Memory provenance.
+- Memory expiration.
+- Human correction.
+- Memory deletion.
+- Project-level isolation.
+
+Distinguish verified facts from assumptions and generated suggestions.
+
+Do not automatically treat an agent's unsupported claims as verified knowledge.
+
+---
+
+# PHASE 9 — MULTI-PROVIDER AI GATEWAY
+
+Create a unified provider-independent gateway.
+
+Support adapters for:
+
+- Anthropic.
+- OpenAI.
+- Google.
+- Additional compatible providers.
+
+### Capabilities
+
+- Provider registration.
+- Model discovery where supported.
+- Model metadata.
+- Capability mapping.
+- Provider health checks.
+- Routing.
+- Fallback.
+- Rate-limit handling.
+- Token tracking.
+- Cost estimation.
+- Timeout management.
+- Usage reporting.
+
+### Authentication Types
+
+Keep separate authentication mechanisms for:
+
+1. Official APIs.
+2. Local CLI tools.
+3. Browser sessions.
+4. External agent services.
+
+Never assume consumer subscriptions include API access.
+
+Never expose credentials to model prompts.
+
+### Intelligent Model Routing
+
+Route tasks based on:
+
+- Task complexity.
+- Required capabilities.
+- Context window.
+- Cost.
+- Latency.
+- Reliability.
+- Provider availability.
+- User configuration.
+
+Use LiteLLM where it provides a justified gateway capability.
+
+Do not confuse LiteLLM with agent runtime orchestration or A2A communication.
+
+---
+
+# PHASE 10 — UNIVERSAL CONNECTIVITY LAYER
+
+Create a unified connectivity architecture for all agent execution methods.
+
+### Supported Execution Methods
+
+1. Official API.
+2. Local CLI.
+3. Browser Bridge.
+4. External Agent Runtime.
+5. MCP-connected tools.
+6. A2A-connected agents.
+
+All execution methods must implement standardized interfaces.
+
+### CLI Integrations
+
+Evaluate:
+
+- Claude Code CLI.
+- OpenAI Codex CLI.
+- Gemini CLI.
+- OpenCode.
+
+Verify official documentation, authentication, platform support, and actual capabilities.
+
+Do not invent CLI arguments or claim unsupported compatibility.
+
+---
+
+# PHASE 11 — AI BROWSER BRIDGE
+
+Implement a standalone Browser Bridge inspired by:
+
+https://github.com/YosefHayim/ai-browser-bridge
+
+### Purpose
+
+Allow authorized agents to interact with supported AI sessions operating inside isolated browser profiles.
+
+### Architecture
+
+AI Agent Command Center
+        |
+        v
+Agent Orchestrator
+        |
+        v
+Universal Agent Runtime
+        |
+        v
+Connectivity Gateway
+        |
+        +---- Official API
+        |
+        +---- CLI
+        |
+        +---- Browser Bridge
+                    |
+                    v
+             Playwright / CDP
+                    |
+                    v
+           Isolated Browser Profile
+                    |
+             +------+------+
+             |      |      |
+           Claude ChatGPT Gemini
+
+### Browser Capabilities
+
+- Browser discovery.
+- Browser startup and shutdown.
+- Isolated browser profiles.
+- Authentication-state detection.
+- Session creation.
+- Conversation creation.
+- Conversation resumption.
+- Prompt submission.
+- Response extraction.
+- Streaming where supported.
+- Generation monitoring.
+- Cancellation.
+- Timeout management.
+- Reconnection.
+- Error reporting.
+
+### Browser Session States
+
+- DISCONNECTED.
+- STARTING.
+- AUTH_REQUIRED.
+- READY.
+- SENDING.
+- GENERATING.
+- COMPLETED.
+- FAILED.
+- STOPPED.
+
+### MCP Integration
+
+Expose authorized Browser Bridge capabilities through MCP.
+
+Example tools:
+
+- list_providers.
+- get_provider_status.
+- list_available_models.
+- create_browser_session.
+- close_browser_session.
+- create_conversation.
+- resume_conversation.
+- send_prompt.
+- get_generation_status.
+- get_conversation_history.
+- cancel_generation.
+- get_bridge_health.
+
+### Multi-Provider Comparison
+
+Allow multiple providers to receive the same task concurrently when useful.
+
+Collect results and submit them to an independent Evaluator Agent.
+
+Control cost and concurrency.
+
+### Security
+
+- Use dedicated browser profiles.
+- Never access personal browser profiles by default.
+- Never expose session cookies to agents.
+- Never extract or disclose authentication secrets.
+- Never bypass CAPTCHAs or access controls.
+- Respect provider terms.
+- Detect incompatible interface changes.
+- Fail safely.
+- Clearly label experimental integrations.
+
+### Cross-Platform Compatibility
+
+Support Windows, Linux, and macOS where dependencies permit.
+
+Do not assume the reference implementation is cross-platform.
+
+Verify actual compatibility before reusing code.
+
+---
+
+# PHASE 12 — GITHUB AND PARALLEL DEVELOPMENT
+
+Implement professional GitHub integration.
+
+Support:
+
+- GitHub App authentication.
+- OAuth where appropriate.
+- Repository management.
+- Branch management.
+- Commit inspection.
+- Issues.
+- Pull requests.
+- Webhooks.
+- CI checks.
+- Code reviews.
+
+### Git Worktree Isolation
+
+Every concurrently developing coding agent must work in an isolated Git Worktree.
+
+Use dedicated feature branches.
+
+Track:
+
+- Modified files.
+- Branch ownership.
+- Commit history.
+- Worktree status.
+- Conflicts.
+- Integration status.
+
+### Integration Workflow
+
+1. Agent completes its task.
+2. Changes are validated.
+3. Tests run.
+4. Reviewer Agent inspects changes.
+5. Conflicts are detected.
+6. Integration is attempted.
+7. Human approval is obtained where required.
+8. Changes are merged according to policy.
+
+Never allow agents to modify protected main branches directly.
+
+---
+
+# PHASE 13 — PROJECT MANAGEMENT AND TASK INTELLIGENCE
+
+Support three project modes.
+
+### New Project
+
+- Requirements analysis.
+- Architecture.
+- Database design.
+- UI/UX.
+- Planning.
+- Implementation.
+- Testing.
+- Documentation.
+- Release preparation.
+
+### Existing Project
+
+- Repository inspection.
+- Technology detection.
+- Architecture discovery.
+- Dependency analysis.
+- Test discovery.
+- Codebase mapping.
+- Technical debt analysis.
+
+### Refactoring and Maintenance
+
+- Bug investigation.
+- Performance improvements.
+- Security improvements.
+- Dependency maintenance.
+- Architecture refactoring.
+- Automated tests.
+- Documentation updates.
+
+### Kanban Workflow
+
+- BACKLOG.
+- PLANNED.
+- READY.
+- IN_PROGRESS.
+- BLOCKED.
+- REVIEW.
+- APPROVAL.
+- COMPLETED.
+- FAILED.
+
+### Task Intelligence
+
+Tasks must include:
+
+- Task ID.
+- Title.
+- Description.
+- Project.
+- Priority.
+- Assigned agent.
+- Dependencies.
+- Acceptance criteria.
+- Budget.
+- Estimated effort.
+- Execution history.
+- Evidence.
+- Review status.
+
+Never mark tasks complete solely because an agent claims completion.
+
+---
+
+# PHASE 14 — AGENT EVALUATION SYSTEM
+
+Create an independent Agent Evaluation Engine.
+
+It must objectively assess execution quality.
+
+### Evaluation Dimensions
+
+- Task Completion Accuracy.
+- Code Quality.
+- Test Pass Rate.
+- Security Findings.
+- Regression Rate.
+- Architecture Compliance.
+- Documentation Quality.
+- Execution Cost.
+- Execution Duration.
+- Rework Rate.
+- Tool Usage Quality.
+
+### Evaluation Process
+
+1. Collect execution evidence.
+2. Inspect modified files.
+3. Run relevant tests.
+4. Review acceptance criteria.
+5. Inspect security findings.
+6. Generate evaluation results.
+7. Approve, reject, or request revision.
+
+Use deterministic tests and static analysis wherever possible.
+
+Do not rely exclusively on another LLM's subjective opinion.
+
+### Agent Performance Profiles
+
+Maintain historical performance data by:
+
+- Agent.
+- Role.
+- Provider.
+- Model.
+- Task type.
+- Project.
+
+Use this data to improve future task assignments.
+
+---
+
+# PHASE 15 — FAULT TOLERANCE AND AUTOMATIC RECOVERY
+
+Build a fault-tolerant execution architecture.
+
+### Required Capabilities
+
+- Checkpoint persistence.
+- Execution recovery.
+- Task resumption.
+- Idempotent task handling.
+- Duplicate execution prevention.
+- Dead-letter queues.
+- Worker health checks.
+- Worker restart.
+- Provider failover.
+- Retry policies.
+- Exponential backoff.
+- Graceful shutdown.
+- Partial-result preservation.
+
+### Recovery Workflow
+
+When an execution fails:
+
+1. Identify the failure category.
+2. Preserve logs and evidence.
+3. Inspect the latest checkpoint.
+4. Determine whether retry is safe.
+5. Retry or resume where appropriate.
+6. Use an approved fallback if necessary.
+7. Escalate only when recovery is not possible.
+8. Record the final outcome.
+
+Avoid infinite retry loops.
+
+Set retry budgets and circuit breakers.
+
+---
+
+# PHASE 16 — APPROVAL AND GOVERNANCE
+
+Implement a centralized Approval Center.
+
+Approval policies must be enforced by backend services.
+
+Critical operations include:
+
+- Production deployment.
+- Destructive database operations.
+- External public exposure.
+- Credential changes.
+- Permission escalation.
+- Sensitive infrastructure changes.
+- Critical Git merges.
+- Irreversible operations.
+
+### Autonomous Operations
+
+Agents may perform ordinary development operations independently within their assigned workspaces and permissions.
+
+Do not ask the user for approval repeatedly for routine coding, testing, refactoring, or local configuration.
+
+### Approval Records
+
+Store:
+
+- Request ID.
+- Agent ID.
+- Project ID.
+- Task ID.
+- Requested operation.
+- Risk level.
+- Evidence.
+- Decision.
+- Approver.
+- Timestamp.
+
+When a critical operation cannot be performed without authorization:
+
+- Do not execute it.
+- Create an approval request.
+- Continue independent development work.
+- Document the remaining blocker.
+
+Do not use a pending approval as an excuse to stop the entire project.
+
+---
+
+# PHASE 17 — SECURE SANDBOX EXECUTION
+
+All agent code execution must occur in isolated environments.
+
+Use Docker or an equivalent execution sandbox.
+
+### Controls
 
 - CPU limits.
 - Memory limits.
-- Execution time limits.
-- Filesystem restrictions.
-- Workspace isolation.
+- Time limits.
+- Filesystem isolation.
+- Network restrictions.
+- Process limits.
+- Workspace boundaries.
 - Secret isolation.
-- Command execution policies.
-- Execution logging.
-- Secret redaction.
+- Resource quotas.
 
-Never allow unrestricted agent execution on the host operating system.
+### Security Principles
 
----
+- Least privilege.
+- Default deny.
+- Explicit tool permissions.
+- No unrestricted host filesystem access.
+- No unrestricted shell access.
+- No cross-project access.
+- No secret leakage.
 
-## T14 — Role-Based Permissions
+Treat repository content, web pages, issue descriptions, tool outputs, and external files as untrusted data.
 
-Implement a complete Roles and Permissions system.
+Prompt-injection protection must be implemented at execution and tool boundaries.
 
-Initial roles:
-
-- Super Admin.
-- Manager Agent.
-- Developer Agent.
-- Reviewer Agent.
-- Read Only Agent.
-
-I am the Super Administrator.
-
-Agents must never be able to:
-
-- Grant themselves additional permissions.
-- Change system security policies.
-- Override approval requirements.
-- Merge into protected branches.
-- Deploy to production without approval.
-
-All permissions must be enforced by backend authorization policies.
+A system prompt is not a security boundary.
 
 ---
 
-## T15 — Activity Logs
+# PHASE 18 — SKILLS AND MCP REGISTRY
 
-Create a complete activity and audit log.
+Create a dynamic Skills and MCP management interface.
 
-Record:
+Support:
 
-- User.
+- Skill installation.
+- Skill inspection.
+- Skill activation.
+- Skill assignment.
+- Skill permissions.
+- MCP server registration.
+- MCP connection management.
+- Tool discovery.
+- Connection testing.
+- Security assessment.
+
+Before enabling an external skill:
+
+- Inspect its source.
+- Review instructions.
+- Inspect dependencies.
+- Identify dangerous commands.
+- Identify network access.
+- Identify filesystem access.
+- Identify credential access.
+
+Do not grant unrestricted privileges automatically.
+
+---
+
+# PHASE 19 — DATABASE AND MULTI-TENANCY
+
+Use PostgreSQL as the primary relational database.
+
+Use SQLAlchemy and Alembic.
+
+### Core Entities
+
+- organizations.
+- users.
+- roles.
+- permissions.
+- teams.
+- projects.
+- repositories.
+- agents.
+- agent_templates.
+- agent_sessions.
+- tasks.
+- task_dependencies.
+- executions.
+- execution_events.
+- agent_messages.
+- providers.
+- models.
+- browser_sessions.
+- mcp_servers.
+- mcp_tools.
+- skills.
+- memories.
+- approvals.
+- audit_logs.
+- usage_records.
+- cost_records.
+- checkpoints.
+- evaluation_results.
+- system_settings.
+
+### Multi-Tenant Readiness
+
+Design for future support of:
+
+- Multiple organizations.
+- Multiple teams.
+- Multiple projects.
+- Multiple users.
+- Organization-level settings.
+- Team-level policies.
+- Project-level permissions.
+- Isolated memories.
+- Isolated credentials.
+
+Implement tenant isolation at the database and authorization layers.
+
+Avoid unnecessary multi-tenant operational complexity in the initial release.
+
+---
+
+# PHASE 20 — PROVIDER COST AND RESOURCE MANAGEMENT
+
+Implement cost and usage analytics.
+
+Track:
+
+- Provider.
+- Model.
 - Agent.
 - Project.
 - Task.
-- Action.
-- Timestamp.
-- Changed files.
-- Executed commands.
-- Test results.
-- Manager decisions.
-- Approval decisions.
-- Errors.
-- Token consumption.
-- Estimated cost.
+- Execution.
+- Input tokens.
+- Output tokens.
+- Cached tokens where available.
+- API usage.
+- Estimated costs.
+- Execution duration.
+- Retry count.
 
-Make the logs searchable and filterable.
+Support:
 
-Never expose passwords, API keys, or sensitive credentials in logs.
+- Agent budgets.
+- Project budgets.
+- Task budgets.
+- Daily limits.
+- Monthly limits.
+- Provider-specific limits.
 
----
+When a budget is reached:
 
-# WINDOWS AUTOMATION REQUIREMENTS
+- Stop new nonessential executions.
+- Preserve completed results.
+- Record the event.
+- Continue unrelated tasks within budget.
+- Create an approval request when additional spending requires authorization.
 
-## T16 — START.bat
-
-Create a Windows batch file in the project root:
-
-`START.bat`
-
-I want to start the entire application by double-clicking this file.
-
-The launcher must:
-
-1. Detect whether Docker is installed.
-2. Check whether Docker Engine is running.
-3. Verify required configuration files.
-4. Create `.env` from `.env.example` when appropriate.
-5. Never insert fake production credentials.
-6. Build Docker images when necessary.
-7. Start services using Docker Compose.
-8. Wait for PostgreSQL readiness.
-9. Wait for RabbitMQ readiness.
-10. Wait for backend readiness.
-11. Wait for frontend readiness.
-12. Run database migrations safely.
-13. Open the default browser automatically.
-14. Display the application URL.
-15. Display useful error messages.
-16. Save execution logs in a logs directory.
-
-If Docker is missing:
-
-- Display a clear installation message.
-- Provide the official Docker Desktop installation link.
-- Do not automatically install software without permission.
-
-The launcher must support Windows paths containing spaces and non-English characters.
-
-Use correct quoting and `%~dp0`.
-
-Do not delete database volumes or user data during normal startup.
-
-## T17 — STOP.bat
-
-Create:
-
-`STOP.bat`
-
-It must stop all application services safely.
-
-It must not delete:
-
-- Database volumes.
-- Projects.
-- Repositories.
-- Persistent files.
-- Application configuration.
-
-## T18 — UPDATE.bat
-
-Create an optional update script.
-
-It should:
-
-- Check local changes.
-- Detect available updates.
-- Preserve user data.
-- Back up important data when necessary.
-- Apply updates safely.
-
-## T19 — RESET-DEV.bat
-
-Create an optional development reset script.
-
-It must display a serious warning and require explicit confirmation before deleting development data.
-
-Never use it during normal application startup.
+Never fabricate pricing or usage data.
 
 ---
 
-# PROJECT PROGRESS TRACKING
+# PHASE 21 — OBSERVABILITY AND MONITORING
 
-## T20 — progress.txt
+Implement structured observability using appropriate OpenTelemetry-compatible tooling.
 
-Create a UTF-8 text file in the project root:
+### Monitor
 
-`progress.txt`
+- Backend health.
+- Database health.
+- Redis health.
+- RabbitMQ health.
+- Worker health.
+- Orchestrator health.
+- Runtime health.
+- Provider health.
+- Browser Bridge health.
+- MCP health.
+- Sandbox health.
 
-This file must show the actual development progress.
+### Execution Timeline
 
-I want it updated automatically every five minutes while development work is actively running.
+Display:
 
-Also update it immediately when:
+- Task creation.
+- Agent assignment.
+- Context preparation.
+- Execution start.
+- Tool calls.
+- Tool results.
+- Agent communication.
+- Approval requests.
+- Reviews.
+- Retries.
+- Recovery.
+- Completion.
 
-- A major phase is completed.
-- A major milestone is reached.
-- A critical error occurs.
-- A blocker appears.
-- A significant implementation decision is made.
-
-### Required Contents
-
-The file must contain:
-
-1. Last Updated timestamp.
-2. Overall completion percentage.
-3. Current development phase.
-4. Completion percentage of each phase.
-5. Completed tasks.
-6. Tasks in progress.
-7. Pending tasks.
-8. Successful tests.
-9. Failed tests.
-10. Current blockers.
-11. Decisions requiring my approval.
-12. Recently completed components.
-13. Next implementation step.
-
-### Progress Calculation
-
-Divide the project into weighted phases totaling 100%.
-
-Calculate overall completion based on verified implementation tasks and acceptance criteria.
-
-Do not calculate progress based merely on:
-
-- Time spent.
-- Number of files created.
-- Number of lines written.
-- Subjective estimates.
-
-A feature is complete only when its acceptance criteria are met and the relevant tests pass.
-
-### Suggested File Format
-
-```text
-AI AGENT COMMAND CENTER
-PROJECT DEVELOPMENT PROGRESS
-
-Last Updated: YYYY-MM-DD HH:MM
-Overall Completion: 00%
-
-CURRENT PHASE:
-Project Foundation
-
-PHASE PROGRESS:
-
-1. Project Foundation: 0%
-2. UI UX Design System: 0%
-3. Bilingual Frontend: 0%
-4. Backend and Database: 0%
-5. Agent Management: 0%
-6. AI Providers: 0%
-7. Manager Agent: 0%
-8. LangGraph Orchestration: 0%
-9. RabbitMQ Parallel Execution: 0%
-10. GitHub Integration: 0%
-11. Docker Sandbox: 0%
-12. Approval and Security: 0%
-13. Windows Launcher: 0%
-14. Testing: 0%
-15. Documentation and Release: 0%
-
-COMPLETED TASKS:
-
-IN PROGRESS:
-
-PENDING TASKS:
-
-SUCCESSFUL TESTS:
-
-FAILED TESTS:
-
-BLOCKERS:
-
-REQUIRES ADMIN APPROVAL:
-
-RECENTLY COMPLETED:
-
-NEXT STEP:
-
-UPDATE HISTORY:
-
-- YYYY-MM-DD HH:MM — Initial project baseline — 0%
-```
-
-Keep historical updates rather than overwriting the entire history.
-
-Update this file at least every five minutes during the active Claude Code development session.
-
-Important:
-
-Do not claim that progress will continue updating after Claude Code or the computer is shut down.
-
-An optional background monitoring service may be implemented later, but do not create persistent Windows scheduled tasks or background services without my explicit permission.
+Redact secrets and sensitive data from logs.
 
 ---
 
-# F — FORMAT
+# PHASE 22 — ENTERPRISE SECURITY
 
-## T21 — Mandatory UI UX Pro Max Skill
+Implement:
 
-Use this GitHub repository as the mandatory UI/UX skill reference:
+- Authentication.
+- RBAC.
+- Organization-level permissions.
+- Project-level permissions.
+- Secure session management.
+- Encrypted credential storage.
+- Secret rotation support.
+- Audit logging.
+- Rate limiting.
+- Input validation.
+- Output validation.
+- Secure CORS.
+- CSRF protection where applicable.
+- Dependency scanning.
+- Container scanning.
+- Backup protection.
 
-https://github.com/nextlevelbuilder/ui-ux-pro-max-skill
+Suggested roles:
 
-Before implementing the frontend:
+- SUPER_ADMIN.
+- ORGANIZATION_ADMIN.
+- PROJECT_MANAGER.
+- DEVELOPER.
+- REVIEWER.
+- VIEWER.
 
-1. Inspect the official repository.
-2. Read its README and installation instructions.
-3. Install the skill using the officially documented method compatible with Claude Code.
-4. Verify the installation.
-5. Read the skill instructions.
-6. Generate an appropriate design system.
-7. Apply its design recommendations throughout the application.
-8. Follow its UI/UX quality checklist.
+All sensitive operations must be authorized server-side.
 
-Preferred CLI installation, if supported by the current official documentation:
+---
 
-```bash
-npm install -g ui-ux-pro-max-cli
-```
+# PHASE 23 — ENTERPRISE UI/UX
 
-Then inside the project directory:
+Create a polished, professional enterprise interface.
 
-```bash
-uipro init --ai claude
-```
+The UI UX Pro Max skill is mandatory.
 
-If the official Claude Code Marketplace method is more appropriate, use that method instead.
+### Requirements
 
-Do not install both methods unnecessarily.
-
-Use UI UX Pro Max for:
-
-- Design System.
-- Color palettes.
-- Typography.
-- Dashboard layout.
-- Navigation.
-- Tables.
-- Forms.
-- Charts.
+- Consistent design system.
 - Responsive layouts.
-- Accessibility.
-- UX patterns.
-- Component design.
-- Pre-delivery quality checks.
-
-The UI must look like a professional commercial SaaS platform.
-
-Do not simply install the skill and ignore it.
-
-Document the installed version and setup method.
-
-## T22 — Design Quality
-
-The interface must be visually polished and professional.
-
-Requirements:
-
-- Consistent design tokens.
-- Professional color palette.
-- Consistent spacing.
-- Modern typography.
-- Responsive layouts.
-- Clear navigation.
-- Professional icons.
+- Accessible components.
+- Reusable components.
+- Clear visual hierarchy.
+- Professional dashboards.
+- Interactive charts.
+- Realtime updates.
 - Loading states.
 - Empty states.
 - Error states.
-- Success notifications.
 - Confirmation dialogs.
-- Accessible controls.
-- Keyboard navigation.
-- Proper contrast.
-- RTL and LTR compatibility.
 
-Do not use emoji as substitutes for professional interface icons.
+### Localization
 
-Use Lucide or another suitable SVG icon library.
+Arabic is the default language.
 
-Test at:
+English must also be fully supported.
 
-- 375px.
-- 768px.
-- 1024px.
-- 1440px.
+Arabic:
 
----
-
-# T23 — Database Architecture
-
-Create a properly structured PostgreSQL database.
-
-Required entities:
-
-- Users.
-- Agents.
-- Agent Roles.
-- Agent Providers.
-- Agent Configurations.
-- Agent Permissions.
-- Projects.
-- GitHub Repositories.
-- Tasks.
-- Task Dependencies.
-- Task Executions.
-- Agent Messages.
-- Approval Requests.
-- Pull Requests.
-- Activity Logs.
-- API Credentials.
-- Usage Statistics.
-
-Use SQLAlchemy and Alembic migrations.
-
----
-
-# T24 — Testing and Quality Assurance
-
-Write actual automated tests.
-
-Test:
-
-- Authentication.
-- Arabic interface.
-- English interface.
 - RTL.
+- Correct typography.
+- Correct directional icons.
+- Proper layout alignment.
+
+English:
+
 - LTR.
-- Agent creation.
-- Agent modification.
-- Agent activation.
-- Agent permissions.
-- Provider connections.
-- Task creation.
-- Task assignment.
+- Native directional layout.
+
+Implement full application localization, not just navigation translation.
+
+### Main Navigation
+
+1. Command Center.
+2. Projects.
+3. Agents.
+4. Agent Teams.
+5. Tasks.
+6. Orchestration.
+7. Agent Supervisor.
+8. Executions.
+9. Browser Bridge.
+10. MCP & A2A.
+11. Providers & Models.
+12. Agent Runtime.
+13. Context & Memory.
+14. Skills.
+15. GitHub.
+16. Approval Center.
+17. Evaluation.
+18. Analytics.
+19. Audit Logs.
+20. Settings.
+
+---
+
+# PHASE 24 — AUTOMATION AND SCHEDULING
+
+Support:
+
+- Scheduled workflows.
+- Recurring tasks.
+- Event-driven automation.
+- Repository monitoring.
+- Automated code reviews.
+- Scheduled maintenance.
+- Background project analysis.
+
+All persistent automation must be visible and manageable.
+
+Provide:
+
+- Pause.
+- Resume.
+- Edit.
+- Delete.
+- Execution history.
+
+Do not silently install persistent system services or scheduled tasks.
+
+---
+
+# PHASE 25 — CROSS-PLATFORM ENGINEERING
+
+The application must be cross-platform.
+
+Supported development environments:
+
+- Windows 10/11.
+- Linux.
+- macOS.
+
+Supported deployment targets:
+
+- Docker.
+- Linux servers.
+- Cloud environments.
+- Local development environments.
+
+### Platform Requirements
+
+Avoid hardcoded platform-specific paths.
+
+Use cross-platform path libraries.
+
+Use environment-based configuration.
+
+Avoid shell assumptions.
+
+Provide platform-specific scripts where appropriate.
+
+### Windows
+
+- START.bat.
+- STOP.bat.
+- UPDATE.bat.
+- RESET-DEV.bat.
+- INSTALL.ps1.
+- HEALTH-CHECK.ps1.
+
+### Linux and macOS
+
+- start.sh.
+- stop.sh.
+- update.sh.
+- install.sh.
+- health-check.sh.
+
+### Docker
+
+- docker-compose.yml.
+- Development configuration.
+- Production configuration.
+- Health checks.
+- Persistent volumes.
+- Environment templates.
+
+Never include real secrets in scripts or repositories.
+
+---
+
+# PHASE 26 — DOCUMENTATION
+
+Create and maintain:
+
+- README.md.
+- ARCHITECTURE.md.
+- ARCHITECTURE_DECISIONS.md.
+- SECURITY.md.
+- DEVELOPMENT.md.
+- DEPLOYMENT.md.
+- API_REFERENCE.md.
+- DATABASE_SCHEMA.md.
+- AGENT_RUNTIME.md.
+- ORCHESTRATION.md.
+- SUPERVISOR.md.
+- CONTEXT_ENGINEERING.md.
+- MEMORY_SYSTEM.md.
+- PROVIDER_INTEGRATION.md.
+- BROWSER_BRIDGE.md.
+- MCP_INTEGRATION.md.
+- A2A_INTEGRATION.md.
+- GITHUB_WORKFLOWS.md.
+- WINDOWS_SETUP.md.
+- TROUBLESHOOTING.md.
+- CHANGELOG.md.
+
+Documentation must reflect actual implementation.
+
+Do not document hypothetical features as completed.
+
+---
+
+# F — FORMAT AND EXECUTION METHODOLOGY
+
+# 1. AUTONOMOUS EXECUTION PROTOCOL
+
+You must work through the complete project without routine user intervention.
+
+Follow this protocol.
+
+## STEP 1 — ENVIRONMENT DISCOVERY
+
+Inspect:
+
+- Current directory.
+- Repository.
+- Git status.
+- Operating system.
+- Available runtimes.
+- Installed dependencies.
+- Available development tools.
+- Existing source code.
+- Existing configuration.
+- Existing infrastructure.
+- Available skills.
+
+Never overwrite existing work without inspection.
+
+## STEP 2 — REQUIREMENTS ANALYSIS
+
+Convert the entire specification into an actionable requirements matrix.
+
+Assign every requirement:
+
+- Unique ID.
+- Description.
+- Priority.
+- Dependencies.
+- Implementation status.
+- Acceptance criteria.
+- Verification method.
+
+## STEP 3 — ARCHITECTURE
+
+Produce:
+
+- System architecture.
+- Component architecture.
+- Data flow diagrams.
+- Database schema.
+- API contracts.
+- Agent lifecycle.
+- Runtime architecture.
+- Connectivity architecture.
+- Security model.
+- Deployment architecture.
+
+Document significant decisions.
+
+## STEP 4 — AUTONOMOUS PLANNING
+
+Create:
+
+- Development milestones.
+- Work packages.
+- Dependency graphs.
+- Implementation sequence.
+- Risk register.
+- Testing strategy.
+- Delivery criteria.
+
+Do not ask the user to approve ordinary technical choices.
+
+## STEP 5 — IMPLEMENTATION
+
+Build the platform incrementally.
+
+For each feature:
+
+1. Define acceptance criteria.
+2. Implement the backend.
+3. Implement the database changes.
+4. Implement the frontend.
+5. Integrate the relevant services.
+6. Add tests.
+7. Run tests.
+8. Fix failures.
+9. Update documentation.
+10. Record evidence.
+11. Update progress.
+12. Continue to the next feature.
+
+Do not build disconnected placeholder modules.
+
+Prioritize functional end-to-end workflows.
+
+## STEP 6 — CONTINUOUS VALIDATION
+
+Continuously execute:
+
+- Unit tests.
+- Integration tests.
+- Type checking.
+- Linting.
+- Build validation.
+- Database migration validation.
+- Security checks.
+- End-to-end tests.
+
+When a test fails:
+
+1. Investigate the root cause.
+2. Fix the implementation.
+3. Rerun the affected tests.
+4. Rerun relevant regression tests.
+5. Record the outcome.
+
+Do not hide or suppress failures.
+
+## STEP 7 — SELF-IMPROVEMENT LOOP
+
+After every major milestone:
+
+1. Evaluate the architecture.
+2. Inspect technical debt.
+3. Identify performance bottlenecks.
+4. Inspect security risks.
+5. Review failed tasks.
+6. Improve weak components.
+7. Update documentation.
+8. Continue.
+
+## STEP 8 — INTEGRATION
+
+Verify complete workflows across modules.
+
+The system must work as an integrated product, not merely as a collection of individually functioning components.
+
+## STEP 9 — FINAL DELIVERY
+
+Prepare:
+
+- Complete source code.
+- Database migrations.
+- Configuration templates.
+- Startup scripts.
+- Documentation.
+- Test reports.
+- Security findings.
+- Known limitations.
+- Installation instructions.
+- Operational instructions.
+- Release readiness report.
+
+---
+
+# 2. MANDATORY AUTONOMOUS DEVELOPMENT RULES
+
+These rules are mandatory.
+
+### Rule A — Never Stop After Planning
+
+After producing the architecture and roadmap, immediately begin implementation.
+
+A plan is not a deliverable.
+
+### Rule B — Never Ask Routine Questions
+
+Resolve ordinary technical uncertainty independently.
+
+Use sensible defaults.
+
+Document assumptions.
+
+Continue.
+
+### Rule C — Never Wait for Routine Approval
+
+Do not ask permission to:
+
+- Create project files.
+- Modify project source code.
+- Install ordinary dependencies.
+- Run tests.
+- Run local development services.
+- Create local databases.
+- Refactor project modules.
+- Create development branches.
+- Execute approved sandbox operations.
+
+### Rule D — Never Abandon a Failed Feature
+
+Investigate and repair it.
+
+If the selected implementation is unsuitable, replace it with a better approach.
+
+### Rule E — Never Claim Unverified Success
+
+Only mark a feature as complete when its acceptance criteria are verified.
+
+### Rule F — Continue Around Blockers
+
+If one integration is blocked:
+
+- Isolate the blocker.
+- Implement the remaining independent components.
+- Use mocks for automated testing.
+- Provide a documented adapter interface.
+- Return to the integration later.
+
+Do not allow one blocked integration to halt the entire project.
+
+### Rule G — Maintain Continuity
+
+Persist enough state to resume development after:
+
+- Terminal closure.
+- Session interruption.
+- Computer restart.
+- Runtime failure.
+- Context-window exhaustion.
+
+Maintain development handoff documentation.
+
+### Rule H — Use Available Skills
+
+Inspect installed skills and use relevant ones.
+
+The UI UX Pro Max skill is mandatory for design and frontend decisions.
+
+---
+
+# 3. PROJECT PROGRESS TRACKING
+
+Create:
+
+progress.txt
+
+Also maintain:
+
+PROJECT_STATUS.json
+
+Update progress throughout active development and at least every five minutes during active implementation.
+
+Record:
+
+- Current phase.
+- Current milestone.
+- Completed tasks.
+- Files changed.
+- Tests executed.
+- Test outcomes.
+- Known issues.
+- Blockers.
+- Next action.
+- Overall completion estimate.
+
+Use this format:
+
+DATE:
+CURRENT_PHASE:
+CURRENT_MILESTONE:
+COMPLETED:
+FILES_CHANGED:
+TESTS_RUN:
+TEST_RESULTS:
+KNOWN_ISSUES:
+BLOCKERS:
+NEXT_ACTION:
+OVERALL_STATUS:
+
+Never fabricate progress or test results.
+
+---
+
+# 4. DEVELOPMENT MILESTONES
+
+## MILESTONE 1 — FOUNDATION
+
+- Repository structure.
+- Backend.
+- Frontend.
+- Database.
+- Authentication.
+- Infrastructure.
+- Localization.
+- Basic dashboard.
+
+## MILESTONE 2 — UNIVERSAL AGENT RUNTIME
+
+- Runtime interfaces.
+- Agent lifecycle.
+- Execution sessions.
+- Checkpointing.
+- Cancellation.
+- Logging.
+
+## MILESTONE 3 — DYNAMIC AGENT MANAGEMENT
+
+- Agent CRUD.
+- Templates.
+- Configurations.
+- Permissions.
+- Agent monitoring.
+
+## MILESTONE 4 — PROVIDER GATEWAY
+
+- Provider adapters.
+- Model configuration.
+- API authentication.
+- Usage tracking.
+- Intelligent routing.
+- Fallback.
+
+## MILESTONE 5 — EXECUTION ENGINES
+
+- CLI integrations.
+- Execution management.
+- Streaming.
+- Error handling.
+- Recovery.
+
+## MILESTONE 6 — INTELLIGENT ORCHESTRATION
+
+- Task decomposition.
+- Agent assignment.
+- Dependency graphs.
 - Parallel execution.
-- RabbitMQ communication.
-- LangGraph workflows.
+- Workflow management.
+
+## MILESTONE 7 — AGENT SUPERVISOR
+
+- Health monitoring.
+- Failure detection.
+- Task reassignment.
+- Automatic recovery.
+- Operational policies.
+
+## MILESTONE 8 — GITHUB DEVELOPMENT
+
 - GitHub integration.
-- Branch creation.
-- Pull request creation.
-- Approval workflows.
-- Docker execution.
-- Failure recovery.
-- Progress file updates.
-- Windows launcher scripts.
+- Worktrees.
+- Branch isolation.
+- Pull requests.
+- Code review.
+- Merge workflow.
 
-If real API credentials are unavailable, use a clearly labeled Mock Provider for automated tests.
+## MILESTONE 9 — BROWSER BRIDGE AND MCP
 
-Never represent mock execution as real AI execution.
+- Browser Bridge.
+- Browser sessions.
+- Provider adapters.
+- MCP clients.
+- MCP servers.
+- Project tools.
+- Security controls.
 
----
+## MILESTONE 10 — A2A AND COMMUNICATION
 
-# C — CONSTRAINTS
+- Internal message bus.
+- Structured messaging.
+- A2A compatibility.
+- Event-driven communication.
 
-Follow these mandatory rules:
+## MILESTONE 11 — CONTEXT AND MEMORY
 
-1. Do not stop after writing a development plan.
-2. Implement actual working software.
-3. Do not create decorative or nonfunctional pages.
-4. Do not leave nonfunctional buttons.
-5. Never hardcode API keys.
-6. Never commit `.env` files.
-7. Never allow agents to bypass Super Admin permissions.
-8. Never allow automatic merging into protected branches.
-9. Never deploy to production without approval.
-10. Never delete important data without approval.
-11. Never use unofficial Arena AI integrations.
-12. Clearly distinguish Mock Providers from real AI providers.
-13. Never claim tests passed without executing them.
-14. Never inflate project progress.
-15. Never make START.bat delete persistent data.
-16. Never create persistent background processes without approval.
-17. Fix build errors before declaring completion.
-18. Document anything that could not be tested.
-19. Keep the code modular and maintainable.
-20. Apply least-privilege security.
-21. Protect against prompt injection from repository files and external content.
-22. Do not let agent-generated content modify security policies.
-23. Never expose private model chain-of-thought.
-24. Never claim the application is complete merely because the frontend loads.
-25. Respect software licenses.
-26. Use supported package versions.
-27. Implement proper error handling.
-28. Persist task state across service restarts.
-29. Implement idempotency and safe retries.
-30. Enforce approval policies in the backend.
+- Context engineering.
+- Memory persistence.
+- Semantic retrieval.
+- Project isolation.
+- Context budgeting.
 
-If essential credentials or irreversible decisions are required, ask me for approval.
+## MILESTONE 12 — EVALUATION AND RECOVERY
 
-For noncritical engineering decisions, choose a sensible solution and document it.
+- Agent evaluator.
+- Quality scoring.
+- Checkpoint recovery.
+- Fault tolerance.
+- Retry policies.
 
----
+## MILESTONE 13 — ENTERPRISE SECURITY
 
-# DEFINITION OF DONE
+- RBAC.
+- Approval Center.
+- Sandbox.
+- Audit logs.
+- Security validation.
 
-The project is considered complete only when the following real-world scenario works:
+## MILESTONE 14 — ENTERPRISE EXPERIENCE
 
-1. I double-click START.bat.
-2. Docker services start successfully.
-3. The browser opens automatically.
-4. I log in as Super Admin.
-5. I can switch between Arabic and English.
-6. Both RTL and LTR layouts work correctly.
-7. I configure a real AI provider.
-8. I connect GitHub.
-9. I create a Manager Agent.
-10. I create a Backend Agent.
-11. I create a Frontend Agent.
-12. I create a Tester Agent.
-13. I configure their permissions.
-14. I submit one software development request.
-15. The Manager analyzes the request.
-16. The Manager creates an implementation plan.
-17. The Manager distributes tasks.
-18. Independent agents execute tasks in parallel.
-19. I can monitor agent status in real time.
-20. I can inspect execution logs.
-21. Automated tests execute.
-22. Pull Requests are created.
-23. The Manager reviews the results.
-24. Approval requests appear in my dashboard.
-25. I personally approve merging.
-26. No protected branch is modified without approval.
-27. I double-click STOP.bat.
-28. Services stop safely.
-29. I restart the system.
-30. All persistent data is preserved.
-31. progress.txt displays the latest verified progress.
+- Complete dashboard.
+- Analytics.
+- Realtime monitoring.
+- Cost management.
+- Localization.
+
+## MILESTONE 15 — FINAL INTEGRATION
+
+- End-to-end testing.
+- Cross-platform validation.
+- Performance testing.
+- Documentation.
+- Release readiness.
 
 ---
 
-# FINAL EXECUTION INSTRUCTIONS
+# 5. DEFINITION OF DONE
 
-Start immediately.
+The platform must not be declared complete until all critical acceptance criteria have been met.
 
-Follow this exact implementation sequence:
+### Core Platform
 
-### Phase 1 — Environment and Foundation
+- Application starts successfully.
+- Authentication works.
+- Database migrations work.
+- Dashboard displays real data.
+- Core APIs work.
 
-- Inspect the existing environment.
-- Inspect the repository.
-- Create progress.txt immediately.
-- Inspect and install UI UX Pro Max Skill.
-- Create docs/IMPLEMENTATION_PLAN.md.
-- Define weighted milestones totaling 100%.
-- Create the project structure.
-- Configure Docker Compose.
+### Agent Runtime
 
-### Phase 2 — Frontend
+- Agents can be created.
+- Agents can be configured.
+- Agents can execute tasks.
+- Execution state persists.
+- Errors are observable.
+- Interrupted tasks can recover where supported.
 
-- Build the bilingual interface.
-- Implement Arabic RTL.
-- Implement English LTR.
-- Build the Dashboard.
-- Build Agent Management.
-- Build Task Center.
-- Build Settings.
+### Orchestration
 
-### Phase 3 — Backend
+- Tasks can be decomposed.
+- Agents can be assigned.
+- Dependencies work.
+- Parallel execution works.
+- Results are consolidated.
+- Failed tasks are handled.
 
-- Build FastAPI.
-- Configure PostgreSQL.
-- Implement authentication.
-- Implement users and permissions.
-- Implement database migrations.
+### Connectivity
 
-### Phase 4 — AI Agents
+- At least one official API integration works.
+- At least one supported CLI integration works where feasible.
+- Browser Bridge works for at least one verified provider.
+- MCP integration works.
+- Unsupported integrations are explicitly documented.
 
-- Implement the provider abstraction.
-- Implement Anthropic integration.
-- Implement OpenAI integration.
-- Implement agent creation and execution.
-- Implement Manager Agent.
+### Development Workflow
 
-### Phase 5 — Orchestration
+- Git Worktrees work.
+- Agents have isolated branches.
+- Changes can be reviewed.
+- Tests execute.
+- Integration is validated.
 
-- Implement LangGraph.
-- Implement RabbitMQ.
-- Implement parallel task execution.
-- Implement retries and recovery.
-- Implement execution monitoring.
+### Intelligence
 
-### Phase 6 — GitHub
+- Context retrieval works.
+- Memory persistence works.
+- Context isolation works.
+- Agent evaluation produces evidence-based results.
 
-- Implement GitHub authentication.
-- Implement repository management.
-- Implement branches.
-- Implement Git Worktrees.
-- Implement Pull Requests.
-- Implement approval workflows.
+### Security
 
-### Phase 7 — Security
+- Permission enforcement works.
+- Sandbox restrictions work.
+- Sensitive data is protected.
+- Audit logs work.
+- Critical operations follow approval policies.
 
-- Implement Docker execution isolation.
-- Implement permission enforcement.
-- Implement audit logs.
-- Implement approval policies.
-- Test security boundaries.
+### User Experience
 
-### Phase 8 — Windows Automation
+- Arabic RTL works.
+- English LTR works.
+- Dashboard pages function.
+- Loading and error states work.
+- No critical dead buttons or placeholder workflows remain.
 
-- Create START.bat.
-- Create STOP.bat.
-- Create UPDATE.bat.
-- Create RESET-DEV.bat.
-- Test the scripts where a Windows environment is available.
+### Delivery
 
-If you are not running on Windows, validate the scripts as far as possible and explicitly state that real Windows testing is still required.
+- Documentation is complete.
+- Installation instructions are tested.
+- Startup scripts work.
+- Test reports are available.
+- Known limitations are disclosed.
 
-### Phase 9 — Testing and Release
+---
 
-- Run frontend tests.
-- Run backend tests.
-- Run integration tests.
-- Run end-to-end tests.
-- Fix all critical errors.
-- Complete documentation.
-- Update progress.txt.
-- Provide final installation instructions.
+# 6. FINAL NON-NEGOTIABLE CONSTRAINTS
 
-## IMPORTANT
+1. No fake production implementations.
+2. No fabricated integrations.
+3. No fabricated test results.
+4. No uncontrolled agent permissions.
+5. No unrestricted shell access.
+6. No unrestricted host filesystem access.
+7. No secret exposure.
+8. No silent destructive operations.
+9. No unauthorized production deployment.
+10. No direct modification of protected main branches.
+11. No unnecessary technology complexity.
+12. No undocumented architectural changes.
+13. No abandoned tasks without a recorded reason.
+14. No stopping merely because one feature failed.
+15. No routine user questions during development.
+16. No declaring completion without evidence.
 
-Do not stop after presenting the plan.
+---
 
-Do not merely generate source files without verifying them.
+# 7. FINAL AUTONOMOUS EXECUTION DIRECTIVE
 
-Implement the project progressively.
+You are authorized to independently execute the entire software engineering lifecycle within the defined project and security boundaries.
 
-Update progress.txt every five minutes during active development and immediately after significant milestones.
+You must behave as the CTO and autonomous engineering organization responsible for delivering this product.
 
-After each phase, report:
+Do not merely explain what should be built.
 
-- What was implemented.
-- Which files were created or modified.
-- Which tests were executed.
-- Which tests passed.
-- Which tests failed.
-- What remains.
-- The verified completion percentage.
+Build it.
 
-Be transparent about unavailable credentials, external integrations, and environment limitations.
+Do not stop after creating the architecture.
 
-**BEGIN IMPLEMENTATION NOW.**
+Implement it.
+
+Do not stop after creating the frontend.
+
+Connect it to the backend.
+
+Do not stop after connecting the backend.
+
+Integrate the execution engines.
+
+Do not stop after integrating the execution engines.
+
+Implement orchestration, supervision, memory, context engineering, Browser Bridge, MCP, A2A, GitHub, evaluation, security, and recovery.
+
+Do not stop after the first successful test.
+
+Run the full regression suite.
+
+Fix failures.
+
+Repeat validation.
+
+Do not ask the user to make ordinary engineering decisions.
+
+Use engineering judgment, documented assumptions, official documentation, and evidence.
+
+When a critical external authorization is unavailable, isolate the affected operation and continue all other work.
+
+When the development session approaches its execution or context limits, persist all project state and prepare a precise continuation handoff.
+
+Never pretend that work continued in the background when no execution environment is active.
+
+Continue from the last verified state whenever execution resumes.
+
+## THE PRIMARY OBJECTIVE
+
+Deliver a fully integrated, secure, cross-platform, enterprise-grade AI Agent Command Center that can create, operate, coordinate, supervise, evaluate, and manage autonomous AI software engineering teams.
+
+The final product must be functional, maintainable, observable, extensible, and supported by verifiable test evidence.
+
+**Do not optimize for producing code quickly. Optimize for delivering a working product correctly.**
+
+# BEGIN EXECUTION NOW
+
+Start with:
+
+1. Environment discovery.
+2. Repository inspection.
+3. Requirements decomposition.
+4. Architecture design.
+5. Autonomous implementation planning.
+
+Then immediately begin implementation.
+
+Do not wait for routine user confirmation.
+
+Do not stop until the project reaches its verified Definition of Done, or until a genuine external blocker makes further execution impossible.
+
+**YOUR MISSION IS TO BUILD THE PRODUCT — NOT TO DISCUSS BUILDING IT.**
