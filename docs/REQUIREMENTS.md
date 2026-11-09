@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 43.7%**
+**Overall verified completion: 44.7%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -74,7 +74,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | EE-03 | P1 | External agent runtime adapter (A2A client) | Adapter contract test | pytest | A2A-02 | done | tests/test_a2a.py::test_a2a_engine_delegates_to_external_agent_and_reattaches_on_resume (platform agent → A2A provider → remote agent over HTTP; resume re-attaches without resubmitting), test_a2a_engine_unreachable_service_fails_cleanly |
 | EE-04 | P0 | Unsupported integrations explicitly documented | PROVIDER_INTEGRATION.md table | inspection | — | pending | — |
 
-## M6 — Intelligent Orchestration (weight 9%, 56%) — spec Phases 4, 13
+## M6 — Intelligent Orchestration (weight 9%, 67%) — spec Phases 4, 13
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -84,7 +84,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | OR-04 | P0 | Review loop and human approval stage | Review requests revision; approval stage blocks | pytest | OR-01, SEC-03 | in_progress | — |
 | OR-05 | P0 | Workflow persistence and resume after restart | Restart mid-workflow resumes | pytest | OR-01 | done | test_bus::test_workflow_runs_end_to_end_over_bus_and_survives_worker_kill (kill -9 mid-workflow, reviews recorded while down, new worker completes, every task attempts==1); planner resumes from LangGraph checkpoint without re-calling the model |
 | OR-06 | P0 | Duplicate execution prevention | Same idempotency key never runs twice | pytest | MQ-03 | done | test_duplicate_events_and_advances_never_run_work_twice (duplicate advance + duplicate execution.finished), task execution idempotency key task:{id}:attempt:{n}; API workflow idempotency_key → same workflow |
-| OR-07 | P0 | Task center: Kanban (9 columns) + list + details with acceptance criteria, evidence, history | E2E | Playwright | OR-01 | in_progress | — |
+| OR-07 | P0 | Task center: Kanban (9 columns) + list + details with acceptance criteria, evidence, history | E2E | Playwright | OR-01 | done | frontend/e2e/tasks.spec.ts: objective → mock-planned task → worker execution → REVIEW column → details (acceptance criteria, evidence, history, deep link) → note required for changes → approve → COMPLETED + workflow completed; list view; axe WCAG 2.2 AA + no page overflow at 375/1440 in ar/en. Kanban has the spec's 9 columns; screenshots reviewed in RTL and LTR |
 | OR-08 | P0 | Tasks never marked complete on agent claim alone (evidence gate) | Completion requires passing evaluation | pytest | EV-01 | pending | — |
 | OR-09 | P1 | Project modes: new / existing (repo inspection, tech detection) / maintenance | Existing-repo analysis produces map | pytest | GH-02 | pending | — |
 

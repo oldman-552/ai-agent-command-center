@@ -153,8 +153,10 @@ def cancel_workflow(workflow_id: int, db: DB, user: User = Depends(require("task
 def task_out(t: Task) -> dict:
     cols = ["id", "project_id", "workflow_id", "title", "description", "task_type", "required_skills", "status",
             "priority", "assigned_agent_id", "acceptance_criteria", "evidence", "review_status", "result", "error",
-            "attempts", "max_attempts", "started_at", "finished_at", "created_at", "updated_at"]
-    return {c: getattr(t, c) for c in cols}
+            "attempts", "max_attempts", "estimated_effort", "started_at", "finished_at", "created_at", "updated_at"]
+    out = {c: getattr(t, c) for c in cols}
+    out["budget_usd"] = str(t.budget_usd) if t.budget_usd is not None else None
+    return out
 
 
 @router.get("/tasks")

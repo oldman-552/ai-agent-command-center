@@ -11,7 +11,8 @@
     "closeMenu": "Close menu",
     "agents": "Agents",
     "templates": "Agent templates",
-    "providers": "Providers & models"
+    "providers": "Providers & models",
+    "tasks": "Task center"
   },
   "language": {
     "label": "Language",
@@ -340,5 +341,110 @@
       "model_exists": "That model already exists.",
       "mock_provider_is_builtin": "The mock provider is built in and cannot be deleted."
     }
+  },
+  "tasks": {
+    "title": "Task center",
+    "subtitle": "Objectives, planned tasks, their agents, evidence and reviews.",
+    "newProject": "New project",
+    "newObjective": "New objective",
+    "submitObjective": "Plan objective",
+    "projectHelp": "A project groups objectives and limits which agents may work on them.",
+    "teamHelp": "Only these agents can plan and execute this project's tasks. Leave empty to allow every agent.",
+    "objectiveHelp": "The planning agent turns the objective into tasks with dependencies and acceptance criteria.",
+    "objectiveTextHelp": "Describe the outcome you want. A planning agent (one with the \"plan tasks\" permission) must be on the project.",
+    "filters": {
+      "project": "Project",
+      "objective": "Objective"
+    },
+    "view": {
+      "label": "View",
+      "board": "Board",
+      "list": "List"
+    },
+    "count": "{n} tasks",
+    "unassigned": "Unassigned",
+    "priorityShort": "P{n}",
+    "attemptsShort": "attempt {n}",
+    "empty": "No tasks yet. Submit an objective to plan some.",
+    "emptyNoProject": "Create a project first, then submit an objective.",
+    "mock": "Mock",
+    "mockPlan": "Mock plan — not real AI",
+    "noEvidence": "No evidence yet.",
+    "evidenceExecution": "Execution result",
+    "columns": {
+      "id": "ID",
+      "title": "Title",
+      "status": "Status",
+      "agent": "Agent",
+      "priority": "Priority",
+      "attempts": "Attempts",
+      "review": "Review"
+    },
+    "fields": {
+      "project": "Project",
+      "agent": "Assigned agent",
+      "priority": "Priority",
+      "attempts": "Attempts",
+      "budget": "Budget",
+      "effort": "Estimated effort",
+      "dependencies": "Depends on",
+      "acceptance": "Acceptance criteria",
+      "output": "Latest output",
+      "history": "Execution history",
+      "evidence": "Evidence",
+      "name": "Name",
+      "description": "Description",
+      "team": "Agents",
+      "objectiveTitle": "Title",
+      "objective": "Objective"
+    },
+    "reviewStatus": {
+      "none": "Not reviewed",
+      "pending": "Awaiting review",
+      "approved": "Approved",
+      "revise": "Changes requested",
+      "rejected": "Rejected"
+    },
+    "workflowStatus": {
+      "submitted": "Submitted",
+      "planning": "Planning…",
+      "running": "In progress",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "review": {
+      "title": "Review",
+      "help": "A task is only completed when a reviewer accepts its evidence.",
+      "note": "Review note",
+      "noteRequired": "Write a note explaining what must change.",
+      "approve": "Approve",
+      "revise": "Request changes",
+      "reject": "Reject"
+    },
+    "reviewDone": {
+      "approve": "Approved",
+      "revise": "Changes requested",
+      "reject": "Rejected"
+    },
+    "errors": {
+      "name_taken": "A project with this name already exists.",
+      "task_not_in_review": "This task is no longer awaiting review.",
+      "note_required": "Write a note explaining what must change.",
+      "not_found": "Not found.",
+      "forbidden": "You do not have permission for this."
+    }
+  },
+  "taskStatus": {
+    "BACKLOG": "Backlog",
+    "PLANNED": "Planned",
+    "READY": "Ready",
+    "IN_PROGRESS": "In progress",
+    "BLOCKED": "Blocked",
+    "REVIEW": "Review",
+    "APPROVAL": "Approval",
+    "COMPLETED": "Completed",
+    "FAILED": "Failed",
+    "CANCELLED": "Cancelled"
   }
 }

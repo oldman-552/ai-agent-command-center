@@ -654,8 +654,8 @@
           "depends": [
             "OR-01"
           ],
-          "status": "in_progress",
-          "evidence": ""
+          "status": "done",
+          "evidence": "frontend/e2e/tasks.spec.ts: objective → mock-planned task → worker execution → REVIEW column → details (acceptance criteria, evidence, history, deep link) → note required for changes → approve → COMPLETED + workflow completed; list view; axe WCAG 2.2 AA + no page overflow at 375/1440 in ar/en. Kanban has the spec's 9 columns; screenshots reviewed in RTL and LTR"
         },
         {
           "id": "OR-08",
@@ -1470,14 +1470,14 @@
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
   "in_progress": [],
-  "next_step": "OR-07 Task Center UI (Kanban + list + details with acceptance criteria, evidence, history, review actions; submit objective) + E2E/axe. Then SEC-03 approvals (unblocks OR-04 approval stage) and EV-01 evaluator (OR-08)",
+  "next_step": "SEC-03 approvals (approval stage for critical operations; unblocks OR-04) and EV-01 evaluator (automated evidence gate; OR-08). Then M13 sandbox/audit UI, M12, M7, M8, M11, M9, M5 CLI, M14, M15",
   "tests": {
     "passed": [
       "backend: 104/104 pytest on PostgreSQL 16 + live RabbitMQ 3.12 — full suite twice and every module in isolation; incl. bus (worker kill -9, broker restart), A2A over real HTTP, orchestration (LangGraph planner resume, fan-out/fan-in, review loop, workflow surviving worker kill) — 2026-11-10",
       "migrations: 4 revisions (43 tables + langgraph schema); base → head → -1 → head; alembic check clean",
-      "frontend: i18n guard (264 keys), contrast, tsc, next build",
+      "frontend: i18n guard (348 keys), contrast, tsc, next build",
       "ruff: clean",
-      "frontend: 33/33 Playwright in real Chrome against API + worker in bus mode — i18n/RTL/LTR/layout, agents, templates, providers, axe WCAG 2.2 AA × ar/en"
+      "frontend: 36/36 Playwright in real Chrome against API + worker in bus mode — i18n/RTL/LTR/layout, agents, templates, providers, task center (full objective→review→completed flow), axe WCAG 2.2 AA × ar/en"
     ],
     "failed": []
   },
