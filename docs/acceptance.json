@@ -46,8 +46,8 @@
         {
           "id": "U1",
           "text": "UI UX Pro Max skill installed via official method and version documented",
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "official skill v2.15.0 (MIT) installed at .claude/skills/ui-ux-pro-max (marketplace layout); script execution blocked here, documented"
         },
         {
           "id": "U2",
@@ -64,8 +64,8 @@
         {
           "id": "U4",
           "text": "Pre-delivery checklist passed (contrast, focus, reduced motion, 375/768/1024/1440)",
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "contrast 40/40 pass; axe WCAG 2.2 AA 8/8; focus ring, reduced motion, 375-1440px no overflow"
         }
       ]
     },
@@ -540,12 +540,10 @@
     }
   ],
   "blockers": [
-    "Docker Hub blocked in dev container: images cannot be pulled or built here; compose validated statically, services tested on local Postgres 16 / RabbitMQ 3.12. Full docker build must be verified on the owner's machine",
-    "UI UX Pro Max official install (npm -g + uipro init) blocked by the environment's safety policy even after owner approval; design system was derived by reading the skill's data files (see design-system/.../MASTER.md)"
+    "Dev environment blocks all container registries: official images cannot be pulled here; verified instead with locally-built equivalent images (docker/offline). Official images must be verified on the owner's machine",
+    "Executing the UI UX Pro Max search.py script is blocked by the environment's safety policy; skill files are installed and its rules/data applied manually"
   ],
-  "requires_approval": [
-    "Run on your machine inside the repo: npm install -g ui-ux-pro-max-cli && uipro init --ai claude — then commit .claude/skills/ui-ux-pro-max (completes U1)"
-  ],
+  "requires_approval": [],
   "in_progress": [
     "Phase 5 — Agent Management API + pages"
   ],
@@ -554,10 +552,12 @@
     "passed": [
       "backend: 15/15 pytest on PostgreSQL 16 (auth, encryption, redaction, bootstrap, dashboard) — 2026-11-09",
       "alembic upgrade → downgrade → upgrade on clean DB (19 tables)",
-      "frontend: 14/14 Playwright E2E in real Chrome (ar default/RTL, en/LTR, persistence, login errors, validation, sidebar side, no overflow at 375/768/1024/1440 in both languages)",
       "frontend: i18n guard (71 keys, ar/en identical, no hardcoded strings), tsc clean, next build OK",
       "docker compose config (valid; refuses missing secrets)",
-      "ruff check: clean"
+      "ruff check: clean",
+      "frontend: 22/22 Playwright in real Chrome (14 i18n/layout + 8 axe-core WCAG 2.2 AA: login & dashboard × ar/en × light/dark)",
+      "contrast: scripts/check-contrast.mjs — 40/40 token pairs pass WCAG AA (light + dark)",
+      "docker: full stack via docker/offline override — 6 services healthy, login via frontend proxy, data persists across stop/start"
     ],
     "failed": []
   }

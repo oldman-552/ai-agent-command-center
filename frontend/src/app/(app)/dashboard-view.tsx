@@ -215,7 +215,7 @@ export function DashboardView() {
                 {data.recent_activity.length === 0 ? (
                   <p className="py-8 text-center text-sm text-muted-foreground">{t("activity.empty")}</p>
                 ) : (
-                  <ul className="flex max-h-96 flex-col divide-y overflow-y-auto pe-1" data-testid="recent-activity">
+                  <ul className="flex max-h-96 flex-col divide-y overflow-y-auto pe-1" data-testid="recent-activity" tabIndex={0} aria-label={t("activity.title")}>
                     {data.recent_activity.map((a) => (
                       <li key={a.id} className="flex items-start gap-3 py-2.5">
                         {a.level === "warning" || a.level === "error" ? (
