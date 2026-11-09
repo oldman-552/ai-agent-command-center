@@ -5,13 +5,24 @@ export class ApiError extends Error {
   }
 }
 
+function csrfToken(): string | undefined {
+  if (typeof document === "undefined") return undefined;
+  return document.cookie.split("; ").find((c) => c.startsWith("acc_csrf="))?.slice("acc_csrf=".length);
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
+  const method = (init?.method ?? "GET").toUpperCase();
+  const csrf = method === "GET" || method === "HEAD" ? undefined : csrfToken();
   try {
     res = await fetch(path, {
       ...init,
       credentials: "same-origin",
-      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+      headers: {
+        "Content-Type": "application/json",
+        ...(csrf ? { "X-CSRF-Token": csrf } : {}),
+        ...(init?.headers ?? {}),
+      },
     });
   } catch {
     throw new ApiError(0, "network");
@@ -32,4 +43,13 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
-export type User = { id: number; username: string; role: string; language: "ar" | "en" };
+export type User = {
+  id: number;
+  username: string;
+  role: string;
+  role_name_ar: string;
+  role_name_en: string;
+  language: "ar" | "en";
+  organization_id: number;
+  permissions: string[];
+};

@@ -1,7 +1,9 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from app.models import Agent, AgentRole, Task, UsageStatistic
+from sqlalchemy import select
+
+from app.models import Agent, CostRecord, Organization, Task, UsageRecord
 
 
 def test_dashboard_requires_auth(client):
@@ -9,28 +11,34 @@ def test_dashboard_requires_auth(client):
     assert client.get("/api/dashboard/summary").status_code == 401
 
 
-def test_dashboard_counts_come_from_db_and_exclude_mock_usage(admin_client, db):
+def test_dashboard_counts_come_from_db_and_exclude_mock_usage_and_other_orgs(admin_client, db, make_user):
     base = admin_client.get("/api/dashboard/summary").json()
-    role = db.query(AgentRole).filter_by(key="backend").one()
+    org = db.scalar(select(Organization).where(Organization.slug == "default"))
+    make_user("other-org-user", "VIEWER", org_slug="other-org")
+    other = db.scalar(select(Organization).where(Organization.slug == "other-org"))
     db.add_all([
-        Agent(name="A", identifier="dash-a", role_id=role.id, runtime_status="running"),
-        Agent(name="B", identifier="dash-b", role_id=role.id, runtime_status="idle"),
-        Agent(name="C", identifier="dash-c", role_id=role.id, is_enabled=False),
-        Agent(name="D", identifier="dash-d", role_id=role.id, is_archived=True),
-        Task(title="t1", status="completed"), Task(title="t2", status="failed"),
-        Task(title="t3", status="completed"),
-        UsageStatistic(model="real", input_tokens=100, output_tokens=50, cost_usd=Decimal("0.5"),
-                       ts=datetime.now(UTC)),
-        UsageStatistic(model="mock-model", input_tokens=999, output_tokens=999, is_mock=True),
+        Agent(organization_id=org.id, name="A", identifier="dash-a", role="backend", state="RUNNING"),
+        Agent(organization_id=org.id, name="B", identifier="dash-b", role="backend", state="IDLE"),
+        Agent(organization_id=org.id, name="C", identifier="dash-c", role="backend", is_enabled=False),
+        Agent(organization_id=org.id, name="D", identifier="dash-d", role="backend", archived_at=datetime.now(UTC)),
+        Agent(organization_id=other.id, name="X", identifier="dash-x", role="backend", state="RUNNING"),
+        Task(organization_id=org.id, title="t1", status="COMPLETED"),
+        Task(organization_id=org.id, title="t2", status="FAILED"),
+        Task(organization_id=org.id, title="t3", status="COMPLETED"),
     ])
+    real = UsageRecord(organization_id=org.id, provider_kind="anthropic", model="real", input_tokens=100,
+                       output_tokens=50, ts=datetime.now(UTC))
+    db.add_all([real, UsageRecord(organization_id=org.id, provider_kind="mock", model="mock-model",
+                                  input_tokens=999, output_tokens=999, is_mock=True)])
+    db.flush()
+    db.add(CostRecord(organization_id=org.id, usage_record_id=real.id, amount_usd=Decimal("0.5")))
     db.commit()
     s = admin_client.get("/api/dashboard/summary").json()
-    assert s["agents"]["total"] == base["agents"]["total"] + 3  # archived excluded
+    assert s["agents"]["total"] == base["agents"]["total"] + 3  # archived + other org excluded
     assert s["agents"]["active"] == base["agents"]["active"] + 1
     assert s["agents"]["available"] == base["agents"]["available"] + 1
     assert s["agents"]["disabled"] == base["agents"]["disabled"] + 1
-    assert s["tasks"]["completed"] == base["tasks"]["completed"] + 2
+    assert s["tasks"]["COMPLETED"] == base["tasks"]["COMPLETED"] + 2
     assert s["tokens_total"] == base["tokens_total"] + 150  # mock usage excluded
-    assert len(s["usage_series"]) == 14
-    assert s["usage_series"][-1]["tokens"] >= 150
-    assert s["task_success_rate"] is not None
+    assert abs(s["cost_usd_total"] - base["cost_usd_total"] - 0.5) < 1e-9
+    assert len(s["usage_series"]) == 14 and s["usage_series"][-1]["tokens"] >= 150

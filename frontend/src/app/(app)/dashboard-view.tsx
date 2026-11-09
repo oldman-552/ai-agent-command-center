@@ -158,9 +158,9 @@ export function DashboardView() {
           </Section>
 
           <Section title={t("sections.tasks")}>
-            <Stat label={t("tasks.running")} value={n(data.tasks.running ?? 0)} icon={PlayCircle} />
-            <Stat label={t("tasks.completed")} value={n(data.tasks.completed ?? 0)} icon={CheckCircle2} tone="success" />
-            <Stat label={t("tasks.failed")} value={n(data.tasks.failed ?? 0)} icon={CircleX} tone="danger" />
+            <Stat label={t("tasks.running")} value={n(data.tasks.IN_PROGRESS ?? 0)} icon={PlayCircle} />
+            <Stat label={t("tasks.completed")} value={n(data.tasks.COMPLETED ?? 0)} icon={CheckCircle2} tone="success" />
+            <Stat label={t("tasks.failed")} value={n(data.tasks.FAILED ?? 0)} icon={CircleX} tone="danger" />
             <Stat label={t("tasks.awaitingApproval")} value={n(data.tasks_awaiting_approval)} icon={ShieldCheck} tone="warning" />
             <Stat
               label={t("tasks.successRate")}

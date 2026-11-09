@@ -58,8 +58,39 @@ def client():
         yield c
 
 
+def login_as(client, username: str, password: str):
+    r = client.post("/api/auth/login", json={"username": username, "password": password})
+    assert r.status_code == 200, r.text
+    client.headers["x-csrf-token"] = client.cookies["acc_csrf"]  # double-submit, as the browser does
+    return client
+
+
 @pytest.fixture()
 def admin_client(client):
-    r = client.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW})
-    assert r.status_code == 200, r.text
-    return client
+    client.headers.pop("x-csrf-token", None)
+    return login_as(client, "admin", ADMIN_PW)
+
+
+@pytest.fixture()
+def make_user(db):
+    """Create a user with a given role (optionally in another organization)."""
+    from sqlalchemy import select
+
+    from app.models import Organization, Role, User
+    from app.security.crypto import hash_password
+
+    def _make(username: str, role_key: str, org_slug: str = "default", password: str = "user-password-123"):
+        org = db.scalar(select(Organization).where(Organization.slug == org_slug))
+        if not org:
+            org = Organization(slug=org_slug, name=org_slug)
+            db.add(org)
+            db.flush()
+        role = db.scalar(select(Role).where(Role.key == role_key))
+        u = db.scalar(select(User).where(User.username == username))
+        if not u:
+            u = User(organization_id=org.id, username=username, password_hash=hash_password(password), role_id=role.id)
+            db.add(u)
+        db.commit()
+        return u
+
+    return _make

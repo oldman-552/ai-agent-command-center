@@ -2,15 +2,15 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 7.0%**
+**Overall verified completion: 9.2%**
 
-## M1 — Foundation (weight 8%, 88%) — spec Phases 1, 19, 23, 25
+## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
 | FND-01 | P0 | Monorepo structure backend/frontend/docs/scripts | Dirs exist with build files | inspection | — | done | backend/, frontend/, docs/, scripts/, design-system/ in repo |
 | FND-02 | P0 | FastAPI backend with settings from env + health | GET /api/health 200 with DB check | pytest test_health | — | done | GET /api/health tested (test_health); pydantic-settings from env |
-| FND-03 | P0 | PostgreSQL schema via SQLAlchemy + Alembic | upgrade/downgrade/upgrade on clean DB | alembic + pytest builds schema via migration | — | done | alembic b3061ddef85a upgrade/downgrade/upgrade on clean Postgres; tests build schema via migration |
+| FND-03 | P0 | PostgreSQL schema via SQLAlchemy + Alembic | upgrade/downgrade/upgrade on clean DB | alembic + pytest builds schema via migration | — | done | v4 baseline migration 40 tables up/down/up; tests build schema via migration |
 | FND-04 | P0 | Authentication: argon2id, JWT HttpOnly cookie, rate limit, logout-all | Auth tests pass | pytest | FND-03 | done | login/logout/logout-all/me, argon2id, JWT cookie, rate limit — 6 tests pass |
 | FND-05 | P0 | Super Admin bootstrap from env, no hardcoded credentials | Idempotent bootstrap test | pytest | FND-04 | done | bootstrap from ADMIN_USERNAME/ADMIN_PASSWORD, idempotent — tests pass |
 | FND-06 | P0 | Encrypted credential storage + secret hints + log redaction | Roundtrip + redaction tests | pytest | — | done | tests: encryption roundtrip, hint, redaction (test_foundation.py) |
@@ -22,7 +22,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | FND-12 | P0 | Responsive 375/768/1024/1440 without horizontal overflow | E2E overflow checks pass | Playwright | FND-07 | done | Playwright overflow checks 8/8 at 375/768/1024/1440 ar/en |
 | FND-13 | P0 | docker-compose stack: healthchecks, migrate job, persistent volumes | Stack healthy; data survives stop/start | docker compose (offline images in dev env) | — | done | compose config valid; offline-image stack: 6 services healthy, data persists stop/start |
 | FND-14 | P1 | Redis service + health | Redis reachable, health endpoint reports it | pytest + compose | FND-13 | pending | — |
-| FND-15 | P1 | Organizations/teams schema for multi-tenant readiness; tenant scoping in authz | Every project-scoped query filtered by org; test cross-org denial | pytest | FND-03 | pending | — |
+| FND-15 | P1 | Organizations/teams schema for multi-tenant readiness; tenant scoping in authz | Every project-scoped query filtered by org; test cross-org denial | pytest | FND-03 | done | organizations/teams + organization_id on scoped tables, tenancy.scoped/get_scoped; cross-org test |
 | FND-16 | P1 | Requirements matrix, decision log (ADRs), progress.txt + PROJECT_STATUS.json | Files generated from requirements.json | inspection | — | done | docs/requirements.json (115 reqs), REQUIREMENTS.md, ARCHITECTURE_DECISIONS.md (11 ADRs), progress.txt + PROJECT_STATUS.json generated |
 
 ## M2 — Universal Agent Runtime (weight 9%, 0%) — spec Phase 2
@@ -42,7 +42,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| AG-01 | P0 | Agent CRUD with all 23 configuration fields | API tests for create/edit/read/list | pytest | FND-03 | pending | — |
+| AG-01 | P0 | Agent CRUD with all 23 configuration fields | API tests for create/edit/read/list | pytest | FND-03 | in_progress | — |
 | AG-02 | P0 | Clone, enable, disable, archive, delete | API tests | pytest | AG-01 | pending | — |
 | AG-03 | P0 | 18 customizable agent templates (DB-stored, editable) | Seeded + CRUD tests | pytest | AG-01 | pending | — |
 | AG-04 | P0 | Agent lifecycle states with recorded transitions | Transition history persisted | pytest | AG-01 | pending | — |
@@ -158,17 +158,17 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | EV-04 | P0 | Graceful shutdown preserving partial results | Shutdown test | pytest | RT-06 | pending | — |
 | EV-05 | P0 | Evaluation UI | E2E | Playwright | EV-01 | pending | — |
 
-## M13 — Enterprise Security (weight 7%, 0%) — spec Phases 16, 17, 22
+## M13 — Enterprise Security (weight 7%, 25%) — spec Phases 16, 17, 22
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| SEC-01 | P0 | RBAC: 6 roles + permissions, server-side enforcement on every endpoint | Authorization matrix tests | pytest | FND-04 | in_progress | — |
+| SEC-01 | P0 | RBAC: 6 roles + permissions, server-side enforcement on every endpoint | Authorization matrix tests | pytest | FND-04 | done | 6 roles/38 permissions seeded; require() on every route; tests test_rbac.py |
 | SEC-02 | P0 | Agents cannot escalate own permissions or change security policy | Tests | pytest | SEC-01 | pending | — |
 | SEC-03 | P0 | Approval Center: risk levels, evidence, decision records; critical ops blocked until approved | Tests + E2E | pytest + Playwright | SEC-01 | pending | — |
 | SEC-04 | P0 | Docker sandbox: CPU/mem/time/pids limits, no network by default, workspace-only mount, no secrets | Real container tests | pytest (docker) | — | pending | — |
 | SEC-05 | P0 | Command policy (default deny, allowlist per tool permission) | Tests | pytest | SEC-04 | pending | — |
 | SEC-06 | P0 | Audit log searchable/filterable, redacted; Audit UI | Tests + E2E | pytest + Playwright | FND-06 | pending | — |
-| SEC-07 | P1 | CSRF protection for cookie auth, secure CORS, security headers | Tests | pytest | FND-04 | pending | — |
+| SEC-07 | P1 | CSRF protection for cookie auth, secure CORS, security headers | Tests | pytest | FND-04 | done | CSRF double-submit, no CORS, security headers; tests pass |
 | SEC-08 | P1 | Dependency + container scanning in CI scripts | Scan runs | script | — | pending | — |
 
 ## M14 — Enterprise Experience (weight 5%, 0%) — spec Phases 21, 23, 24

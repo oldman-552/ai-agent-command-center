@@ -36,7 +36,7 @@
           "verification": "alembic + pytest builds schema via migration",
           "depends": [],
           "status": "done",
-          "evidence": "alembic b3061ddef85a upgrade/downgrade/upgrade on clean Postgres; tests build schema via migration"
+          "evidence": "v4 baseline migration 40 tables up/down/up; tests build schema via migration"
         },
         {
           "id": "FND-04",
@@ -171,8 +171,8 @@
           "depends": [
             "FND-03"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "organizations/teams + organization_id on scoped tables, tenancy.scoped/get_scoped; cross-org test"
         },
         {
           "id": "FND-16",
@@ -303,7 +303,7 @@
           "depends": [
             "FND-03"
           ],
-          "status": "pending",
+          "status": "in_progress",
           "evidence": ""
         },
         {
@@ -1218,8 +1218,8 @@
           "depends": [
             "FND-04"
           ],
-          "status": "in_progress",
-          "evidence": ""
+          "status": "done",
+          "evidence": "6 roles/38 permissions seeded; require() on every route; tests test_rbac.py"
         },
         {
           "id": "SEC-02",
@@ -1288,8 +1288,8 @@
           "depends": [
             "FND-04"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "CSRF double-submit, no CORS, security headers; tests pass"
         },
         {
           "id": "SEC-08",
@@ -1468,20 +1468,20 @@
   ],
   "requires_approval": [],
   "in_progress": [],
-  "next_step": "Security core: RBAC with 6 roles + organizations/teams + CSRF (SEC-01, SEC-02, FND-15, SEC-07), then Agents (M3)",
+  "next_step": "M3 Agents: CRUD (23 fields), clone/enable/disable/archive/delete, lifecycle transitions, config versions, templates API, Agents UI",
   "tests": {
     "passed": [
-      "backend: 15/15 pytest on PostgreSQL 16 (auth, encryption, redaction, bootstrap, dashboard) — 2026-11-09",
-      "alembic upgrade → downgrade → upgrade on clean DB (19 tables)",
-      "frontend: i18n guard (71 keys, ar/en identical, no hardcoded strings), tsc clean, next build OK",
-      "docker compose config (valid; refuses missing secrets)",
-      "ruff check: clean",
-      "frontend: 22/22 Playwright in real Chrome (14 i18n/layout + 8 axe-core WCAG 2.2 AA: login & dashboard × ar/en × light/dark)",
-      "contrast: scripts/check-contrast.mjs — 40/40 token pairs pass WCAG AA (light + dark)",
-      "docker: full stack via docker/offline override — 6 services healthy, login via frontend proxy, data persists across stop/start"
+      "backend: 22/22 pytest on PostgreSQL 16 (auth, CSRF, RBAC 6 roles, no-escalation, tenant isolation, security headers, encryption, redaction, bootstrap, dashboard) — 2026-11-09",
+      "migration v4 baseline (40 tables): upgrade → downgrade → upgrade on clean DB",
+      "frontend: 22/22 Playwright in real Chrome (i18n/RTL/LTR/layout 14 + axe WCAG 2.2 AA 8)",
+      "frontend: i18n guard, contrast 40/40, tsc, next build",
+      "docker: offline-image stack — 6 services healthy, data persists stop/start (spec v1 schema; re-verify on v4)",
+      "ruff: clean"
     ],
     "failed": []
   },
   "files_changed": [],
-  "known_issues": []
+  "known_issues": [
+    "Docker stack verification predates the v4 schema; re-run with docker/offline override after next milestone"
+  ]
 }

@@ -35,10 +35,6 @@
       "too_many_attempts": "Too many attempts. Wait five minutes and try again.",
       "required": "This field is required.",
       "network": "Cannot reach the server. Make sure the services are running."
-    },
-    "roles": {
-      "super_admin": "Super Admin",
-      "viewer": "Viewer"
     }
   },
   "dashboard": {

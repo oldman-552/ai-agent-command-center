@@ -67,3 +67,9 @@ compose file to test the real `docker-compose.yml` end-to-end. Owner machines us
 ## ADR-011 — Frontend: next-intl cookie locale, self-hosted fonts, TanStack Query + Zustand (2026-11-09)
 **Decision:** Locale in `NEXT_LOCALE` cookie and user profile (no locale URL prefix). Fonts via @fontsource (no network
 at build). Server state with TanStack Query, UI state with Zustand, forms with React Hook Form + Zod.
+
+## ADR-012 — Rebuild the schema as a v4 baseline migration (2026-11-09)
+**Context:** Spec v4 Phase 19 renames and adds many entities (29 core). No production data exists yet.
+**Decision:** Replace the v1 initial migration with a single `v4 baseline schema` migration (40 tables) instead of
+chaining rename migrations. From now on every schema change is a new incremental Alembic revision.
+**Consequences:** Development databases created before 2026-11-09 22:40 must be recreated (`RESET-DEV`); no owner data affected.

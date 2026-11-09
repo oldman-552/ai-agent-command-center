@@ -1,8 +1,8 @@
 from sqlalchemy import func, select
 
-from app.auth import _FAILS
-from app.models import ActivityLog, AgentProvider, AgentRole, User
-from app.security import (
+from app.models import AgentTemplate, AuditLog, Provider, Role, User
+from app.security.auth import _FAILS
+from app.security.crypto import (
     decrypt_secret,
     encrypt_secret,
     hash_password,
@@ -21,36 +21,40 @@ def test_health(client):
     assert r.json() == {"status": "ok", "database": "ok"}
 
 
-def test_bootstrap_creates_single_super_admin_and_roles(client, db):
-    admins = db.scalars(select(User).where(User.role == "super_admin")).all()
+def test_bootstrap_creates_single_super_admin_roles_and_18_templates(client, db):
+    sa = db.scalar(select(Role).where(Role.key == "SUPER_ADMIN"))
+    admins = db.scalars(select(User).where(User.role_id == sa.id)).all()
     assert len(admins) == 1
     assert admins[0].password_hash != ADMIN_PW and admins[0].password_hash.startswith("$argon2")
-    keys = set(db.scalars(select(AgentRole.key)))
-    assert {"manager", "architect", "backend", "frontend", "database", "devops",
-            "qa", "security", "code_reviewer", "research"} <= keys
+    assert set(db.scalars(select(Role.key))) >= {"SUPER_ADMIN", "ORGANIZATION_ADMIN", "PROJECT_MANAGER",
+                                                 "DEVELOPER", "REVIEWER", "VIEWER"}
+    assert db.scalar(select(func.count()).select_from(AgentTemplate).where(AgentTemplate.is_system)) == 18
 
 
 def test_bootstrap_is_idempotent(client, db):
     from app.bootstrap import run_bootstrap
 
-    before = db.scalar(select(func.count()).select_from(AgentRole))
+    before = db.scalar(select(func.count()).select_from(AgentTemplate))
     run_bootstrap(db)
     run_bootstrap(db)
-    assert db.scalar(select(func.count()).select_from(AgentRole)) == before
-    assert db.scalar(select(func.count()).select_from(User).where(User.role == "super_admin")) == 1
+    assert db.scalar(select(func.count()).select_from(AgentTemplate)) == before
+    sa = db.scalar(select(Role).where(Role.key == "SUPER_ADMIN"))
+    assert db.scalar(select(func.count()).select_from(User).where(User.role_id == sa.id)) == 1
 
 
 def test_mock_provider_is_clearly_labeled(client, db):
-    mock = db.scalar(select(AgentProvider).where(AgentProvider.kind == "mock"))
+    mock = db.scalar(select(Provider).where(Provider.kind == "mock"))
     assert mock.is_mock is True
     assert "TEST ONLY" in mock.name and "not real AI" in mock.name
+    assert mock.models[0].name == "mock-model"
 
 
 # ---------- authentication ----------
 def test_login_success_sets_httponly_cookie(client):
     r = client.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW})
     assert r.status_code == 200
-    assert r.json()["role"] == "super_admin"
+    assert r.json()["role"] == "SUPER_ADMIN"
+    assert "approvals.decide" in r.json()["permissions"]
     assert "httponly" in r.headers["set-cookie"].lower()
     assert client.get("/api/auth/me").json()["username"] == "admin"
 
@@ -59,8 +63,8 @@ def test_login_wrong_password_rejected_and_audited(client, db):
     _FAILS.clear()
     r = client.post("/api/auth/login", json={"username": "admin", "password": "wrong-password"})
     assert r.status_code == 401
-    entry = db.scalar(select(ActivityLog).where(ActivityLog.action == "auth.login_failed")
-                      .order_by(ActivityLog.id.desc()))
+    entry = db.scalar(select(AuditLog).where(AuditLog.action == "auth.login_failed")
+                      .order_by(AuditLog.id.desc()))
     assert entry is not None and "wrong-password" not in str(entry.details)
 
 

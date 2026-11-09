@@ -1,6 +1,6 @@
 "use client";
 import { Bot, LayoutDashboard, LogOut, Menu, X, type LucideIcon } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -57,6 +57,7 @@ function Brand() {
 
 export function AppShell({ user, children }: { user: User; children: React.ReactNode }) {
   const t = useTranslations();
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -125,7 +126,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
           <LanguageSwitcher signedIn />
           <div className="hidden flex-col items-end leading-tight sm:flex" data-testid="current-user">
             <span className="text-sm font-medium" dir="ltr">{user.username}</span>
-            <span className="text-xs text-muted-foreground">{t(`auth.roles.${user.role}`)}</span>
+            <span className="text-xs text-muted-foreground">{locale === "ar" ? user.role_name_ar : user.role_name_en}</span>
           </div>
           <Button variant="ghost" size="icon" aria-label={t("auth.logout")} title={t("auth.logout")} onClick={logout}>
             <LogOut className="rtl:-scale-x-100" aria-hidden />

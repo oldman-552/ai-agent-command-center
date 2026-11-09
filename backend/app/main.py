@@ -7,9 +7,11 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-from app import auth, dashboard
 from app.bootstrap import run_bootstrap
+from app.control import users
 from app.db import session_factory
+from app.observability import dashboard
+from app.security import auth
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -21,9 +23,29 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="AI Agent Command Center API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="AI Agent Command Center API", version="0.2.0", lifespan=lifespan)
+
+# No CORSMiddleware on purpose: the API is same-origin only (the Next.js server proxies /api/*),
+# so browsers refuse cross-origin reads. Security headers on every response:
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Cache-Control": "no-store",
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+}
+
+
+@app.middleware("http")
+async def security_headers(request, call_next):
+    response = await call_next(request)
+    for k, v in SECURITY_HEADERS.items():
+        response.headers.setdefault(k, v)
+    return response
+
 app.include_router(auth.router)
 app.include_router(dashboard.router)
+app.include_router(users.router)
 
 
 @app.get("/api/health", tags=["system"])
