@@ -1,0 +1,120 @@
+from sqlalchemy import func, select
+
+from app.auth import _FAILS
+from app.models import ActivityLog, AgentProvider, AgentRole, User
+from app.security import (
+    decrypt_secret,
+    encrypt_secret,
+    hash_password,
+    redact,
+    redact_obj,
+    secret_hint,
+    verify_password,
+)
+from tests.conftest import ADMIN_PW
+
+
+# ---------- health / bootstrap ----------
+def test_health(client):
+    r = client.get("/api/health")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok", "database": "ok"}
+
+
+def test_bootstrap_creates_single_super_admin_and_roles(client, db):
+    admins = db.scalars(select(User).where(User.role == "super_admin")).all()
+    assert len(admins) == 1
+    assert admins[0].password_hash != ADMIN_PW and admins[0].password_hash.startswith("$argon2")
+    keys = set(db.scalars(select(AgentRole.key)))
+    assert {"manager", "architect", "backend", "frontend", "database", "devops",
+            "qa", "security", "code_reviewer", "research"} <= keys
+
+
+def test_bootstrap_is_idempotent(client, db):
+    from app.bootstrap import run_bootstrap
+
+    before = db.scalar(select(func.count()).select_from(AgentRole))
+    run_bootstrap(db)
+    run_bootstrap(db)
+    assert db.scalar(select(func.count()).select_from(AgentRole)) == before
+    assert db.scalar(select(func.count()).select_from(User).where(User.role == "super_admin")) == 1
+
+
+def test_mock_provider_is_clearly_labeled(client, db):
+    mock = db.scalar(select(AgentProvider).where(AgentProvider.kind == "mock"))
+    assert mock.is_mock is True
+    assert "TEST ONLY" in mock.name and "not real AI" in mock.name
+
+
+# ---------- authentication ----------
+def test_login_success_sets_httponly_cookie(client):
+    r = client.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW})
+    assert r.status_code == 200
+    assert r.json()["role"] == "super_admin"
+    assert "httponly" in r.headers["set-cookie"].lower()
+    assert client.get("/api/auth/me").json()["username"] == "admin"
+
+
+def test_login_wrong_password_rejected_and_audited(client, db):
+    _FAILS.clear()
+    r = client.post("/api/auth/login", json={"username": "admin", "password": "wrong-password"})
+    assert r.status_code == 401
+    entry = db.scalar(select(ActivityLog).where(ActivityLog.action == "auth.login_failed")
+                      .order_by(ActivityLog.id.desc()))
+    assert entry is not None and "wrong-password" not in str(entry.details)
+
+
+def test_login_rate_limited(client):
+    _FAILS.clear()
+    for _ in range(5):
+        client.post("/api/auth/login", json={"username": "admin", "password": "nope-nope"})
+    r = client.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW})
+    assert r.status_code == 429
+    _FAILS.clear()
+
+
+def test_me_requires_auth(client):
+    client.cookies.clear()
+    assert client.get("/api/auth/me").status_code == 401
+    assert client.get("/api/auth/me", headers={"Authorization": "Bearer garbage"}).status_code == 401
+
+
+def test_language_persisted(admin_client):
+    assert admin_client.put("/api/auth/me/language", json={"language": "en"}).json()["language"] == "en"
+    assert admin_client.get("/api/auth/me").json()["language"] == "en"
+    assert admin_client.put("/api/auth/me/language", json={"language": "fr"}).status_code == 422
+    admin_client.put("/api/auth/me/language", json={"language": "ar"})
+
+
+def test_logout_all_invalidates_existing_tokens(admin_client):
+    token = admin_client.cookies.get("acc_session")
+    assert admin_client.post("/api/auth/logout-all").status_code == 204
+    r = admin_client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 401
+
+
+# ---------- secrets ----------
+def test_password_hashing():
+    h = hash_password("correct horse battery")
+    assert verify_password("correct horse battery", h)
+    assert not verify_password("wrong", h)
+
+
+def test_secret_encryption_roundtrip_and_hint():
+    key = "sk-ant-api03-abcdefghijklmnop1234"
+    enc = encrypt_secret(key)
+    assert key not in enc
+    assert decrypt_secret(enc) == key
+    assert secret_hint(key) == "…1234"
+    assert secret_hint("short") == "…"
+
+
+def test_redaction():
+    s = ("key sk-ant-api03-AAAAAAAAAAAAAAAAAAAA token ghp_BBBBBBBBBBBBBBBBBBBBBBBB "
+         "password=hunter2xx https://user:pass@github.com/x Authorization: Bearer abcdefghijklmnopqrstuvwxyz")
+    out = redact(s)
+    for leaked in ["sk-ant-api03-AAAA", "ghp_BBBB", "hunter2xx", "user:pass@", "abcdefghijklmnopqrstuvwxyz"]:
+        assert leaked not in out
+    obj = redact_obj({"api_key": "abc123456", "nested": [{"note": "uses sk-ant-api03-CCCCCCCCCCCCCCCCCC"}]})
+    assert obj["api_key"] == "[REDACTED]"
+    assert "CCCC" not in obj["nested"][0]["note"]
