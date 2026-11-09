@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 31.4%**
+**Overall verified completion: 32.2%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -50,7 +50,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | AG-06 | P0 | Agents UI: list, create/edit form, details, templates — ar/en | E2E create/edit flow | Playwright | AG-01, FND-07 | done | Agents list/filters/actions, create/edit form (RHF+Zod, tool ceilings), details (versions, transitions), templates gallery; E2E CRUD flow + axe ar/en |
 | AG-07 | P1 | Agent teams | Team CRUD + membership | pytest | AG-01 | pending | — |
 
-## M4 — Multi-Provider AI Gateway (weight 8%, 60%) — spec Phases 9, 20
+## M4 — Multi-Provider AI Gateway (weight 8%, 70%) — spec Phases 9, 20
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -62,7 +62,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | GW-06 | P0 | Fallback provider/model on failure | Primary failure → fallback used + logged | pytest | GW-01 | done | primary→fallback on provider failure, audited gateway.fallback; no splicing after partial output; test |
 | GW-07 | P1 | Routing by complexity/capability/cost/availability | Routing tests | pytest | GW-02 | pending | — |
 | GW-08 | P1 | Budgets: agent/project/task/daily/monthly; stop new work at limit + approval request | Budget tests | pytest | GW-05 | pending | — |
-| GW-09 | P0 | Providers & Models UI | E2E add provider, test connection | Playwright | GW-02 | in_progress | — |
+| GW-09 | P0 | Providers & Models UI | E2E add provider, test connection | Playwright | GW-02 | done | Providers & models page: add provider (write-only key), set/rotate key, test, discover, enable/disable, delete, add/edit model prices; E2E + axe ar/en |
 | GW-10 | P0 | At least one real official API call verified | Live call with owner key succeeds | manual/live test | GW-01 | pending | — |
 
 ## M5 — Execution Engines (weight 6%, 25%) — spec Phase 10
@@ -129,7 +129,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| MQ-01 | P0 | RabbitMQ topology: exchanges by event type, queues by specialty/priority, DLQ | Topology declared; test | pytest (live broker) | — | pending | — |
+| MQ-01 | P0 | RabbitMQ topology: exchanges by event type, queues by specialty/priority, DLQ | Topology declared; test | pytest (live broker) | — | in_progress | — |
 | MQ-02 | P0 | Structured message contract (ids, correlation, schema version) + ack + retries + timeouts | Contract + consumer tests | pytest (live broker) | MQ-01 | pending | — |
 | MQ-03 | P0 | Idempotent consumers (dedupe by idempotency key) | Duplicate delivery processed once | pytest | MQ-02 | pending | — |
 | MQ-04 | P0 | Recovery after broker/worker restart | Restart test | pytest/compose | MQ-02 | pending | — |

@@ -10,7 +10,8 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "agents": "Agents",
-    "templates": "Agent templates"
+    "templates": "Agent templates",
+    "providers": "Providers & models"
   },
   "language": {
     "label": "Language",
@@ -271,5 +272,72 @@
     "custom": "Custom",
     "tools": "Tools",
     "created": "Agent created from template."
+  },
+  "providers": {
+    "title": "Providers & models",
+    "subtitle": "Connect AI providers through their official APIs and manage models and prices.",
+    "add": "Add provider",
+    "empty": "No providers.",
+    "subscriptionNote": "A Claude.ai or ChatGPT subscription does not include API access; you need an API key from the provider's developer console.",
+    "mockBadge": "Test only — not real AI",
+    "status": {
+      "ok": "Connected",
+      "error": "Error",
+      "untested": "Not tested",
+      "rate_limited": "Rate limited"
+    },
+    "fields": {
+      "name": "Name",
+      "kind": "Type",
+      "baseUrl": "Base URL",
+      "apiKey": "API key",
+      "apiKeyHelp": "Encrypted on save and never shown again.",
+      "priority": "Priority",
+      "enabled": "Enabled"
+    },
+    "kinds": {
+      "anthropic": "Anthropic (Claude API)",
+      "openai": "OpenAI API",
+      "openai_compatible": "OpenAI-compatible service",
+      "google": "Google Gemini API",
+      "mock": "Mock (testing)"
+    },
+    "key": "Key",
+    "keySet": "Saved ({hint})",
+    "keyMissing": "Not set",
+    "setKey": "Update key",
+    "test": "Test connection",
+    "discover": "Discover models",
+    "delete": "Delete provider",
+    "enable": "Enable",
+    "disable": "Disable",
+    "lastTested": "Last tested: {time}",
+    "testOk": "Connection succeeded.",
+    "testFail": "Connection failed: {error}",
+    "discovered": "Discovered {n} models, added {added}.",
+    "deleteTitle": "Delete this provider?",
+    "deleteBody": "The provider, its key and models are deleted. Agents using it lose this provider.",
+    "models": {
+      "title": "Models",
+      "add": "Add model",
+      "name": "Model",
+      "context": "Context window",
+      "input": "Input price",
+      "output": "Output price",
+      "cached": "Cached input price",
+      "perMtok": "USD per million tokens",
+      "noPrice": "Not set",
+      "priceHelp": "Prices are never guessed: enter them from the provider's pricing page. Without a price no cost is calculated.",
+      "edit": "Edit model",
+      "enabled": "Enabled",
+      "empty": "No models. Discover them or add one manually."
+    },
+    "errors": {
+      "api_key_required": "This provider needs an API key.",
+      "base_url_required": "This type needs a base URL.",
+      "name_taken": "That name is taken.",
+      "model_exists": "That model already exists.",
+      "mock_provider_is_builtin": "The mock provider is built in and cannot be deleted."
+    }
   }
 }

@@ -1,5 +1,5 @@
 "use client";
-import { Bot, LayoutDashboard, LayoutTemplate, LogOut, Menu, X, type LucideIcon } from "lucide-react";
+import { Bot, LayoutDashboard, LayoutTemplate, LogOut, Menu, Plug, X, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -13,10 +13,11 @@ import { api, type User } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 // Only pages that actually exist are listed. New pages are added here as they are built.
-const NAV: { href: string; key: "dashboard" | "agents" | "templates"; icon: LucideIcon }[] = [
+const NAV: { href: string; key: "dashboard" | "agents" | "templates" | "providers"; icon: LucideIcon }[] = [
   { href: "/", key: "dashboard", icon: LayoutDashboard },
   { href: "/agents", key: "agents", icon: Bot },
   { href: "/templates", key: "templates", icon: LayoutTemplate },
+  { href: "/providers", key: "providers", icon: Plug },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

@@ -17,4 +17,5 @@ if [ "${1:-}" != "--api-only" ] && ! curl -sf -o /dev/null localhost:3000/login;
   (cd "$ROOT/frontend/.next/standalone" && PORT=3000 setsid -f node server.js </dev/null >/tmp/acc-web.log 2>&1)
 fi
 for i in $(seq 1 30); do curl -sf localhost:8000/api/health >/dev/null && break; sleep 1; done
+[ "${1:-}" != "--api-only" ] && for i in $(seq 1 30); do curl -sf -o /dev/null localhost:3000/login && break; sleep 1; done
 echo "api: $(curl -s localhost:8000/api/health)"; echo "web: $(curl -s -o /dev/null -w '%{http_code}' localhost:3000/login)"

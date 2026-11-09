@@ -492,8 +492,8 @@
           "depends": [
             "GW-02"
           ],
-          "status": "in_progress",
-          "evidence": ""
+          "status": "done",
+          "evidence": "Providers & models page: add provider (write-only key), set/rotate key, test, discover, enable/disable, delete, add/edit model prices; E2E + axe ar/en"
         },
         {
           "id": "GW-10",
@@ -979,7 +979,7 @@
           "acceptance": "Topology declared; test",
           "verification": "pytest (live broker)",
           "depends": [],
-          "status": "pending",
+          "status": "in_progress",
           "evidence": ""
         },
         {
@@ -1467,17 +1467,17 @@
     "Executing the UI UX Pro Max search.py script is blocked by the environment's safety policy; skill files are installed and its rules/data applied manually"
   ],
   "requires_approval": [
-    "To verify a real provider call (GW-10): add your own Anthropic/OpenAI/Google API key in Providers & Models and press 'Test connection'. A Claude.ai subscription does not include API access."
+    "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
   "in_progress": [],
-  "next_step": "GW-09 Providers & Models UI; then M10 RabbitMQ bus + workers (move execution dispatch out of the API process)",
+  "next_step": "M10: RabbitMQ topology + structured message contract + idempotent consumers; worker runs executions (mark_orphans_terminated on start); API publishes instead of BackgroundTasks",
   "tests": {
     "passed": [
       "backend: 60/60 pytest on PostgreSQL 16 — security, agents, runtime, gateway (Anthropic/OpenAI/Google adapters over real SSE formats via HTTP mocks, error classification, encrypted write-only keys, discovery without invented prices, exact cost math, fallback + audit) — 2026-11-09",
       "migration v4 baseline (40 tables): upgrade → downgrade → upgrade",
-      "frontend: 30/30 Playwright in real Chrome — i18n/RTL/LTR/layout 14, axe WCAG 2.2 AA 14 (login, dashboard, agents, agent form, templates × ar/en), agents CRUD flow + template instantiate 2",
       "frontend: i18n guard (207 keys), contrast 40/40, tsc, next build",
-      "ruff: clean"
+      "ruff: clean",
+      "frontend: 33/33 Playwright in real Chrome — i18n/RTL/LTR/layout, agents CRUD, templates, providers (add with write-only key, pricing, mock test, failure reporting, delete), axe WCAG 2.2 AA on every page × ar/en"
     ],
     "failed": []
   },

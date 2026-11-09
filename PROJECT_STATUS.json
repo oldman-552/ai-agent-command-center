@@ -1,12 +1,12 @@
 {
-  "date": "2026-11-09 23:08",
+  "date": "2026-11-09 23:14",
   "spec_version": "4.0",
-  "current_phase": "Phases 9, 20",
+  "current_phase": "Phase 6",
   "current_milestone": {
-    "id": 4,
-    "name": "Multi-Provider AI Gateway"
+    "id": 10,
+    "name": "A2A and Communication"
   },
-  "overall_percent": 31.4,
+  "overall_percent": 32.2,
   "milestones": [
     {
       "id": 1,
@@ -36,8 +36,8 @@
       "id": 4,
       "name": "Multi-Provider AI Gateway",
       "weight": 8,
-      "percent": 60.0,
-      "done": 6,
+      "percent": 70.0,
+      "done": 7,
       "total": 10
     },
     {
@@ -165,30 +165,31 @@
     "GW-04",
     "GW-05",
     "GW-06",
+    "GW-09",
     "EE-01",
     "SEC-01",
     "SEC-02",
     "SEC-07"
   ],
   "in_progress": [
-    "GW-09"
+    "MQ-01"
   ],
   "files_changed": [
-    "backend/app/connectivity/providers.py",
-    "backend/pyproject.toml",
-    "backend/uv.lock",
-    "docs/ARCHITECTURE_DECISIONS.md",
     "docs/requirements.json",
-    "backend/app/connectivity/gateway/",
-    "backend/tests/test_gateway.py"
+    "frontend/messages/ar.json",
+    "frontend/messages/en.json",
+    "frontend/src/components/app-shell.tsx",
+    "scripts/dev-up.sh",
+    "frontend/e2e/providers.spec.ts",
+    "frontend/src/app/(app)/providers/"
   ],
   "tests": {
     "passed": [
       "backend: 60/60 pytest on PostgreSQL 16 — security, agents, runtime, gateway (Anthropic/OpenAI/Google adapters over real SSE formats via HTTP mocks, error classification, encrypted write-only keys, discovery without invented prices, exact cost math, fallback + audit) — 2026-11-09",
       "migration v4 baseline (40 tables): upgrade → downgrade → upgrade",
-      "frontend: 30/30 Playwright in real Chrome — i18n/RTL/LTR/layout 14, axe WCAG 2.2 AA 14 (login, dashboard, agents, agent form, templates × ar/en), agents CRUD flow + template instantiate 2",
       "frontend: i18n guard (207 keys), contrast 40/40, tsc, next build",
-      "ruff: clean"
+      "ruff: clean",
+      "frontend: 33/33 Playwright in real Chrome — i18n/RTL/LTR/layout, agents CRUD, templates, providers (add with write-only key, pricing, mock test, failure reporting, delete), axe WCAG 2.2 AA on every page × ar/en"
     ],
     "failed": []
   },
@@ -202,7 +203,7 @@
     "Executing the UI UX Pro Max search.py script is blocked by the environment's safety policy; skill files are installed and its rules/data applied manually"
   ],
   "requires_owner_approval": [
-    "To verify a real provider call (GW-10): add your own Anthropic/OpenAI/Google API key in Providers & Models and press 'Test connection'. A Claude.ai subscription does not include API access."
+    "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
-  "next_action": "GW-09 Providers & Models UI; then M10 RabbitMQ bus + workers (move execution dispatch out of the API process)"
+  "next_action": "M10: RabbitMQ topology + structured message contract + idempotent consumers; worker runs executions (mark_orphans_terminated on start); API publishes instead of BackgroundTasks"
 }
