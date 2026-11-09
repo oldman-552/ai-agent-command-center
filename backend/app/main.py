@@ -12,6 +12,8 @@ from app.connectivity import providers
 from app.control import agents, users
 from app.db import session_factory
 from app.observability import dashboard
+from app.runtime import api as runtime_api
+from app.runtime.engines import mock as _mock_engine  # noqa: F401  (registers the mock engine)
 from app.security import auth
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -49,6 +51,7 @@ app.include_router(dashboard.router)
 app.include_router(users.router)
 app.include_router(agents.router)
 app.include_router(providers.router)
+app.include_router(runtime_api.router)
 
 
 @app.get("/api/health", tags=["system"])

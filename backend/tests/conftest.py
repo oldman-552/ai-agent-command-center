@@ -38,6 +38,10 @@ def _schema():
     cfg = Config(str(BACKEND / "alembic.ini"))
     cfg.set_main_option("script_location", str(BACKEND / "alembic"))
     command.upgrade(cfg, "head")
+    from app.bootstrap import run_bootstrap
+    from app.db import session_factory
+    with session_factory()() as s:
+        run_bootstrap(s)  # default org (id 1), RBAC, super admin, templates — same as app startup
     yield
 
 

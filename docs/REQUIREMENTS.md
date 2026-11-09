@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 16.1%**
+**Overall verified completion: 25.1%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -25,18 +25,18 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | FND-15 | P1 | Organizations/teams schema for multi-tenant readiness; tenant scoping in authz | Every project-scoped query filtered by org; test cross-org denial | pytest | FND-03 | done | organizations/teams + organization_id on scoped tables, tenancy.scoped/get_scoped; cross-org test |
 | FND-16 | P1 | Requirements matrix, decision log (ADRs), progress.txt + PROJECT_STATUS.json | Files generated from requirements.json | inspection | — | done | docs/requirements.json (115 reqs), REQUIREMENTS.md, ARCHITECTURE_DECISIONS.md (11 ADRs), progress.txt + PROJECT_STATUS.json generated |
 
-## M2 — Universal Agent Runtime (weight 9%, 0%) — spec Phase 2
+## M2 — Universal Agent Runtime (weight 9%, 100%) — spec Phase 2
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| RT-01 | P0 | Provider-independent runtime interface (ExecutionEngine adapter contract) | Abstract contract + registry; no provider imports in core | pytest + import-lint | — | in_progress | — |
-| RT-02 | P0 | Execution record with full contract fields (ids, provider, model, engine, context, permissions, timestamps, status, output, usage, cost, logs, errors, evidence, checkpoints) | Model + migration + API | pytest | RT-01 | pending | — |
-| RT-03 | P0 | 13-state execution state machine with recorded transitions; illegal transitions rejected | State machine tests | pytest | RT-02 | pending | — |
-| RT-04 | P0 | Streaming output events (WebSocket) for executions | Client receives ordered events | pytest + Playwright | RT-02 | pending | — |
-| RT-05 | P0 | Cancellation and timeout handling | Cancel/timeout tests end in CANCELLED/FAILED with reason | pytest | RT-03 | pending | — |
-| RT-06 | P0 | Checkpointing and resume from last checkpoint | Kill mid-run, resume continues | pytest | RT-03 | pending | — |
-| RT-07 | P0 | Tool registry + per-agent tool permission validation (default deny) | Unpermitted tool call blocked + audited | pytest | RT-01 | pending | — |
-| RT-08 | P1 | Retry policy with exponential backoff + retry budget | Retry tests | pytest | RT-03 | pending | — |
+| RT-01 | P0 | Provider-independent runtime interface (ExecutionEngine adapter contract) | Abstract contract + registry; no provider imports in core | pytest + import-lint | — | done | runtime/contract.py ExecutionEngine + registry; AST test proves no provider/LangGraph imports |
+| RT-02 | P0 | Execution record with full contract fields (ids, provider, model, engine, context, permissions, timestamps, status, output, usage, cost, logs, errors, evidence, checkpoints) | Model + migration + API | pytest | RT-01 | done | executions table with full contract fields; test_successful_run_records_full_contract |
+| RT-03 | P0 | 13-state execution state machine with recorded transitions; illegal transitions rejected | State machine tests | pytest | RT-02 | done | 13-state TRANSITIONS, state events gapless, illegal rejected (tests) |
+| RT-04 | P0 | Streaming output events (WebSocket) for executions | Client receives ordered events | pytest + Playwright | RT-02 | done | WebSocket /api/executions/{id}/stream ordered events + end; cookie auth, same-origin check (tests) |
+| RT-05 | P0 | Cancellation and timeout handling | Cancel/timeout tests end in CANCELLED/FAILED with reason | pytest | RT-03 | done | cooperative cancel (running + idle), deadline via asyncio.timeout (tests) |
+| RT-06 | P0 | Checkpointing and resume from last checkpoint | Kill mid-run, resume continues | pytest | RT-03 | done | checkpoint per step, TERMINATED orphans resume from latest checkpoint (test_resume_from_checkpoint_after_runtime_crash) |
+| RT-07 | P0 | Tool registry + per-agent tool permission validation (default deny) | Unpermitted tool call blocked + audited | pytest | RT-01 | done | default-deny tool gate, audited denial, WAITING_FOR_TOOL state (test) |
+| RT-08 | P1 | Retry policy with exponential backoff + retry budget | Retry tests | pytest | RT-03 | done | exponential backoff, retry budget, fatal not retried, resume without repeating steps (tests) |
 
 ## M3 — Dynamic Agent Management (weight 7%, 86%) — spec Phase 3
 
@@ -54,7 +54,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| GW-01 | P0 | Provider adapter interface + registry (Anthropic, OpenAI, Google, Mock) | Adapters implement contract; Mock clearly labeled | pytest | RT-01 | pending | — |
+| GW-01 | P0 | Provider adapter interface + registry (Anthropic, OpenAI, Google, Mock) | Adapters implement contract; Mock clearly labeled | pytest | RT-01 | in_progress | — |
 | GW-02 | P0 | Provider + model registry with metadata/capabilities and pricing | CRUD + model list | pytest | GW-01 | pending | — |
 | GW-03 | P0 | Encrypted API credentials, never returned in full, never in prompts | Masking tests | pytest | FND-06 | pending | — |
 | GW-04 | P0 | Connection test per provider | Mock passes; real adapters tested with HTTP mocks | pytest | GW-01 | pending | — |

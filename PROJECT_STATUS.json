@@ -1,12 +1,12 @@
 {
-  "date": "2026-11-09 23:00",
+  "date": "2026-11-09 23:03",
   "spec_version": "4.0",
-  "current_phase": "Phase 2",
+  "current_phase": "Phases 9, 20",
   "current_milestone": {
-    "id": 2,
-    "name": "Universal Agent Runtime"
+    "id": 4,
+    "name": "Multi-Provider AI Gateway"
   },
-  "overall_percent": 16.1,
+  "overall_percent": 25.1,
   "milestones": [
     {
       "id": 1,
@@ -20,8 +20,8 @@
       "id": 2,
       "name": "Universal Agent Runtime",
       "weight": 9,
-      "percent": 0.0,
-      "done": 0,
+      "percent": 100.0,
+      "done": 8,
       "total": 8
     },
     {
@@ -145,6 +145,14 @@
     "FND-13",
     "FND-15",
     "FND-16",
+    "RT-01",
+    "RT-02",
+    "RT-03",
+    "RT-04",
+    "RT-05",
+    "RT-06",
+    "RT-07",
+    "RT-08",
     "AG-01",
     "AG-02",
     "AG-03",
@@ -156,38 +164,21 @@
     "SEC-07"
   ],
   "in_progress": [
-    "RT-01"
+    "GW-01"
   ],
   "files_changed": [
-    "backend/app/control/agents.py",
     "backend/app/main.py",
-    "backend/tests/test_agents.py",
+    "backend/tests/conftest.py",
     "docs/requirements.json",
-    "frontend/messages/ar.json",
-    "frontend/messages/en.json",
-    "frontend/package-lock.json",
-    "frontend/package.json",
-    "frontend/scripts/check-i18n.mjs",
-    "frontend/src/components/app-shell.tsx",
-    "backend/app/connectivity/",
-    "frontend/e2e/agents.spec.ts",
-    "frontend/e2e/helpers.ts",
-    "frontend/src/app/(app)/agents/",
-    "frontend/src/app/(app)/templates/",
-    "frontend/src/components/agent-form.tsx",
-    "frontend/src/components/agent-state-badge.tsx",
-    "frontend/src/components/confirm-dialog.tsx",
-    "frontend/src/components/providers.tsx",
-    "frontend/src/components/toaster.tsx",
-    "frontend/src/components/ui/dialog.tsx",
-    "frontend/src/components/ui/select.tsx",
-    "frontend/src/components/ui/textarea.tsx",
-    "frontend/src/lib/agents.ts",
-    "frontend/src/lib/toast.ts"
+    "backend/app/runtime/api.py",
+    "backend/app/runtime/contract.py",
+    "backend/app/runtime/engines/",
+    "backend/app/runtime/service.py",
+    "backend/tests/test_runtime.py"
   ],
   "tests": {
     "passed": [
-      "backend: 30/30 pytest on PostgreSQL 16 — auth, CSRF, RBAC, tenancy, headers, crypto, bootstrap, dashboard, agents CRUD/lifecycle/versions/templates/tool ceilings — 2026-11-09",
+      "backend: 44/44 pytest on PostgreSQL 16 — auth, CSRF, RBAC, tenancy, headers, crypto, bootstrap, dashboard, agents (CRUD/lifecycle/versions/templates/ceilings), runtime (contract, 13-state machine, events, WebSocket stream, cancel, timeout, checkpoints/resume, tool gate, retry/backoff, idempotency) — 2026-11-09",
       "migration v4 baseline (40 tables): upgrade → downgrade → upgrade",
       "frontend: 30/30 Playwright in real Chrome — i18n/RTL/LTR/layout 14, axe WCAG 2.2 AA 14 (login, dashboard, agents, agent form, templates × ar/en), agents CRUD flow + template instantiate 2",
       "frontend: i18n guard (207 keys), contrast 40/40, tsc, next build",
@@ -196,12 +187,14 @@
     "failed": []
   },
   "known_issues": [
-    "Docker stack verification predates the v4 schema; re-run with docker/offline override after next milestone"
+    "Docker stack verification predates the v4 schema; re-run with docker/offline override after next milestone",
+    "Executions run in-process (API background task) until M10 moves dispatch to RabbitMQ workers",
+    "Runtime uses a sync SQLAlchemy session inside async code (short blocking calls); acceptable now, revisit with workers"
   ],
   "blockers": [
     "Dev environment blocks all container registries: official images cannot be pulled here; verified instead with locally-built equivalent images (docker/offline). Official images must be verified on the owner's machine",
     "Executing the UI UX Pro Max search.py script is blocked by the environment's safety policy; skill files are installed and its rules/data applied manually"
   ],
   "requires_owner_approval": [],
-  "next_action": "M2 Universal Agent Runtime: ExecutionEngine contract + registry, execution state machine (13 states) with events, cancel/timeout, checkpoints/resume, tool permission gate, retry/backoff; then M4 gateway adapters"
+  "next_action": "M4 Gateway: provider adapters (Anthropic, OpenAI, Google, OpenAI-compatible, Mock) behind ProviderAdapter, encrypted credentials + connection tests, models/pricing, usage+cost records, fallback; register the real 'api' engine; Providers UI"
 }

@@ -199,8 +199,8 @@
           "acceptance": "Abstract contract + registry; no provider imports in core",
           "verification": "pytest + import-lint",
           "depends": [],
-          "status": "in_progress",
-          "evidence": ""
+          "status": "done",
+          "evidence": "runtime/contract.py ExecutionEngine + registry; AST test proves no provider/LangGraph imports"
         },
         {
           "id": "RT-02",
@@ -211,8 +211,8 @@
           "depends": [
             "RT-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "executions table with full contract fields; test_successful_run_records_full_contract"
         },
         {
           "id": "RT-03",
@@ -223,8 +223,8 @@
           "depends": [
             "RT-02"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "13-state TRANSITIONS, state events gapless, illegal rejected (tests)"
         },
         {
           "id": "RT-04",
@@ -235,8 +235,8 @@
           "depends": [
             "RT-02"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "WebSocket /api/executions/{id}/stream ordered events + end; cookie auth, same-origin check (tests)"
         },
         {
           "id": "RT-05",
@@ -247,8 +247,8 @@
           "depends": [
             "RT-03"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "cooperative cancel (running + idle), deadline via asyncio.timeout (tests)"
         },
         {
           "id": "RT-06",
@@ -259,8 +259,8 @@
           "depends": [
             "RT-03"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "checkpoint per step, TERMINATED orphans resume from latest checkpoint (test_resume_from_checkpoint_after_runtime_crash)"
         },
         {
           "id": "RT-07",
@@ -271,8 +271,8 @@
           "depends": [
             "RT-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "default-deny tool gate, audited denial, WAITING_FOR_TOOL state (test)"
         },
         {
           "id": "RT-08",
@@ -283,8 +283,8 @@
           "depends": [
             "RT-03"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "exponential backoff, retry budget, fatal not retried, resume without repeating steps (tests)"
         }
       ]
     },
@@ -396,7 +396,7 @@
           "depends": [
             "RT-01"
           ],
-          "status": "pending",
+          "status": "in_progress",
           "evidence": ""
         },
         {
@@ -1468,10 +1468,10 @@
   ],
   "requires_approval": [],
   "in_progress": [],
-  "next_step": "M2 Universal Agent Runtime: ExecutionEngine contract + registry, execution state machine (13 states) with events, cancel/timeout, checkpoints/resume, tool permission gate, retry/backoff; then M4 gateway adapters",
+  "next_step": "M4 Gateway: provider adapters (Anthropic, OpenAI, Google, OpenAI-compatible, Mock) behind ProviderAdapter, encrypted credentials + connection tests, models/pricing, usage+cost records, fallback; register the real 'api' engine; Providers UI",
   "tests": {
     "passed": [
-      "backend: 30/30 pytest on PostgreSQL 16 — auth, CSRF, RBAC, tenancy, headers, crypto, bootstrap, dashboard, agents CRUD/lifecycle/versions/templates/tool ceilings — 2026-11-09",
+      "backend: 44/44 pytest on PostgreSQL 16 — auth, CSRF, RBAC, tenancy, headers, crypto, bootstrap, dashboard, agents (CRUD/lifecycle/versions/templates/ceilings), runtime (contract, 13-state machine, events, WebSocket stream, cancel, timeout, checkpoints/resume, tool gate, retry/backoff, idempotency) — 2026-11-09",
       "migration v4 baseline (40 tables): upgrade → downgrade → upgrade",
       "frontend: 30/30 Playwright in real Chrome — i18n/RTL/LTR/layout 14, axe WCAG 2.2 AA 14 (login, dashboard, agents, agent form, templates × ar/en), agents CRUD flow + template instantiate 2",
       "frontend: i18n guard (207 keys), contrast 40/40, tsc, next build",
@@ -1481,6 +1481,8 @@
   },
   "files_changed": [],
   "known_issues": [
-    "Docker stack verification predates the v4 schema; re-run with docker/offline override after next milestone"
+    "Docker stack verification predates the v4 schema; re-run with docker/offline override after next milestone",
+    "Executions run in-process (API background task) until M10 moves dispatch to RabbitMQ workers",
+    "Runtime uses a sync SQLAlchemy session inside async code (short blocking calls); acceptable now, revisit with workers"
   ]
 }
