@@ -1,0 +1,22 @@
+# Override for the cloud dev environment only (see README.md in this folder).
+x-proxy-args: &proxy-args
+  https_proxy: ${OFFLINE_HTTP_PROXY:-}
+services:
+  postgres:
+    image: acc/postgres-local:16
+    build: { context: docker/offline, dockerfile: postgres.Dockerfile, network: host, args: *proxy-args }
+  rabbitmq:
+    image: acc/rabbitmq-local:3
+    build: { context: docker/offline, dockerfile: rabbitmq.Dockerfile, network: host, args: *proxy-args }
+  migrate:
+    image: acc/backend-local
+    build: { context: ., dockerfile: docker/offline/backend.Dockerfile, network: host, args: *proxy-args }
+  api:
+    image: acc/backend-local
+    build: !reset null
+  worker:
+    image: acc/backend-local
+    build: !reset null
+  frontend:
+    image: acc/frontend-local
+    build: { context: ., dockerfile: docker/offline/frontend.Dockerfile, network: host }
