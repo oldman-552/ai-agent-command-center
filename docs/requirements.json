@@ -396,8 +396,8 @@
           "depends": [
             "RT-01"
           ],
-          "status": "in_progress",
-          "evidence": ""
+          "status": "done",
+          "evidence": "ProviderAdapter + registry: anthropic, openai, openai_compatible, google, mock (labelled); tests"
         },
         {
           "id": "GW-02",
@@ -408,8 +408,8 @@
           "depends": [
             "GW-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "providers + models registry with capabilities/tier/prices; add/patch/discover; tests"
         },
         {
           "id": "GW-03",
@@ -420,8 +420,8 @@
           "depends": [
             "FND-06"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "Fernet-encrypted credentials, write-only API (hint …WXYZ), rotation, never in audit/prompts; test"
         },
         {
           "id": "GW-04",
@@ -432,8 +432,8 @@
           "depends": [
             "GW-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "POST /providers/{id}/test updates status; tests via HTTP mocks"
         },
         {
           "id": "GW-05",
@@ -444,8 +444,8 @@
           "depends": [
             "GW-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "usage_records per call; cost_records only with owner prices (exact cached/uncached math); unknown price => null; tests"
         },
         {
           "id": "GW-06",
@@ -456,8 +456,8 @@
           "depends": [
             "GW-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "primary→fallback on provider failure, audited gateway.fallback; no splicing after partial output; test"
         },
         {
           "id": "GW-07",
@@ -492,7 +492,7 @@
           "depends": [
             "GW-02"
           ],
-          "status": "pending",
+          "status": "in_progress",
           "evidence": ""
         },
         {
@@ -525,8 +525,8 @@
             "RT-01",
             "GW-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "real 'api' engine runs executions through the gateway end to end; tests"
         },
         {
           "id": "EE-02",
@@ -1466,12 +1466,14 @@
     "Dev environment blocks all container registries: official images cannot be pulled here; verified instead with locally-built equivalent images (docker/offline). Official images must be verified on the owner's machine",
     "Executing the UI UX Pro Max search.py script is blocked by the environment's safety policy; skill files are installed and its rules/data applied manually"
   ],
-  "requires_approval": [],
+  "requires_approval": [
+    "To verify a real provider call (GW-10): add your own Anthropic/OpenAI/Google API key in Providers & Models and press 'Test connection'. A Claude.ai subscription does not include API access."
+  ],
   "in_progress": [],
-  "next_step": "M4 Gateway: provider adapters (Anthropic, OpenAI, Google, OpenAI-compatible, Mock) behind ProviderAdapter, encrypted credentials + connection tests, models/pricing, usage+cost records, fallback; register the real 'api' engine; Providers UI",
+  "next_step": "GW-09 Providers & Models UI; then M10 RabbitMQ bus + workers (move execution dispatch out of the API process)",
   "tests": {
     "passed": [
-      "backend: 44/44 pytest on PostgreSQL 16 — auth, CSRF, RBAC, tenancy, headers, crypto, bootstrap, dashboard, agents (CRUD/lifecycle/versions/templates/ceilings), runtime (contract, 13-state machine, events, WebSocket stream, cancel, timeout, checkpoints/resume, tool gate, retry/backoff, idempotency) — 2026-11-09",
+      "backend: 60/60 pytest on PostgreSQL 16 — security, agents, runtime, gateway (Anthropic/OpenAI/Google adapters over real SSE formats via HTTP mocks, error classification, encrypted write-only keys, discovery without invented prices, exact cost math, fallback + audit) — 2026-11-09",
       "migration v4 baseline (40 tables): upgrade → downgrade → upgrade",
       "frontend: 30/30 Playwright in real Chrome — i18n/RTL/LTR/layout 14, axe WCAG 2.2 AA 14 (login, dashboard, agents, agent form, templates × ar/en), agents CRUD flow + template instantiate 2",
       "frontend: i18n guard (207 keys), contrast 40/40, tsc, next build",

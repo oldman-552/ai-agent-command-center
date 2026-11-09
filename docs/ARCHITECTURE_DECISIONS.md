@@ -73,3 +73,11 @@ at build). Server state with TanStack Query, UI state with Zustand, forms with R
 **Decision:** Replace the v1 initial migration with a single `v4 baseline schema` migration (40 tables) instead of
 chaining rename migrations. From now on every schema change is a new incremental Alembic revision.
 **Consequences:** Development databases created before 2026-11-09 22:40 must be recreated (`RESET-DEV`); no owner data affected.
+
+## ADR-013 — One HTTP stack (httpx2) for the gateway; Gemini over REST (2026-11-09)
+**Context:** anthropic 2.6 and openai 3.48 SDKs are built on `httpx2` (Anthropic v2 also authenticates with
+`Authorization: Bearer`). The spec suggests the Google Gen AI SDK.
+**Decision:** All adapters use `httpx2`; the Google adapter calls the Gemini REST API directly (streamGenerateContent
+SSE, models list) instead of adding the google-genai SDK. Tests drive every adapter through `httpx2.MockTransport`
+with each provider's real streaming format, so SDK parsing is exercised. Revisit google-genai if features beyond
+chat streaming (files, caching) are needed.

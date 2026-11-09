@@ -9,6 +9,7 @@ dependencies = [
     "cryptography>=50.0.2",
     "fastapi>=0.162.2",
     "httpx>=0.28.1",
+    "httpx2>=2.16.0",
     "langgraph>=1.2.20",
     "langgraph-checkpoint-postgres>=3.2.0",
     "openai>=3.48.0",

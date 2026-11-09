@@ -1,12 +1,12 @@
 {
-  "date": "2026-11-09 23:03",
+  "date": "2026-11-09 23:08",
   "spec_version": "4.0",
   "current_phase": "Phases 9, 20",
   "current_milestone": {
     "id": 4,
     "name": "Multi-Provider AI Gateway"
   },
-  "overall_percent": 25.1,
+  "overall_percent": 31.4,
   "milestones": [
     {
       "id": 1,
@@ -36,16 +36,16 @@
       "id": 4,
       "name": "Multi-Provider AI Gateway",
       "weight": 8,
-      "percent": 0.0,
-      "done": 0,
+      "percent": 60.0,
+      "done": 6,
       "total": 10
     },
     {
       "id": 5,
       "name": "Execution Engines",
       "weight": 6,
-      "percent": 0.0,
-      "done": 0,
+      "percent": 25.0,
+      "done": 1,
       "total": 4
     },
     {
@@ -159,26 +159,32 @@
     "AG-04",
     "AG-05",
     "AG-06",
+    "GW-01",
+    "GW-02",
+    "GW-03",
+    "GW-04",
+    "GW-05",
+    "GW-06",
+    "EE-01",
     "SEC-01",
     "SEC-02",
     "SEC-07"
   ],
   "in_progress": [
-    "GW-01"
+    "GW-09"
   ],
   "files_changed": [
-    "backend/app/main.py",
-    "backend/tests/conftest.py",
+    "backend/app/connectivity/providers.py",
+    "backend/pyproject.toml",
+    "backend/uv.lock",
+    "docs/ARCHITECTURE_DECISIONS.md",
     "docs/requirements.json",
-    "backend/app/runtime/api.py",
-    "backend/app/runtime/contract.py",
-    "backend/app/runtime/engines/",
-    "backend/app/runtime/service.py",
-    "backend/tests/test_runtime.py"
+    "backend/app/connectivity/gateway/",
+    "backend/tests/test_gateway.py"
   ],
   "tests": {
     "passed": [
-      "backend: 44/44 pytest on PostgreSQL 16 — auth, CSRF, RBAC, tenancy, headers, crypto, bootstrap, dashboard, agents (CRUD/lifecycle/versions/templates/ceilings), runtime (contract, 13-state machine, events, WebSocket stream, cancel, timeout, checkpoints/resume, tool gate, retry/backoff, idempotency) — 2026-11-09",
+      "backend: 60/60 pytest on PostgreSQL 16 — security, agents, runtime, gateway (Anthropic/OpenAI/Google adapters over real SSE formats via HTTP mocks, error classification, encrypted write-only keys, discovery without invented prices, exact cost math, fallback + audit) — 2026-11-09",
       "migration v4 baseline (40 tables): upgrade → downgrade → upgrade",
       "frontend: 30/30 Playwright in real Chrome — i18n/RTL/LTR/layout 14, axe WCAG 2.2 AA 14 (login, dashboard, agents, agent form, templates × ar/en), agents CRUD flow + template instantiate 2",
       "frontend: i18n guard (207 keys), contrast 40/40, tsc, next build",
@@ -195,6 +201,8 @@
     "Dev environment blocks all container registries: official images cannot be pulled here; verified instead with locally-built equivalent images (docker/offline). Official images must be verified on the owner's machine",
     "Executing the UI UX Pro Max search.py script is blocked by the environment's safety policy; skill files are installed and its rules/data applied manually"
   ],
-  "requires_owner_approval": [],
-  "next_action": "M4 Gateway: provider adapters (Anthropic, OpenAI, Google, OpenAI-compatible, Mock) behind ProviderAdapter, encrypted credentials + connection tests, models/pricing, usage+cost records, fallback; register the real 'api' engine; Providers UI"
+  "requires_owner_approval": [
+    "To verify a real provider call (GW-10): add your own Anthropic/OpenAI/Google API key in Providers & Models and press 'Test connection'. A Claude.ai subscription does not include API access."
+  ],
+  "next_action": "GW-09 Providers & Models UI; then M10 RabbitMQ bus + workers (move execution dispatch out of the API process)"
 }

@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 25.1%**
+**Overall verified completion: 31.4%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -50,26 +50,26 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | AG-06 | P0 | Agents UI: list, create/edit form, details, templates — ar/en | E2E create/edit flow | Playwright | AG-01, FND-07 | done | Agents list/filters/actions, create/edit form (RHF+Zod, tool ceilings), details (versions, transitions), templates gallery; E2E CRUD flow + axe ar/en |
 | AG-07 | P1 | Agent teams | Team CRUD + membership | pytest | AG-01 | pending | — |
 
-## M4 — Multi-Provider AI Gateway (weight 8%, 0%) — spec Phases 9, 20
+## M4 — Multi-Provider AI Gateway (weight 8%, 60%) — spec Phases 9, 20
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| GW-01 | P0 | Provider adapter interface + registry (Anthropic, OpenAI, Google, Mock) | Adapters implement contract; Mock clearly labeled | pytest | RT-01 | in_progress | — |
-| GW-02 | P0 | Provider + model registry with metadata/capabilities and pricing | CRUD + model list | pytest | GW-01 | pending | — |
-| GW-03 | P0 | Encrypted API credentials, never returned in full, never in prompts | Masking tests | pytest | FND-06 | pending | — |
-| GW-04 | P0 | Connection test per provider | Mock passes; real adapters tested with HTTP mocks | pytest | GW-01 | pending | — |
-| GW-05 | P0 | Token + cost accounting per execution (usage_records/cost_records); no fabricated prices | Recorded per call; unknown price = null | pytest | GW-01 | pending | — |
-| GW-06 | P0 | Fallback provider/model on failure | Primary failure → fallback used + logged | pytest | GW-01 | pending | — |
+| GW-01 | P0 | Provider adapter interface + registry (Anthropic, OpenAI, Google, Mock) | Adapters implement contract; Mock clearly labeled | pytest | RT-01 | done | ProviderAdapter + registry: anthropic, openai, openai_compatible, google, mock (labelled); tests |
+| GW-02 | P0 | Provider + model registry with metadata/capabilities and pricing | CRUD + model list | pytest | GW-01 | done | providers + models registry with capabilities/tier/prices; add/patch/discover; tests |
+| GW-03 | P0 | Encrypted API credentials, never returned in full, never in prompts | Masking tests | pytest | FND-06 | done | Fernet-encrypted credentials, write-only API (hint …WXYZ), rotation, never in audit/prompts; test |
+| GW-04 | P0 | Connection test per provider | Mock passes; real adapters tested with HTTP mocks | pytest | GW-01 | done | POST /providers/{id}/test updates status; tests via HTTP mocks |
+| GW-05 | P0 | Token + cost accounting per execution (usage_records/cost_records); no fabricated prices | Recorded per call; unknown price = null | pytest | GW-01 | done | usage_records per call; cost_records only with owner prices (exact cached/uncached math); unknown price => null; tests |
+| GW-06 | P0 | Fallback provider/model on failure | Primary failure → fallback used + logged | pytest | GW-01 | done | primary→fallback on provider failure, audited gateway.fallback; no splicing after partial output; test |
 | GW-07 | P1 | Routing by complexity/capability/cost/availability | Routing tests | pytest | GW-02 | pending | — |
 | GW-08 | P1 | Budgets: agent/project/task/daily/monthly; stop new work at limit + approval request | Budget tests | pytest | GW-05 | pending | — |
-| GW-09 | P0 | Providers & Models UI | E2E add provider, test connection | Playwright | GW-02 | pending | — |
+| GW-09 | P0 | Providers & Models UI | E2E add provider, test connection | Playwright | GW-02 | in_progress | — |
 | GW-10 | P0 | At least one real official API call verified | Live call with owner key succeeds | manual/live test | GW-01 | pending | — |
 
-## M5 — Execution Engines (weight 6%, 0%) — spec Phase 10
+## M5 — Execution Engines (weight 6%, 25%) — spec Phase 10
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| EE-01 | P0 | API execution engine (via gateway) | Runs task with Mock end-to-end | pytest | RT-01, GW-01 | pending | — |
+| EE-01 | P0 | API execution engine (via gateway) | Runs task with Mock end-to-end | pytest | RT-01, GW-01 | done | real 'api' engine runs executions through the gateway end to end; tests |
 | EE-02 | P1 | CLI execution engine adapter (sandboxed subprocess) with documented support for Claude Code / Codex / Gemini CLI / OpenCode | Adapter + docs; verified flags only | pytest + docs | RT-01, SEC-04 | pending | — |
 | EE-03 | P1 | External agent runtime adapter (A2A client) | Adapter contract test | pytest | A2A-02 | pending | — |
 | EE-04 | P0 | Unsupported integrations explicitly documented | PROVIDER_INTEGRATION.md table | inspection | — | pending | — |
