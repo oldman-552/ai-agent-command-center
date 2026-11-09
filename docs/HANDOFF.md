@@ -46,10 +46,15 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - `app/bus/`: contract (Envelope, message types), topology, outbox+relay, consumer (lock → ledger → handler → ack), handlers.
 - `app/connectivity/a2a/`: `server.py` (A2A v1.0 JSON-RPC per platform agent, key-gated), `keys.py` (human-only keys API),
   `client.py` (external A2A services), `engine.py` (`a2a` engine + `a2a` provider kind). ADR-015.
+- `app/orchestration/`: `planner.py` (LangGraph, schema `langgraph`), `selection.py`, `scheduler.py` (advance /
+  on_execution_finished / review / recover_running), `api.py` (projects, workflows, tasks, review). ADR-016.
+  The mock provider plans numbered objective lines: `2. Build API [backend] (after 1)`.
+- Rows read under `with_for_update=True` also need `populate_existing=True`, or a stale identity-map copy is used.
 - Tests that rebind the mock engine to 'api' must `import app.main` first, or a later import re-registers the real
   ApiEngine over the mock (this caused order-dependent failures).
 - The dev DB is disposable; the super admin password in the dev container is `dev-only-password-123` (backend/.env, not committed).
 
 ### Next steps (in order)
-1. M6 orchestration (LangGraph planner → task DAG → dispatch → review → approval) + Task Center UI.
-4. Then M13 approvals/sandbox/audit UI, M12, M7, M8, M11, M9, M5 CLI, M14, M15 (see IMPLEMENTATION_PLAN.md).
+1. OR-07 Task Center UI (Kanban/list/details, review actions, submit objective, project picker) + E2E/axe.
+   Backend for M6 is done except the approval stage (needs SEC-03) and the evaluator gate (EV-01).
+2. Then M13 approvals/sandbox/audit UI, M12, M7, M8, M11, M9, M5 CLI, M14, M15 (see IMPLEMENTATION_PLAN.md).

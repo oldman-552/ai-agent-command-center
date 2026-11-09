@@ -26,9 +26,11 @@ log = logging.getLogger("bus.outbox")
 
 def route(env: Envelope) -> tuple[str, str]:
     """(exchange, routing key) for an envelope. Commands go to a specialty work queue, events fan out."""
-    if env.is_command:
+    if env.message_type == "execution.run":
         engine = str(env.payload.get("engine") or env.recipient.split(":", 1)[-1])
         return topo.COMMANDS, topo.run_routing_key(engine)
+    if env.is_command:
+        return topo.COMMANDS, env.message_type.value
     return topo.EVENTS, env.message_type.value
 
 

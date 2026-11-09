@@ -127,3 +127,26 @@ internal bus. A2A v1.0 (JSON-RPC binding: `SendMessage`/`GetTask`/`ListTasks`/`C
 **Uncertainty:** the v1.0 spec pages available rendered some data-model tables incompletely; `securitySchemes`
 (`httpAuthSecurityScheme`) and `securityRequirements` follow the ProtoJSON mapping of the proto and should be
 re-checked against `spec/a2a.proto` when interoperating with a third-party SDK.
+
+## ADR-016 — Orchestrator: LangGraph for planning only; scheduling is stateless over the bus (2026-11-10)
+**Context:** Phase 4 asks for planning, dependency graphs, assignment, parallelism, review and recovery, "using
+LangGraph where appropriate".
+**Decision:**
+- Planning (`app/orchestration/planner.py`) is a LangGraph graph `draft → validate → (retry draft with the validation
+  error | persist | give_up)` with `AsyncPostgresSaver`, thread id = workflow.thread_id, so an interrupted plan resumes
+  at the next node and the model is not called again. LangGraph owns its tables in schema `langgraph` (its table name
+  `checkpoints` collides with ours). Plans are untrusted output: schema-validated, ≤ 25 tasks, cycle-checked.
+- Scheduling (`scheduler.py`) is *not* a long-running graph: `advance()` re-derives everything from PostgreSQL under a
+  `SELECT … FOR UPDATE` on the workflow row, so any worker can run it any number of times after any restart. It is
+  driven by `workflow.advance` commands and `execution.finished` events on the bus (ADR-014).
+- Selection (`selection.py`): hard filters (tenant, enabled, available, engine, project roster, all required skills,
+  free concurrency) then a transparent weighted score (role fit, recent success rate, load, cost, latency); the
+  breakdown is audited per assignment. The planner is also limited to the project roster.
+- A finished execution moves its task to REVIEW with evidence (execution id, output hash, mock flag); only a review
+  decision completes it (approve / revise → re-run with the note / reject). The automated evaluator (EV-01) will plug
+  into the same gate; critical-operation approvals (SEC-03) are still to come.
+- Task executions use idempotency key `task:{id}:attempt:{n}`; stale or duplicate `execution.finished` events are
+  ignored unless they match the task's current attempt.
+**Consequences:** worker kill mid-workflow and duplicate messages are harmless (tested over a live broker). Waiting on
+busy agents re-polls through the bus delay tier; waiting on a missing skill waits for a human nudge
+(`POST /api/workflows/{id}/advance`).

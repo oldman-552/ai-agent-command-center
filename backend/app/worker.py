@@ -2,6 +2,7 @@
 
     uv run python -m app.worker                     # all engine queues
     WORKER_ENGINES=api,cli uv run python -m app.worker   # a specialised worker
+    WORKER_ROLES=orchestrator uv run python -m app.worker  # only the orchestrator (planning + scheduling)
 
 Exits non-zero if RabbitMQ or PostgreSQL is unreachable at start, so failures are visible to the supervisor
 (Docker restart policy). After start, broker outages are survived: the robust connection reconnects, consumers
@@ -17,7 +18,7 @@ import sys
 
 from app.bus import topology as topo
 from app.bus.consumer import connect
-from app.bus.handlers import execution_consumers
+from app.bus.handlers import execution_consumers, orchestrator_consumers
 from app.bus.outbox import Relay
 from app.config import get_settings
 from app.connectivity.a2a import engine as _a2a_engine  # noqa: F401  (registers the a2a engine)
@@ -54,7 +55,16 @@ async def main() -> int:
 
     relay_ch = await conn.channel(publisher_confirms=True, on_return_raises=True)
     relay = asyncio.create_task(Relay(relay_ch).run(stop))
-    for c in execution_consumers(_engines()):
+    roles = os.environ.get("WORKER_ROLES", "executions,orchestrator").split(",")
+    consumers = (execution_consumers(_engines()) if "executions" in roles else []) + (
+        orchestrator_consumers() if "orchestrator" in roles else [])
+    if "orchestrator" in roles:
+        from app.orchestration.scheduler import recover_running
+        with session_factory()() as db:
+            n = recover_running(db)
+        if n:
+            log.info("recovery: nudged %d active workflows", n)
+    for c in consumers:
         ch = await conn.channel(publisher_confirms=True)
         await c.start(ch)
     log.info("worker %s ready (engines: %s)", service.RUNTIME_ID, ",".join(_engines()))

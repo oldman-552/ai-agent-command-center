@@ -1,12 +1,12 @@
 {
-  "date": "2026-11-09 23:50",
+  "date": "2026-11-10 00:02",
   "spec_version": "4.0",
-  "current_phase": "Phases 1, 19, 23, 25",
+  "current_phase": "Phases 4, 13",
   "current_milestone": {
-    "id": 1,
-    "name": "Foundation"
+    "id": 6,
+    "name": "Intelligent Orchestration"
   },
-  "overall_percent": 38.7,
+  "overall_percent": 43.7,
   "milestones": [
     {
       "id": 1,
@@ -52,8 +52,8 @@
       "id": 6,
       "name": "Intelligent Orchestration",
       "weight": 9,
-      "percent": 0.0,
-      "done": 0,
+      "percent": 55.6,
+      "done": 5,
       "total": 9
     },
     {
@@ -168,6 +168,11 @@
     "GW-09",
     "EE-01",
     "EE-03",
+    "OR-01",
+    "OR-02",
+    "OR-03",
+    "OR-05",
+    "OR-06",
     "MQ-01",
     "MQ-02",
     "MQ-03",
@@ -178,32 +183,33 @@
     "SEC-02",
     "SEC-07"
   ],
-  "in_progress": [],
+  "in_progress": [
+    "OR-04",
+    "OR-07"
+  ],
   "files_changed": [
     "PROJECT_STATUS.json",
-    "backend/app/connectivity/providers.py",
+    "backend/app/bus/contract.py",
+    "backend/app/bus/handlers.py",
+    "backend/app/bus/outbox.py",
+    "backend/app/bus/topology.py",
+    "backend/app/connectivity/gateway/adapters.py",
     "backend/app/main.py",
-    "backend/app/models/__init__.py",
-    "backend/app/models/connectivity.py",
-    "backend/app/runtime/api.py",
     "backend/app/worker.py",
     "backend/tests/test_bus.py",
-    "backend/tests/test_runtime.py",
     "docs/ARCHITECTURE_DECISIONS.md",
+    "docs/HANDOFF.md",
     "docs/REQUIREMENTS.md",
     "docs/requirements.json",
-    "frontend/messages/ar.json",
-    "frontend/messages/en.json",
     "progress.txt",
-    "backend/alembic/versions/cdf7bd4f62d2_a2a_access_keys.py",
-    "backend/app/connectivity/a2a/",
-    "backend/app/runtime/dispatch.py",
-    "backend/tests/test_a2a.py"
+    "backend/alembic/versions/1130e33af9e1_langgraph_schema_for_orchestrator_.py",
+    "backend/app/orchestration/",
+    "backend/tests/test_orchestration.py"
   ],
   "tests": {
     "passed": [
-      "backend: 94/94 pytest on PostgreSQL 16 + live RabbitMQ 3.12 — full suite twice and every module in isolation; incl. message bus (worker kill -9, broker restart) and A2A server/client/engine over real HTTP — 2026-11-09",
-      "migrations: v4 baseline + bus outbox/ledger + a2a_access_keys (43 tables); base → head → -1 → head; alembic check clean",
+      "backend: 104/104 pytest on PostgreSQL 16 + live RabbitMQ 3.12 — full suite twice and every module in isolation; incl. bus (worker kill -9, broker restart), A2A over real HTTP, orchestration (LangGraph planner resume, fan-out/fan-in, review loop, workflow surviving worker kill) — 2026-11-10",
+      "migrations: 4 revisions (43 tables + langgraph schema); base → head → -1 → head; alembic check clean",
       "frontend: i18n guard (264 keys), contrast, tsc, next build",
       "ruff: clean",
       "frontend: 33/33 Playwright in real Chrome against API + worker in bus mode — i18n/RTL/LTR/layout, agents, templates, providers, axe WCAG 2.2 AA × ar/en"
@@ -222,5 +228,5 @@
   "requires_owner_approval": [
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
-  "next_action": "M6 orchestration: LangGraph planner → task DAG (tasks/task_dependencies) → dispatch over the bus → review → approval; Task Center UI. Then M13 approvals/sandbox/audit UI"
+  "next_action": "OR-07 Task Center UI (Kanban + list + details with acceptance criteria, evidence, history, review actions; submit objective) + E2E/axe. Then SEC-03 approvals (unblocks OR-04 approval stage) and EV-01 evaluator (OR-08)"
 }

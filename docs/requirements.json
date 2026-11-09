@@ -581,8 +581,8 @@
             "RT-01",
             "AG-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_orchestration.py::test_langgraph_planner_creates_task_dag_and_resumes_from_checkpoint (LangGraph + PostgresSaver, mock provider → 4 tasks + 4 dependency edges), test_plan_validation_rejects_bad_graphs, test_invalid_plans_are_retried_with_feedback_then_fail_the_workflow"
         },
         {
           "id": "OR-02",
@@ -593,8 +593,8 @@
           "depends": [
             "OR-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_orchestration.py::test_agent_selection_filters_then_scores (roster, required skills, history, workload, availability; audited score breakdown)"
         },
         {
           "id": "OR-03",
@@ -605,8 +605,8 @@
           "depends": [
             "MQ-02"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_fan_out_fan_in_with_review_gate (rounds 1/2/1; fan-in prompt carries prerequisite outputs), test_failure_retries_then_blocks_dependents; test_bus::test_workflow_runs_end_to_end_over_bus_and_survives_worker_kill (both branches dispatched in one round, run by workers)"
         },
         {
           "id": "OR-04",
@@ -618,7 +618,7 @@
             "OR-01",
             "SEC-03"
           ],
-          "status": "pending",
+          "status": "in_progress",
           "evidence": ""
         },
         {
@@ -630,8 +630,8 @@
           "depends": [
             "OR-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_bus::test_workflow_runs_end_to_end_over_bus_and_survives_worker_kill (kill -9 mid-workflow, reviews recorded while down, new worker completes, every task attempts==1); planner resumes from LangGraph checkpoint without re-calling the model"
         },
         {
           "id": "OR-06",
@@ -642,8 +642,8 @@
           "depends": [
             "MQ-03"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_duplicate_events_and_advances_never_run_work_twice (duplicate advance + duplicate execution.finished), task execution idempotency key task:{id}:attempt:{n}; API workflow idempotency_key → same workflow"
         },
         {
           "id": "OR-07",
@@ -654,7 +654,7 @@
           "depends": [
             "OR-01"
           ],
-          "status": "pending",
+          "status": "in_progress",
           "evidence": ""
         },
         {
@@ -1470,11 +1470,11 @@
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
   "in_progress": [],
-  "next_step": "M6 orchestration: LangGraph planner → task DAG (tasks/task_dependencies) → dispatch over the bus → review → approval; Task Center UI. Then M13 approvals/sandbox/audit UI",
+  "next_step": "OR-07 Task Center UI (Kanban + list + details with acceptance criteria, evidence, history, review actions; submit objective) + E2E/axe. Then SEC-03 approvals (unblocks OR-04 approval stage) and EV-01 evaluator (OR-08)",
   "tests": {
     "passed": [
-      "backend: 94/94 pytest on PostgreSQL 16 + live RabbitMQ 3.12 — full suite twice and every module in isolation; incl. message bus (worker kill -9, broker restart) and A2A server/client/engine over real HTTP — 2026-11-09",
-      "migrations: v4 baseline + bus outbox/ledger + a2a_access_keys (43 tables); base → head → -1 → head; alembic check clean",
+      "backend: 104/104 pytest on PostgreSQL 16 + live RabbitMQ 3.12 — full suite twice and every module in isolation; incl. bus (worker kill -9, broker restart), A2A over real HTTP, orchestration (LangGraph planner resume, fan-out/fan-in, review loop, workflow surviving worker kill) — 2026-11-10",
+      "migrations: 4 revisions (43 tables + langgraph schema); base → head → -1 → head; alembic check clean",
       "frontend: i18n guard (264 keys), contrast, tsc, next build",
       "ruff: clean",
       "frontend: 33/33 Playwright in real Chrome against API + worker in bus mode — i18n/RTL/LTR/layout, agents, templates, providers, axe WCAG 2.2 AA × ar/en"

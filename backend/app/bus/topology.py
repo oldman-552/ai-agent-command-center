@@ -21,6 +21,8 @@ COMMANDS = "acc.commands"
 EVENTS = "acc.events"
 DLX = "acc.dlx"
 DLQ = "acc.dlq"
+ORCHESTRATOR = "acc.work.orchestrator"                     # workflow.plan / workflow.advance commands
+ORCHESTRATOR_EVENTS = "acc.orchestrator.execution-events"  # execution.finished → task progress
 MAX_PRIORITY = 9
 
 # Retry tiers: attempt n waits RETRY_TIERS[min(n-1, last)] seconds before redelivery to its origin queue.
@@ -77,6 +79,13 @@ async def declare(ch: AbstractChannel) -> Topology:
         q = await declare_consumer_queue(ch, work_queue(engine))
         await q.bind(commands, run_routing_key(engine))
         work[engine] = q
+    orch = await declare_consumer_queue(ch, ORCHESTRATOR)
+    for key in ("workflow.plan", "workflow.advance"):
+        await orch.bind(commands, key)
+    work["orchestrator"] = orch
+    oev = await declare_consumer_queue(ch, ORCHESTRATOR_EVENTS)
+    await oev.bind(events, "execution.finished")
+    work["orchestrator-events"] = oev
     return Topology(commands, events, dlx, dlq, retry, work)
 
 

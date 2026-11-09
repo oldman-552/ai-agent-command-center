@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 38.7%**
+**Overall verified completion: 43.7%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -74,17 +74,17 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | EE-03 | P1 | External agent runtime adapter (A2A client) | Adapter contract test | pytest | A2A-02 | done | tests/test_a2a.py::test_a2a_engine_delegates_to_external_agent_and_reattaches_on_resume (platform agent → A2A provider → remote agent over HTTP; resume re-attaches without resubmitting), test_a2a_engine_unreachable_service_fails_cleanly |
 | EE-04 | P0 | Unsupported integrations explicitly documented | PROVIDER_INTEGRATION.md table | inspection | — | pending | — |
 
-## M6 — Intelligent Orchestration (weight 9%, 0%) — spec Phases 4, 13
+## M6 — Intelligent Orchestration (weight 9%, 56%) — spec Phases 4, 13
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| OR-01 | P0 | Objective → plan → task DAG (LangGraph) | Plan creates tasks + dependencies (mock provider) | pytest | RT-01, AG-01 | pending | — |
-| OR-02 | P0 | Agent selection by skills, permissions, workload, availability, cost, history | Selection tests | pytest | OR-01 | pending | — |
-| OR-03 | P0 | Parallel fan-out/fan-in of independent tasks; dependency-driven scheduling | Independent tasks run concurrently | pytest | MQ-02 | pending | — |
-| OR-04 | P0 | Review loop and human approval stage | Review requests revision; approval stage blocks | pytest | OR-01, SEC-03 | pending | — |
-| OR-05 | P0 | Workflow persistence and resume after restart | Restart mid-workflow resumes | pytest | OR-01 | pending | — |
-| OR-06 | P0 | Duplicate execution prevention | Same idempotency key never runs twice | pytest | MQ-03 | pending | — |
-| OR-07 | P0 | Task center: Kanban (9 columns) + list + details with acceptance criteria, evidence, history | E2E | Playwright | OR-01 | pending | — |
+| OR-01 | P0 | Objective → plan → task DAG (LangGraph) | Plan creates tasks + dependencies (mock provider) | pytest | RT-01, AG-01 | done | tests/test_orchestration.py::test_langgraph_planner_creates_task_dag_and_resumes_from_checkpoint (LangGraph + PostgresSaver, mock provider → 4 tasks + 4 dependency edges), test_plan_validation_rejects_bad_graphs, test_invalid_plans_are_retried_with_feedback_then_fail_the_workflow |
+| OR-02 | P0 | Agent selection by skills, permissions, workload, availability, cost, history | Selection tests | pytest | OR-01 | done | tests/test_orchestration.py::test_agent_selection_filters_then_scores (roster, required skills, history, workload, availability; audited score breakdown) |
+| OR-03 | P0 | Parallel fan-out/fan-in of independent tasks; dependency-driven scheduling | Independent tasks run concurrently | pytest | MQ-02 | done | test_fan_out_fan_in_with_review_gate (rounds 1/2/1; fan-in prompt carries prerequisite outputs), test_failure_retries_then_blocks_dependents; test_bus::test_workflow_runs_end_to_end_over_bus_and_survives_worker_kill (both branches dispatched in one round, run by workers) |
+| OR-04 | P0 | Review loop and human approval stage | Review requests revision; approval stage blocks | pytest | OR-01, SEC-03 | in_progress | — |
+| OR-05 | P0 | Workflow persistence and resume after restart | Restart mid-workflow resumes | pytest | OR-01 | done | test_bus::test_workflow_runs_end_to_end_over_bus_and_survives_worker_kill (kill -9 mid-workflow, reviews recorded while down, new worker completes, every task attempts==1); planner resumes from LangGraph checkpoint without re-calling the model |
+| OR-06 | P0 | Duplicate execution prevention | Same idempotency key never runs twice | pytest | MQ-03 | done | test_duplicate_events_and_advances_never_run_work_twice (duplicate advance + duplicate execution.finished), task execution idempotency key task:{id}:attempt:{n}; API workflow idempotency_key → same workflow |
+| OR-07 | P0 | Task center: Kanban (9 columns) + list + details with acceptance criteria, evidence, history | E2E | Playwright | OR-01 | in_progress | — |
 | OR-08 | P0 | Tasks never marked complete on agent claim alone (evidence gate) | Completion requires passing evaluation | pytest | EV-01 | pending | — |
 | OR-09 | P1 | Project modes: new / existing (repo inspection, tech detection) / maintenance | Existing-repo analysis produces map | pytest | GH-02 | pending | — |
 

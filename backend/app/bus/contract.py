@@ -34,6 +34,8 @@ class Category(StrEnum):
 class MessageType(StrEnum):
     # commands (work queues — exactly one consumer acts)
     EXECUTION_RUN = "execution.run"
+    WORKFLOW_PLAN = "workflow.plan"
+    WORKFLOW_ADVANCE = "workflow.advance"
     # events (fan-out — any number of subscribers)
     EXECUTION_STARTED = "execution.started"
     EXECUTION_FINISHED = "execution.finished"
@@ -47,7 +49,7 @@ class MessageType(StrEnum):
     RECOVERY_DEAD_LETTERED = "recovery.dead_lettered"
 
 
-COMMANDS = frozenset({MessageType.EXECUTION_RUN})
+COMMANDS = frozenset({MessageType.EXECUTION_RUN, MessageType.WORKFLOW_PLAN, MessageType.WORKFLOW_ADVANCE})
 
 
 def _now() -> datetime:
@@ -112,3 +114,13 @@ def execution_run(*, execution_id: str, organization_id: int, engine: str, sende
                     correlation_id=execution_id, priority=priority,
                     idempotency_key=idempotency_key or f"execution.run:{execution_id}:{reason}",
                     payload={"execution_id": execution_id, "engine": engine, "reason": reason})
+
+
+def workflow_command(type_: MessageType, *, workflow_id: int, organization_id: int, project_id: int | None,
+                     sender: str, reason: str = "", idempotency_key: str | None = None,
+                     causation_id: str | None = None) -> Envelope:
+    """Command to the orchestrator. Advancing is naturally idempotent, so each advance gets a fresh key."""
+    return Envelope(message_type=type_, sender=sender, recipient="orchestrator", organization_id=organization_id,
+                    project_id=project_id, correlation_id=f"workflow:{workflow_id}", causation_id=causation_id,
+                    idempotency_key=idempotency_key or f"{type_}:{workflow_id}:{uuid.uuid4()}",
+                    payload={"workflow_id": workflow_id, "reason": reason})

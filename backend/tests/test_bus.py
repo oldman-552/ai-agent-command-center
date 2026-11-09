@@ -99,7 +99,7 @@ async def test_topology_declared_with_dlq_priorities_and_specialty_routing():
     await topo.declare(ch)  # idempotent re-declare (every process does it at start)
     for name in (topo.COMMANDS, topo.EVENTS, topo.DLX, *[topo.retry_exchange(x) for x, _ in topo.RETRY_TIERS]):
         await ch.get_exchange(name, ensure=True)  # passive: raises if missing
-    assert set(t.work) == {"api", "cli", "browser", "a2a", "mock"}
+    assert set(t.work) == {"api", "cli", "browser", "a2a", "mock", "orchestrator", "orchestrator-events"}
     # each command reaches only its specialty queue
     for engine in ("api", "cli"):
         await t.commands.publish(amqp_message(env_for()), routing_key=topo.run_routing_key(engine), mandatory=True)
@@ -393,3 +393,52 @@ async def test_a2a_task_runs_through_bus_and_worker(admin_client, client, db, bu
 def service_runtime_id():
     from app.runtime import service
     return service.RUNTIME_ID
+
+
+# ---------------- M6 over the bus: planning, fan-out, review, worker restart mid-workflow ----------------
+async def test_workflow_runs_end_to_end_over_bus_and_survives_worker_kill(admin_client, db, bus_mode, mock_api_engine):
+    from tests.test_orchestration import DIAMOND, agent
+
+    crew = [agent(db, "project_manager", tools=["tasks.plan"], priority=1),
+            *[agent(db, r) for r in ("architect", "backend", "frontend", "qa")]]
+    proj = admin_client.post("/api/projects", json={"name": f"Bus {uuid.uuid4().hex[:6]}",
+                                                    "agent_ids": [a.id for a in crew]}).json()
+    wf = admin_client.post("/api/workflows", json={"project_id": proj["id"], "title": "diamond",
+                                                   "objective": DIAMOND}).json()
+    assert wf["status"] == "planning"
+
+    def tasks():
+        return {t["title"].removeprefix("[MOCK] "): t
+                for t in admin_client.get(f"/api/workflows/{wf['id']}").json()["tasks"]}
+
+    def in_review(*names):
+        ts = tasks()
+        return all(ts.get(n, {}).get("status") == "REVIEW" for n in names)
+
+    def approve(*names):
+        ts = tasks()
+        for n in names:
+            r = admin_client.post(f"/api/tasks/{ts[n]['id']}/review", json={"decision": "approve"})
+            assert r.status_code == 200, r.text
+
+    w = start_worker()
+    try:
+        assert await wait_for(lambda: in_review("Design API"), timeout=30)
+        approve("Design API")
+        assert await wait_for(lambda: in_review("Build backend", "Build frontend"), timeout=30)
+    finally:
+        stop_worker(w, hard=True)  # orchestrator + executors die mid-workflow
+    plan = admin_client.get(f"/api/workflows/{wf['id']}").json()["plan"]
+    assert len(plan["rounds"][1]["dispatched"]) == 2  # fan-out: both branches dispatched in one round
+    approve("Build backend", "Build frontend")  # decisions recorded while no worker is alive
+    assert tasks()["Integrate"]["status"] == "PLANNED"
+    w2 = start_worker()
+    try:
+        assert await wait_for(lambda: in_review("Integrate"), timeout=30)  # resumed from DB + outbox
+        approve("Integrate")
+        assert await wait_for(lambda: admin_client.get(f"/api/workflows/{wf['id']}").json()["status"] == "completed",
+                              timeout=30)
+    finally:
+        stop_worker(w2)
+    done = admin_client.get(f"/api/workflows/{wf['id']}").json()
+    assert all(t["status"] == "COMPLETED" and t["attempts"] == 1 for t in done["tasks"])  # nothing ran twice
