@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-from app import auth
+from app import auth, dashboard
 from app.bootstrap import run_bootstrap
 from app.db import session_factory
 
@@ -23,6 +23,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="AI Agent Command Center API", version="0.1.0", lifespan=lifespan)
 app.include_router(auth.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/api/health", tags=["system"])

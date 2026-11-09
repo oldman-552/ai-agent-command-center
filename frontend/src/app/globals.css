@@ -1,0 +1,105 @@
+@import "tailwindcss";
+@import "@fontsource/ibm-plex-sans-arabic/400.css";
+@import "@fontsource/ibm-plex-sans-arabic/500.css";
+@import "@fontsource/ibm-plex-sans-arabic/600.css";
+@import "@fontsource/ibm-plex-sans-arabic/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+
+/* Design tokens — design-system/ai-agent-command-center/MASTER.md */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f8fafc;
+  --foreground: #1e1b4b;
+  --card: #ffffff;
+  --card-foreground: #1e1b4b;
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+  --secondary: #eceef9;
+  --secondary-foreground: #1e1b4b;
+  --accent: #0891b2;
+  --accent-foreground: #ffffff;
+  --muted: #eceef9;
+  --muted-foreground: #475569;
+  --border: #e2e8f0;
+  --input: #cbd5e1;
+  --ring: #7c3aed;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #15803d;
+  --warning: #b45309;
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: #0b1020;
+  --foreground: #f1f5f9;
+  --card: #121831;
+  --card-foreground: #f1f5f9;
+  --primary: #a78bfa;
+  --primary-foreground: #0f172a;
+  --secondary: #1e2540;
+  --secondary-foreground: #e2e8f0;
+  --accent: #22d3ee;
+  --accent-foreground: #0f172a;
+  --muted: #1a2036;
+  --muted-foreground: #94a3b8;
+  --border: #2a3352;
+  --input: #3b4566;
+  --ring: #a78bfa;
+  --destructive: #f87171;
+  --destructive-foreground: #0f172a;
+  --success: #22c55e;
+  --warning: #f59e0b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  * { border-color: var(--border); }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+  }
+  /* Arabic needs more leading so diacritics never clip */
+  :lang(ar) body { line-height: 1.7; }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

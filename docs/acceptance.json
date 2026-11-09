@@ -21,8 +21,8 @@
         {
           "id": "F3",
           "text": "Monorepo structure (backend/, frontend/, docs/, scripts/)",
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "backend/, frontend/, docs/, scripts/, design-system/ in repo"
         },
         {
           "id": "F4",
@@ -52,14 +52,14 @@
         {
           "id": "U2",
           "text": "Design system generated and persisted (design-system/MASTER.md)",
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "design-system/ai-agent-command-center/MASTER.md from skill data @4f2dbb6"
         },
         {
           "id": "U3",
           "text": "Design tokens implemented in Tailwind theme (light/dark, RTL-safe)",
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "globals.css tokens light/dark, logical properties only; verified in screenshots"
         },
         {
           "id": "U4",
@@ -77,32 +77,32 @@
         {
           "id": "B1",
           "text": "Next.js + TS + Tailwind + shadcn/ui app builds",
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "next build OK (Next 16.4.6, TS, Tailwind 4, radix-based UI primitives)"
         },
         {
           "id": "B2",
           "text": "i18n with ar (default) and en message files; no hardcoded UI strings (lint check)",
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "messages/ar.json + en.json; scripts/check-i18n.mjs passes and catches hardcoded text"
         },
         {
           "id": "B3",
           "text": "RTL for Arabic / LTR for English verified by automated test",
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "Playwright: html lang/dir, sidebar right in ar / left in en"
         },
         {
           "id": "B4",
           "text": "Language switcher on every page, choice persisted",
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "switcher in login + app shell; cookie + user profile; persistence E2E tests pass"
         },
         {
           "id": "B5",
           "text": "Dashboard page with live data from API (no hardcoded stats)",
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "dashboard reads /api/dashboard/summary; backend test asserts DB-derived counts, mock usage excluded"
         },
         {
           "id": "B6",
@@ -541,19 +541,21 @@
   ],
   "blockers": [
     "Docker Hub blocked in dev container: images cannot be pulled or built here; compose validated statically, services tested on local Postgres 16 / RabbitMQ 3.12. Full docker build must be verified on the owner's machine",
-    "UI UX Pro Max install (npm global + uipro init) denied by the environment's safety check — needs owner approval"
+    "UI UX Pro Max official install (npm -g + uipro init) blocked by the environment's safety policy even after owner approval; design system was derived by reading the skill's data files (see design-system/.../MASTER.md)"
   ],
   "requires_approval": [
-    "Approve installing UI UX Pro Max skill (npm install -g ui-ux-pro-max-cli; uipro init --ai claude)"
+    "Run on your machine inside the repo: npm install -g ui-ux-pro-max-cli && uipro init --ai claude — then commit .claude/skills/ui-ux-pro-max (completes U1)"
   ],
   "in_progress": [
-    "Phase 2/3 — frontend (Next.js, i18n ar/en, RTL/LTR)"
+    "Phase 5 — Agent Management API + pages"
   ],
-  "next_step": "Scaffold Next.js frontend with next-intl (ar default, RTL), shadcn/ui, login page and app shell; then Agent/Role/Provider APIs",
+  "next_step": "Agent/Role CRUD API with permission checks and config versioning; Agents list/create/edit/details pages in ar/en",
   "tests": {
     "passed": [
-      "backend: 13/13 pytest (tests/test_foundation.py) on PostgreSQL 16 — 2026-11-09",
+      "backend: 15/15 pytest on PostgreSQL 16 (auth, encryption, redaction, bootstrap, dashboard) — 2026-11-09",
       "alembic upgrade → downgrade → upgrade on clean DB (19 tables)",
+      "frontend: 14/14 Playwright E2E in real Chrome (ar default/RTL, en/LTR, persistence, login errors, validation, sidebar side, no overflow at 375/768/1024/1440 in both languages)",
+      "frontend: i18n guard (71 keys, ar/en identical, no hardcoded strings), tsc clean, next build OK",
       "docker compose config (valid; refuses missing secrets)",
       "ruff check: clean"
     ],
