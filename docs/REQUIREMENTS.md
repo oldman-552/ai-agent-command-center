@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 9.2%**
+**Overall verified completion: 15.1%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -38,16 +38,16 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | RT-07 | P0 | Tool registry + per-agent tool permission validation (default deny) | Unpermitted tool call blocked + audited | pytest | RT-01 | pending | — |
 | RT-08 | P1 | Retry policy with exponential backoff + retry budget | Retry tests | pytest | RT-03 | pending | — |
 
-## M3 — Dynamic Agent Management (weight 7%, 0%) — spec Phase 3
+## M3 — Dynamic Agent Management (weight 7%, 71%) — spec Phase 3
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| AG-01 | P0 | Agent CRUD with all 23 configuration fields | API tests for create/edit/read/list | pytest | FND-03 | in_progress | — |
-| AG-02 | P0 | Clone, enable, disable, archive, delete | API tests | pytest | AG-01 | pending | — |
-| AG-03 | P0 | 18 customizable agent templates (DB-stored, editable) | Seeded + CRUD tests | pytest | AG-01 | pending | — |
-| AG-04 | P0 | Agent lifecycle states with recorded transitions | Transition history persisted | pytest | AG-01 | pending | — |
-| AG-05 | P0 | Configuration versioning (snapshot per change) | Version increments on edit | pytest | AG-01 | pending | — |
-| AG-06 | P0 | Agents UI: list, create/edit form, details, templates — ar/en | E2E create/edit flow | Playwright | AG-01, FND-07 | pending | — |
+| AG-01 | P0 | Agent CRUD with all 23 configuration fields | API tests for create/edit/read/list | pytest | FND-03 | done | POST/GET/PATCH /api/agents with all 23 config fields; test_create_with_all_fields_and_read_back |
+| AG-02 | P0 | Clone, enable, disable, archive, delete | API tests | pytest | AG-01 | done | clone/enable/disable/start/stop/archive/restore/delete(archived only); test_clone_enable_disable_start_stop_archive_delete |
+| AG-03 | P0 | 18 customizable agent templates (DB-stored, editable) | Seeded + CRUD tests | pytest | AG-01 | done | 18 system templates seeded, editable, custom templates, instantiate; test_templates_18_customizable_and_instantiate |
+| AG-04 | P0 | Agent lifecycle states with recorded transitions | Transition history persisted | pytest | AG-01 | done | 13-state lifecycle with allowed-transition map, every transition recorded; illegal rejected (test) |
+| AG-05 | P0 | Configuration versioning (snapshot per change) | Version increments on edit | pytest | AG-01 | done | agent_config_versions snapshot per change; test_edit_creates_config_version |
+| AG-06 | P0 | Agents UI: list, create/edit form, details, templates — ar/en | E2E create/edit flow | Playwright | AG-01, FND-07 | in_progress | — |
 | AG-07 | P1 | Agent teams | Team CRUD + membership | pytest | AG-01 | pending | — |
 
 ## M4 — Multi-Provider AI Gateway (weight 8%, 0%) — spec Phases 9, 20
@@ -158,12 +158,12 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | EV-04 | P0 | Graceful shutdown preserving partial results | Shutdown test | pytest | RT-06 | pending | — |
 | EV-05 | P0 | Evaluation UI | E2E | Playwright | EV-01 | pending | — |
 
-## M13 — Enterprise Security (weight 7%, 25%) — spec Phases 16, 17, 22
+## M13 — Enterprise Security (weight 7%, 38%) — spec Phases 16, 17, 22
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
 | SEC-01 | P0 | RBAC: 6 roles + permissions, server-side enforcement on every endpoint | Authorization matrix tests | pytest | FND-04 | done | 6 roles/38 permissions seeded; require() on every route; tests test_rbac.py |
-| SEC-02 | P0 | Agents cannot escalate own permissions or change security policy | Tests | pytest | SEC-01 | pending | — |
+| SEC-02 | P0 | Agents cannot escalate own permissions or change security policy | Tests | pytest | SEC-01 | done | agents have no login/roles; tool ceilings per security profile on create/edit; no merge/deploy tools exist; role grants limited to caller's own permissions (tests) |
 | SEC-03 | P0 | Approval Center: risk levels, evidence, decision records; critical ops blocked until approved | Tests + E2E | pytest + Playwright | SEC-01 | pending | — |
 | SEC-04 | P0 | Docker sandbox: CPU/mem/time/pids limits, no network by default, workspace-only mount, no secrets | Real container tests | pytest (docker) | — | pending | — |
 | SEC-05 | P0 | Command policy (default deny, allowlist per tool permission) | Tests | pytest | SEC-04 | pending | — |

@@ -37,7 +37,7 @@ class UserPatch(BaseModel):
 def _assignable(db, caller: User, role_key: str) -> Role:
     role = db.scalar(select(Role).where(Role.key == role_key))
     if not role:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "unknown_role")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "unknown_role")
     mine = {p.key for p in caller.role.permissions}
     if not {p.key for p in role.permissions} <= mine:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "cannot_grant_higher_privileges")

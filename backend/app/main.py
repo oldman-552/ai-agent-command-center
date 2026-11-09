@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.bootstrap import run_bootstrap
-from app.control import users
+from app.control import agents, users
 from app.db import session_factory
 from app.observability import dashboard
 from app.security import auth
@@ -46,6 +46,7 @@ async def security_headers(request, call_next):
 app.include_router(auth.router)
 app.include_router(dashboard.router)
 app.include_router(users.router)
+app.include_router(agents.router)
 
 
 @app.get("/api/health", tags=["system"])

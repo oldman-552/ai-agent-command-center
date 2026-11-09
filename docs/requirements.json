@@ -303,8 +303,8 @@
           "depends": [
             "FND-03"
           ],
-          "status": "in_progress",
-          "evidence": ""
+          "status": "done",
+          "evidence": "POST/GET/PATCH /api/agents with all 23 config fields; test_create_with_all_fields_and_read_back"
         },
         {
           "id": "AG-02",
@@ -315,8 +315,8 @@
           "depends": [
             "AG-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "clone/enable/disable/start/stop/archive/restore/delete(archived only); test_clone_enable_disable_start_stop_archive_delete"
         },
         {
           "id": "AG-03",
@@ -327,8 +327,8 @@
           "depends": [
             "AG-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "18 system templates seeded, editable, custom templates, instantiate; test_templates_18_customizable_and_instantiate"
         },
         {
           "id": "AG-04",
@@ -339,8 +339,8 @@
           "depends": [
             "AG-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "13-state lifecycle with allowed-transition map, every transition recorded; illegal rejected (test)"
         },
         {
           "id": "AG-05",
@@ -351,8 +351,8 @@
           "depends": [
             "AG-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "agent_config_versions snapshot per change; test_edit_creates_config_version"
         },
         {
           "id": "AG-06",
@@ -364,7 +364,7 @@
             "AG-01",
             "FND-07"
           ],
-          "status": "pending",
+          "status": "in_progress",
           "evidence": ""
         },
         {
@@ -1230,8 +1230,8 @@
           "depends": [
             "SEC-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "agents have no login/roles; tool ceilings per security profile on create/edit; no merge/deploy tools exist; role grants limited to caller's own permissions (tests)"
         },
         {
           "id": "SEC-03",
@@ -1468,10 +1468,10 @@
   ],
   "requires_approval": [],
   "in_progress": [],
-  "next_step": "M3 Agents: CRUD (23 fields), clone/enable/disable/archive/delete, lifecycle transitions, config versions, templates API, Agents UI",
+  "next_step": "AG-06 Agents UI (list, create/edit form, details with versions + transitions, templates) with TanStack Query + React Hook Form + Zod",
   "tests": {
     "passed": [
-      "backend: 22/22 pytest on PostgreSQL 16 (auth, CSRF, RBAC 6 roles, no-escalation, tenant isolation, security headers, encryption, redaction, bootstrap, dashboard) — 2026-11-09",
+      "backend: 30/30 pytest on PostgreSQL 16 (auth, CSRF, RBAC, tenancy, headers, crypto, bootstrap, dashboard, agents CRUD/lifecycle/versions/templates/tool ceilings) — 2026-11-09",
       "migration v4 baseline (40 tables): upgrade → downgrade → upgrade on clean DB",
       "frontend: 22/22 Playwright in real Chrome (i18n/RTL/LTR/layout 14 + axe WCAG 2.2 AA 8)",
       "frontend: i18n guard, contrast 40/40, tsc, next build",

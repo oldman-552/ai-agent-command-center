@@ -1,12 +1,12 @@
 {
-  "date": "2026-11-09 22:47",
+  "date": "2026-11-09 22:50",
   "spec_version": "4.0",
   "current_phase": "Phase 3",
   "current_milestone": {
     "id": 3,
     "name": "Dynamic Agent Management"
   },
-  "overall_percent": 9.2,
+  "overall_percent": 15.1,
   "milestones": [
     {
       "id": 1,
@@ -28,8 +28,8 @@
       "id": 3,
       "name": "Dynamic Agent Management",
       "weight": 7,
-      "percent": 0.0,
-      "done": 0,
+      "percent": 71.4,
+      "done": 5,
       "total": 7
     },
     {
@@ -108,8 +108,8 @@
       "id": 13,
       "name": "Enterprise Security",
       "weight": 7,
-      "percent": 25.0,
-      "done": 2,
+      "percent": 37.5,
+      "done": 3,
       "total": 8
     },
     {
@@ -145,44 +145,30 @@
     "FND-13",
     "FND-15",
     "FND-16",
+    "AG-01",
+    "AG-02",
+    "AG-03",
+    "AG-04",
+    "AG-05",
     "SEC-01",
+    "SEC-02",
     "SEC-07"
   ],
   "in_progress": [
-    "AG-01"
+    "AG-06"
   ],
   "files_changed": [
-    "backend/alembic/versions/b3061ddef85a_initial_schema.py",
-    "backend/app/bootstrap.py",
+    "backend/app/control/users.py",
     "backend/app/main.py",
-    "backend/app/models.py",
-    "backend/app/dashboard.py -> backend/app/observability/dashboard.py",
-    "backend/app/audit.py -> backend/app/security/audit.py",
-    "backend/app/auth.py -> backend/app/security/auth.py",
-    "backend/app/security.py -> backend/app/security/crypto.py",
-    "backend/pyproject.toml",
-    "backend/tests/conftest.py",
-    "backend/tests/test_dashboard.py",
-    "backend/tests/test_foundation.py",
     "docs/requirements.json",
-    "frontend/messages/ar.json",
-    "frontend/messages/en.json",
-    "frontend/src/app/(app)/dashboard-view.tsx",
-    "frontend/src/components/app-shell.tsx",
-    "frontend/src/lib/api.ts",
-    "scripts/dev-up.sh",
-    "backend/alembic/versions/69ad10ad0925_v4_baseline_schema.py",
-    "backend/app/control/",
-    "backend/app/models/",
-    "backend/app/observability/__init__.py",
-    "backend/app/security/__init__.py",
-    "backend/app/security/rbac.py",
-    "backend/app/security/tenancy.py",
-    "backend/tests/test_rbac.py"
+    "backend/app/control/agents.py",
+    "backend/app/control/lifecycle.py",
+    "backend/app/runtime/",
+    "backend/tests/test_agents.py"
   ],
   "tests": {
     "passed": [
-      "backend: 22/22 pytest on PostgreSQL 16 (auth, CSRF, RBAC 6 roles, no-escalation, tenant isolation, security headers, encryption, redaction, bootstrap, dashboard) — 2026-11-09",
+      "backend: 30/30 pytest on PostgreSQL 16 (auth, CSRF, RBAC, tenancy, headers, crypto, bootstrap, dashboard, agents CRUD/lifecycle/versions/templates/tool ceilings) — 2026-11-09",
       "migration v4 baseline (40 tables): upgrade → downgrade → upgrade on clean DB",
       "frontend: 22/22 Playwright in real Chrome (i18n/RTL/LTR/layout 14 + axe WCAG 2.2 AA 8)",
       "frontend: i18n guard, contrast 40/40, tsc, next build",
@@ -199,5 +185,5 @@
     "Executing the UI UX Pro Max search.py script is blocked by the environment's safety policy; skill files are installed and its rules/data applied manually"
   ],
   "requires_owner_approval": [],
-  "next_action": "M3 Agents: CRUD (23 fields), clone/enable/disable/archive/delete, lifecycle transitions, config versions, templates API, Agents UI"
+  "next_action": "AG-06 Agents UI (list, create/edit form, details with versions + transitions, templates) with TanStack Query + React Hook Form + Zod"
 }
