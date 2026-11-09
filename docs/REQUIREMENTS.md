@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 15.1%**
+**Overall verified completion: 16.1%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -29,7 +29,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| RT-01 | P0 | Provider-independent runtime interface (ExecutionEngine adapter contract) | Abstract contract + registry; no provider imports in core | pytest + import-lint | — | pending | — |
+| RT-01 | P0 | Provider-independent runtime interface (ExecutionEngine adapter contract) | Abstract contract + registry; no provider imports in core | pytest + import-lint | — | in_progress | — |
 | RT-02 | P0 | Execution record with full contract fields (ids, provider, model, engine, context, permissions, timestamps, status, output, usage, cost, logs, errors, evidence, checkpoints) | Model + migration + API | pytest | RT-01 | pending | — |
 | RT-03 | P0 | 13-state execution state machine with recorded transitions; illegal transitions rejected | State machine tests | pytest | RT-02 | pending | — |
 | RT-04 | P0 | Streaming output events (WebSocket) for executions | Client receives ordered events | pytest + Playwright | RT-02 | pending | — |
@@ -38,7 +38,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | RT-07 | P0 | Tool registry + per-agent tool permission validation (default deny) | Unpermitted tool call blocked + audited | pytest | RT-01 | pending | — |
 | RT-08 | P1 | Retry policy with exponential backoff + retry budget | Retry tests | pytest | RT-03 | pending | — |
 
-## M3 — Dynamic Agent Management (weight 7%, 71%) — spec Phase 3
+## M3 — Dynamic Agent Management (weight 7%, 86%) — spec Phase 3
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -47,7 +47,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | AG-03 | P0 | 18 customizable agent templates (DB-stored, editable) | Seeded + CRUD tests | pytest | AG-01 | done | 18 system templates seeded, editable, custom templates, instantiate; test_templates_18_customizable_and_instantiate |
 | AG-04 | P0 | Agent lifecycle states with recorded transitions | Transition history persisted | pytest | AG-01 | done | 13-state lifecycle with allowed-transition map, every transition recorded; illegal rejected (test) |
 | AG-05 | P0 | Configuration versioning (snapshot per change) | Version increments on edit | pytest | AG-01 | done | agent_config_versions snapshot per change; test_edit_creates_config_version |
-| AG-06 | P0 | Agents UI: list, create/edit form, details, templates — ar/en | E2E create/edit flow | Playwright | AG-01, FND-07 | in_progress | — |
+| AG-06 | P0 | Agents UI: list, create/edit form, details, templates — ar/en | E2E create/edit flow | Playwright | AG-01, FND-07 | done | Agents list/filters/actions, create/edit form (RHF+Zod, tool ceilings), details (versions, transitions), templates gallery; E2E CRUD flow + axe ar/en |
 | AG-07 | P1 | Agent teams | Team CRUD + membership | pytest | AG-01 | pending | — |
 
 ## M4 — Multi-Provider AI Gateway (weight 8%, 0%) — spec Phases 9, 20

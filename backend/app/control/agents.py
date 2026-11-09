@@ -237,7 +237,8 @@ def list_agents(db: DB, user: User = Depends(require("agents.read")), state: str
 def create_agent(body: AgentCreate, db: DB, user: User = Depends(require("agents.write"))) -> AgentOut:
     values = body.model_dump(exclude={"identifier", "project_ids"})
     _validate(db, user, values)
-    ident = body.identifier or _slug(body.name)
+    # non-Latin names (e.g. Arabic) slug to nothing — fall back to the role
+    ident = body.identifier or (_slug(body.name) if _slug(body.name) != "agent" else _slug(body.role))
     if body.identifier and db.scalar(select(Agent.id).where(Agent.organization_id == user.organization_id,
                                                              Agent.identifier == ident)):
         raise HTTPException(status.HTTP_409_CONFLICT, "identifier_taken")
@@ -492,11 +493,14 @@ def update_template(template_id: int, body: TemplatePatch, db: DB,
 
 @router.post("/agent-templates/{template_id}/instantiate", response_model=AgentOut, status_code=201)
 def instantiate(template_id: int, db: DB, user: User = Depends(require("agents.write")),
-                name: str | None = Query(default=None, max_length=128)) -> AgentOut:
+                name: str | None = Query(default=None, max_length=128),
+                lang: str = Query(default="en", pattern="^(ar|en)$")) -> AgentOut:
     t = db.get(AgentTemplate, template_id)
     if not t or t.organization_id not in (None, user.organization_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "not_found")
-    body = AgentCreate(name=name or t.name_en, role=t.role, description=t.description_en, template_id=t.id,
+    ident = _unique_identifier(db, user.organization_id, t.key.replace("_", "-")[:56])
+    body = AgentCreate(name=name or (t.name_ar if lang == "ar" else t.name_en), identifier=ident, role=t.role,
+                       description=t.description_ar if lang == "ar" else t.description_en, template_id=t.id,
                        system_instructions=t.system_instructions, tool_permissions=t.tool_permissions,
                        skills=t.skills, security_profile=SecurityProfile(t.security_profile),
                        context_policy=t.context_policy, memory_profile=t.memory_profile)

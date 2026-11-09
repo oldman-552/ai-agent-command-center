@@ -20,14 +20,16 @@ const walk = (d) => readdirSync(d).forEach((f) => {
 walk("src");
 // Allowed literal text: digits/symbols only (e.g. "404"), or brand names in ALLOW.
 const ALLOW = new Set(["404"]);
-const textNode = />\s*([^<>{}\n]*[A-Za-z؀-ۿ][^<>{}\n]*?)\s*</g;
+// Text between tags. The closing "<" must not start a TS generic call such as api<Foo[]>(...).
+const textNode = />\s*([^<>{}\n]*[A-Za-z؀-ۿ][^<>{}\n]*?)\s*<(?![A-Z][\w[\]]*>\()/g;
 const attr = /\b(aria-label|title|placeholder|alt)="([^"]*[A-Za-z؀-ۿ][^"]*)"/g;
 for (const f of files) {
   const src = readFileSync(f, "utf8").replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
   // only inspect JSX-ish regions: skip generic type params like <T>(... by requiring return/JSX context
   for (const m of src.matchAll(textNode)) {
     const s = m[1].trim();
-    if (!s || ALLOW.has(s) || /^[&|]/.test(s) || /^[\w.]+\s*[=(]/.test(s) || /[;=]|=>|&&|\|\|/.test(s)) continue;
+    // skip JS fragments: "&& (", "a ? (" etc. — a JSX expression opening, not user-facing text
+    if (!s || ALLOW.has(s) || /^[&|]/.test(s) || /\($/.test(s) || /^[\w.]+\s*[=(]/.test(s) || /[;=]|=>|&&|\|\|/.test(s)) continue;
     errors.push(`${f}: hardcoded text "${s}"`);
   }
   for (const m of src.matchAll(attr)) errors.push(`${f}: hardcoded ${m[1]}="${m[2]}"`);

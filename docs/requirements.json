@@ -199,7 +199,7 @@
           "acceptance": "Abstract contract + registry; no provider imports in core",
           "verification": "pytest + import-lint",
           "depends": [],
-          "status": "pending",
+          "status": "in_progress",
           "evidence": ""
         },
         {
@@ -364,8 +364,8 @@
             "AG-01",
             "FND-07"
           ],
-          "status": "in_progress",
-          "evidence": ""
+          "status": "done",
+          "evidence": "Agents list/filters/actions, create/edit form (RHF+Zod, tool ceilings), details (versions, transitions), templates gallery; E2E CRUD flow + axe ar/en"
         },
         {
           "id": "AG-07",
@@ -1468,14 +1468,13 @@
   ],
   "requires_approval": [],
   "in_progress": [],
-  "next_step": "AG-06 Agents UI (list, create/edit form, details with versions + transitions, templates) with TanStack Query + React Hook Form + Zod",
+  "next_step": "M2 Universal Agent Runtime: ExecutionEngine contract + registry, execution state machine (13 states) with events, cancel/timeout, checkpoints/resume, tool permission gate, retry/backoff; then M4 gateway adapters",
   "tests": {
     "passed": [
-      "backend: 30/30 pytest on PostgreSQL 16 (auth, CSRF, RBAC, tenancy, headers, crypto, bootstrap, dashboard, agents CRUD/lifecycle/versions/templates/tool ceilings) — 2026-11-09",
-      "migration v4 baseline (40 tables): upgrade → downgrade → upgrade on clean DB",
-      "frontend: 22/22 Playwright in real Chrome (i18n/RTL/LTR/layout 14 + axe WCAG 2.2 AA 8)",
-      "frontend: i18n guard, contrast 40/40, tsc, next build",
-      "docker: offline-image stack — 6 services healthy, data persists stop/start (spec v1 schema; re-verify on v4)",
+      "backend: 30/30 pytest on PostgreSQL 16 — auth, CSRF, RBAC, tenancy, headers, crypto, bootstrap, dashboard, agents CRUD/lifecycle/versions/templates/tool ceilings — 2026-11-09",
+      "migration v4 baseline (40 tables): upgrade → downgrade → upgrade",
+      "frontend: 30/30 Playwright in real Chrome — i18n/RTL/LTR/layout 14, axe WCAG 2.2 AA 14 (login, dashboard, agents, agent form, templates × ar/en), agents CRUD flow + template instantiate 2",
+      "frontend: i18n guard (207 keys), contrast 40/40, tsc, next build",
       "ruff: clean"
     ],
     "failed": []

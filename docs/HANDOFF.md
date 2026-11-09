@@ -21,3 +21,17 @@ Full stack in Docker (dev env, registries blocked):
 
 ## Current state
 See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT_ACTION`.
+
+### Layout (spec v4, ADR-001)
+- `backend/app/models/` — schema per plane (identity, agents, work, runtime, connectivity, governance); `__init__` re-exports.
+- `backend/app/security/` — auth (JWT cookie + CSRF), rbac (roles/permissions as data), tenancy (`scoped`, `get_scoped`), crypto, audit.
+- `backend/app/control/` — users, agents (+ templates, lifecycle). `backend/app/runtime/tools.py` — tool catalog + profile ceilings.
+- `backend/app/connectivity/providers.py` — minimal list (expand in M4). `backend/app/observability/dashboard.py`.
+- `frontend/src/components/providers.tsx` — QueryClient + `useUser`/`useCan`; `lib/agents.ts` hooks; `lib/toast.ts`.
+- Every new page: add nav entry in `components/app-shell.tsx`, messages in `messages/{ar,en}.json`, E2E + axe in `e2e/`.
+
+### Gotchas
+- Backend tests: move `backend/.env` aside (`mv .env .env.local-dev`) so tests use `acc_test`; restore after.
+- next-intl treats dots in keys as nesting — never put dotted strings as JSON keys.
+- After `rm -rf .next` + build, copy `.next/static` into `.next/standalone/.next/` before `dev-up.sh` starts the web server.
+- The dev DB is disposable; the super admin password in the dev container is `dev-only-password-123` (backend/.env, not committed).

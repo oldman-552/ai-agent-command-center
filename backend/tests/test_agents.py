@@ -105,6 +105,10 @@ def test_templates_18_customizable_and_instantiate(admin_client):
     assert admin_client.patch(f"/api/agent-templates/{cto['id']}", json={"name_ar": "المدير التقني الأول"}).status_code == 200
     a = admin_client.post(f"/api/agent-templates/{cto['id']}/instantiate?name=My%20CTO").json()
     assert a["template_id"] == cto["id"] and a["security_profile"] == "manager" and "tasks.plan" in a["tool_permissions"]
+    assert a["identifier"].startswith("cto")
+    ar = admin_client.post(f"/api/agent-templates/{cto['id']}/instantiate?lang=ar").json()
+    assert ar["name"] == "المدير التقني الأول" and ar["description"] == cto["description_ar"]
+    assert ar["identifier"].startswith("cto-")  # Arabic name never yields a meaningless slug
     custom = admin_client.post("/api/agent-templates", json={"key": "my_tpl", "name_ar": "قالبي", "name_en": "Mine",
                                                              "role": "qa", "tool_permissions": ["repo.read"]})
     assert custom.status_code == 201 and custom.json()["is_system"] is False

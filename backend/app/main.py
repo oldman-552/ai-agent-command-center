@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.bootstrap import run_bootstrap
+from app.connectivity import providers
 from app.control import agents, users
 from app.db import session_factory
 from app.observability import dashboard
@@ -47,6 +48,7 @@ app.include_router(auth.router)
 app.include_router(dashboard.router)
 app.include_router(users.router)
 app.include_router(agents.router)
+app.include_router(providers.router)
 
 
 @app.get("/api/health", tags=["system"])

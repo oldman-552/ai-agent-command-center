@@ -8,7 +8,9 @@
     "label": "Main navigation",
     "dashboard": "Dashboard",
     "openMenu": "Open menu",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "agents": "Agents",
+    "templates": "Agent templates"
   },
   "language": {
     "label": "Language",
@@ -104,6 +106,170 @@
     "loading": "Loading…",
     "error": "Something went wrong.",
     "notFound": "Page not found.",
-    "backHome": "Back to dashboard"
+    "backHome": "Back to dashboard",
+    "close": "Close",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…",
+    "edit": "Edit",
+    "back": "Back",
+    "create": "Create",
+    "search": "Search",
+    "all": "All",
+    "none": "None",
+    "actions": "Actions",
+    "yes": "Yes",
+    "no": "No",
+    "saved": "Saved.",
+    "requestFailed": "The request failed ({code}).",
+    "empty": "Nothing here yet.",
+    "optional": "optional"
+  },
+  "agentStates": {
+    "CREATED": "Created",
+    "INITIALIZING": "Initializing",
+    "IDLE": "Ready",
+    "ASSIGNED": "Assigned",
+    "RUNNING": "Running",
+    "REVIEWING": "Reviewing",
+    "COMPLETED": "Completed",
+    "WAITING_FOR_INPUT": "Waiting for input",
+    "WAITING_FOR_APPROVAL": "Waiting for approval",
+    "BLOCKED": "Blocked",
+    "FAILED": "Failed",
+    "CANCELLED": "Cancelled",
+    "DISABLED": "Disabled"
+  },
+  "agents": {
+    "title": "Agents",
+    "subtitle": "Create and manage AI agents without touching code.",
+    "new": "New agent",
+    "fromTemplate": "From template",
+    "searchPlaceholder": "Search by name or identifier…",
+    "filters": {
+      "state": "State",
+      "archived": "Show archived"
+    },
+    "columns": {
+      "name": "Agent",
+      "role": "Role",
+      "state": "State",
+      "model": "Model",
+      "priority": "Priority"
+    },
+    "empty": "No agents yet. Create one or start from a template.",
+    "actions": {
+      "start": "Start",
+      "stop": "Stop",
+      "enable": "Enable",
+      "disable": "Disable",
+      "clone": "Clone",
+      "archive": "Archive",
+      "restore": "Restore",
+      "delete": "Delete permanently",
+      "view": "View details"
+    },
+    "confirm": {
+      "archiveTitle": "Archive this agent?",
+      "archiveBody": "The agent stops and is hidden from the list. You can restore it later.",
+      "deleteTitle": "Delete this agent permanently?",
+      "deleteBody": "This cannot be undone. A copy of its configuration stays in the audit log."
+    },
+    "done": {
+      "start": "Agent started.",
+      "stop": "Agent stopped.",
+      "enable": "Agent enabled.",
+      "disable": "Agent disabled.",
+      "clone": "Agent cloned.",
+      "archive": "Agent archived.",
+      "restore": "Agent restored.",
+      "delete": "Agent deleted."
+    },
+    "errors": {
+      "agent_busy_stop_first": "The agent is busy; stop it first.",
+      "agent_disabled": "The agent is disabled; enable it first.",
+      "archive_first": "Archive the agent before deleting it.",
+      "identifier_taken": "That identifier is taken.",
+      "agent_archived": "The agent is archived.",
+      "tools": "Some tools are not allowed for the selected security profile: {tools}"
+    },
+    "form": {
+      "createTitle": "Create agent",
+      "editTitle": "Edit agent",
+      "sections": {
+        "identity": "Identity",
+        "model": "Model and execution",
+        "permissions": "Tools and permissions",
+        "limits": "Limits and budgets",
+        "context": "Context and memory"
+      },
+      "name": "Name",
+      "identifier": "Identifier",
+      "identifierHelp": "Lowercase letters, digits and dashes. Generated if left empty.",
+      "role": "Role",
+      "description": "Description",
+      "avatar": "Icon key",
+      "systemInstructions": "System instructions",
+      "provider": "Provider",
+      "model": "Model",
+      "fallbackProvider": "Fallback provider",
+      "fallbackModel": "Fallback model",
+      "engine": "Execution engine",
+      "engines": {
+        "api": "Official API",
+        "cli": "Command-line tool",
+        "browser": "Browser Bridge (experimental)",
+        "a2a": "External agent (A2A)"
+      },
+      "securityProfile": "Security profile",
+      "profiles": {
+        "read_only": "Read only",
+        "reviewer": "Reviewer",
+        "developer": "Developer",
+        "manager": "Manager"
+      },
+      "tools": "Allowed tools",
+      "toolsHelp": "Tools above the security profile's ceiling are disabled. Merges and deployments only happen through human approval.",
+      "skills": "Skills",
+      "skillsHelp": "Comma-separated",
+      "tokenBudget": "Token budget",
+      "costBudget": "Cost budget (USD)",
+      "timeout": "Timeout (seconds)",
+      "maxAttempts": "Max attempts",
+      "concurrency": "Concurrency limit",
+      "priority": "Priority (1-10)",
+      "supervisor": "Supervisor agent",
+      "taskTypes": "Context task types",
+      "taskTypesHelp": "Comma-separated, e.g. backend, testing",
+      "memoryScopes": "Memory scopes",
+      "noProvider": "No provider",
+      "invalid": "Invalid value.",
+      "required": "This field is required."
+    },
+    "details": {
+      "overview": "Overview",
+      "configuration": "Configuration",
+      "versions": "Configuration versions",
+      "transitions": "State history",
+      "version": "Version {v}",
+      "by": "by",
+      "noVersions": "No versions.",
+      "noTransitions": "No history.",
+      "configVersion": "Config version",
+      "createdAt": "Created",
+      "lastError": "Last error",
+      "enabled": "Enabled",
+      "budgets": "Budgets",
+      "unlimited": "Unlimited"
+    }
+  },
+  "templates": {
+    "title": "Agent templates",
+    "subtitle": "Customizable starting points to build your team fast.",
+    "use": "Create agent from this template",
+    "system": "System template",
+    "custom": "Custom",
+    "tools": "Tools",
+    "created": "Agent created from template."
   }
 }

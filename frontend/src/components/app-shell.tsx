@@ -1,18 +1,22 @@
 "use client";
-import { Bot, LayoutDashboard, LogOut, Menu, X, type LucideIcon } from "lucide-react";
+import { Bot, LayoutDashboard, LayoutTemplate, LogOut, Menu, X, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { AppProviders } from "@/components/providers";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Toaster } from "@/components/toaster";
 import { Button } from "@/components/ui/button";
 import { api, type User } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 // Only pages that actually exist are listed. New pages are added here as they are built.
-const NAV: { href: string; key: "dashboard"; icon: LucideIcon }[] = [
+const NAV: { href: string; key: "dashboard" | "agents" | "templates"; icon: LucideIcon }[] = [
   { href: "/", key: "dashboard", icon: LayoutDashboard },
+  { href: "/agents", key: "agents", icon: Bot },
+  { href: "/templates", key: "templates", icon: LayoutTemplate },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
@@ -73,6 +77,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
   }
 
   return (
+    <AppProviders user={user}>
     <div className="flex min-h-dvh">
       {/* Desktop sidebar — on the start side (right in Arabic, left in English) */}
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 border-e bg-card p-4 lg:flex">
@@ -136,6 +141,8 @@ export function AppShell({ user, children }: { user: User; children: React.React
           {children}
         </main>
       </div>
+      <Toaster />
     </div>
+    </AppProviders>
   );
 }

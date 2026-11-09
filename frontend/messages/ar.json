@@ -8,7 +8,9 @@
     "label": "التنقل الرئيسي",
     "dashboard": "لوحة التحكم",
     "openMenu": "فتح القائمة",
-    "closeMenu": "إغلاق القائمة"
+    "closeMenu": "إغلاق القائمة",
+    "agents": "الوكلاء",
+    "templates": "قوالب الوكلاء"
   },
   "language": {
     "label": "اللغة",
@@ -104,6 +106,170 @@
     "loading": "جارٍ التحميل…",
     "error": "حدث خطأ غير متوقع.",
     "notFound": "الصفحة غير موجودة.",
-    "backHome": "العودة إلى لوحة التحكم"
+    "backHome": "العودة إلى لوحة التحكم",
+    "close": "إغلاق",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "saving": "جارٍ الحفظ…",
+    "edit": "تعديل",
+    "back": "رجوع",
+    "create": "إنشاء",
+    "search": "بحث",
+    "all": "الكل",
+    "none": "لا يوجد",
+    "actions": "الإجراءات",
+    "yes": "نعم",
+    "no": "لا",
+    "saved": "تم الحفظ.",
+    "requestFailed": "تعذّر تنفيذ الطلب ({code}).",
+    "empty": "لا توجد عناصر بعد.",
+    "optional": "اختياري"
+  },
+  "agentStates": {
+    "CREATED": "تم الإنشاء",
+    "INITIALIZING": "قيد التهيئة",
+    "IDLE": "جاهز",
+    "ASSIGNED": "مُسند",
+    "RUNNING": "يعمل",
+    "REVIEWING": "قيد المراجعة",
+    "COMPLETED": "مكتمل",
+    "WAITING_FOR_INPUT": "بانتظار مدخلات",
+    "WAITING_FOR_APPROVAL": "بانتظار موافقة",
+    "BLOCKED": "متوقف لعائق",
+    "FAILED": "متعثّر",
+    "CANCELLED": "أُلغي",
+    "DISABLED": "معطّل"
+  },
+  "agents": {
+    "title": "الوكلاء",
+    "subtitle": "أنشئ وكلاء الذكاء الاصطناعي وأدِرهم دون تعديل الشيفرة.",
+    "new": "وكيل جديد",
+    "fromTemplate": "من قالب",
+    "searchPlaceholder": "ابحث بالاسم أو المعرّف…",
+    "filters": {
+      "state": "الحالة",
+      "archived": "عرض المؤرشفين"
+    },
+    "columns": {
+      "name": "الوكيل",
+      "role": "الدور",
+      "state": "الحالة",
+      "model": "النموذج",
+      "priority": "الأولوية"
+    },
+    "empty": "لا يوجد وكلاء بعد. ابدأ بإنشاء وكيل أو من قالب جاهز.",
+    "actions": {
+      "start": "تشغيل",
+      "stop": "إيقاف",
+      "enable": "تفعيل",
+      "disable": "تعطيل",
+      "clone": "نسخ",
+      "archive": "أرشفة",
+      "restore": "استعادة",
+      "delete": "حذف نهائي",
+      "view": "عرض التفاصيل"
+    },
+    "confirm": {
+      "archiveTitle": "أرشفة الوكيل؟",
+      "archiveBody": "سيتوقف الوكيل ويختفي من القائمة، ويمكن استعادته لاحقًا.",
+      "deleteTitle": "حذف الوكيل نهائيًا؟",
+      "deleteBody": "لا يمكن التراجع عن الحذف. تبقى نسخة من الإعدادات في سجل التدقيق."
+    },
+    "done": {
+      "start": "تم تشغيل الوكيل.",
+      "stop": "تم إيقاف الوكيل.",
+      "enable": "تم تفعيل الوكيل.",
+      "disable": "تم تعطيل الوكيل.",
+      "clone": "تم نسخ الوكيل.",
+      "archive": "تمت أرشفة الوكيل.",
+      "restore": "تمت استعادة الوكيل.",
+      "delete": "تم حذف الوكيل."
+    },
+    "errors": {
+      "agent_busy_stop_first": "الوكيل مشغول؛ أوقفه أولًا.",
+      "agent_disabled": "الوكيل معطّل؛ فعّله أولًا.",
+      "archive_first": "يجب أرشفة الوكيل قبل حذفه.",
+      "identifier_taken": "المعرّف مستخدم.",
+      "agent_archived": "الوكيل مؤرشف.",
+      "tools": "بعض الأدوات غير مسموحة لملف الأمان المختار: {tools}"
+    },
+    "form": {
+      "createTitle": "إنشاء وكيل",
+      "editTitle": "تعديل الوكيل",
+      "sections": {
+        "identity": "الهوية",
+        "model": "النموذج والتنفيذ",
+        "permissions": "الأدوات والصلاحيات",
+        "limits": "الحدود والميزانيات",
+        "context": "السياق والذاكرة"
+      },
+      "name": "الاسم",
+      "identifier": "المعرّف",
+      "identifierHelp": "أحرف إنجليزية صغيرة وأرقام وشرطات. يُولَّد تلقائيًا إن تُرك فارغًا.",
+      "role": "الدور",
+      "description": "الوصف",
+      "avatar": "رمز الأيقونة",
+      "systemInstructions": "تعليمات النظام",
+      "provider": "المزوّد",
+      "model": "النموذج",
+      "fallbackProvider": "المزوّد الاحتياطي",
+      "fallbackModel": "النموذج الاحتياطي",
+      "engine": "محرك التنفيذ",
+      "engines": {
+        "api": "واجهة API رسمية",
+        "cli": "أداة سطر أوامر",
+        "browser": "جسر المتصفح (تجريبي)",
+        "a2a": "وكيل خارجي (A2A)"
+      },
+      "securityProfile": "ملف الأمان",
+      "profiles": {
+        "read_only": "قراءة فقط",
+        "reviewer": "مراجع",
+        "developer": "مطوّر",
+        "manager": "مدير"
+      },
+      "tools": "الأدوات المسموحة",
+      "toolsHelp": "الأدوات خارج سقف ملف الأمان مُعطّلة. الدمج والنشر لا يتمّان إلا بموافقة بشرية.",
+      "skills": "المهارات",
+      "skillsHelp": "مفصولة بفواصل",
+      "tokenBudget": "ميزانية التوكنات",
+      "costBudget": "ميزانية التكلفة (دولار)",
+      "timeout": "المهلة (ثوانٍ)",
+      "maxAttempts": "أقصى عدد محاولات",
+      "concurrency": "حد التوازي",
+      "priority": "الأولوية (1-10)",
+      "supervisor": "الوكيل المشرف",
+      "taskTypes": "أنواع المهام للسياق",
+      "taskTypesHelp": "مفصولة بفواصل، مثل: backend, testing",
+      "memoryScopes": "نطاقات الذاكرة",
+      "noProvider": "بدون مزوّد",
+      "invalid": "قيمة غير صالحة.",
+      "required": "هذا الحقل مطلوب."
+    },
+    "details": {
+      "overview": "نظرة عامة",
+      "configuration": "الإعدادات",
+      "versions": "إصدارات الإعدادات",
+      "transitions": "سجل الحالات",
+      "version": "الإصدار {v}",
+      "by": "بواسطة",
+      "noVersions": "لا توجد إصدارات.",
+      "noTransitions": "لا يوجد سجل.",
+      "configVersion": "إصدار الإعدادات",
+      "createdAt": "تاريخ الإنشاء",
+      "lastError": "آخر خطأ",
+      "enabled": "مُفعّل",
+      "budgets": "الميزانيات",
+      "unlimited": "غير محدود"
+    }
+  },
+  "templates": {
+    "title": "قوالب الوكلاء",
+    "subtitle": "قوالب جاهزة قابلة للتخصيص لبناء فريقك بسرعة.",
+    "use": "إنشاء وكيل من هذا القالب",
+    "system": "قالب النظام",
+    "custom": "مخصّص",
+    "tools": "الأدوات",
+    "created": "تم إنشاء الوكيل من القالب."
   }
 }
