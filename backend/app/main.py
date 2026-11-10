@@ -14,6 +14,7 @@ from app.connectivity.a2a import keys as a2a_keys
 from app.connectivity.a2a import server as a2a_server
 from app.control import agents, users
 from app.db import session_factory
+from app.evaluation import api as evaluation_api
 from app.governance import api as approvals_api
 from app.governance import audit_api
 from app.observability import dashboard
@@ -64,6 +65,7 @@ app.include_router(a2a_server.router)
 app.include_router(orchestration_api.router)
 app.include_router(approvals_api.router)
 app.include_router(audit_api.router)
+app.include_router(evaluation_api.router)
 
 
 @app.get("/api/health", tags=["system"])

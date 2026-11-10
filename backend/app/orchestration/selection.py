@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
+from app.evaluation.profiles import agent_quality
 from app.models import Agent, Execution, Project, Task
 from app.models import ExecutionStatus as X
 from app.models.agents import project_agents
@@ -20,7 +21,7 @@ from app.runtime.contract import TERMINAL, registered_engines
 
 UNAVAILABLE_STATES = {"DISABLED", "FAILED", "BLOCKED"}
 HISTORY_WINDOW = 50
-WEIGHTS = {"role": 2.0, "success": 1.5, "load": 1.0, "cost": 0.5, "latency": 0.3}
+WEIGHTS = {"role": 2.0, "quality": 2.0, "success": 1.0, "load": 1.0, "cost": 0.5, "latency": 0.3}
 
 
 @dataclass
@@ -82,6 +83,7 @@ def select_agent(db: Session, task: Task) -> Selection:
         return Selection(None, "no_agent_with_required_skills" if pool else "no_eligible_agent")
     ids = [a.id for a in skilled]
     active, hist = _active(db, ids), _history(db, ids)
+    quality = agent_quality(db, ids, task.task_type)  # EV-02: independent evaluations for this kind of task
     free = [a for a in skilled if active.get(a.id, 0) < a.concurrency_limit]
     if not free:
         return Selection(None, "all_capable_agents_busy")
@@ -94,6 +96,7 @@ def select_agent(db: Session, task: Task) -> Selection:
         h = hist.get(a.id)
         b = {
             "role": 1.0 if task.task_type and task.task_type.lower() == a.role.lower() else 0.0,
+            "quality": quality[a.id]["quality"] if a.id in quality else 0.5,  # neutral prior until enough evaluations
             "success": h["success"] if h else 0.5,  # unknown history: neutral prior
             "load": 1.0 - active.get(a.id, 0) / max(a.concurrency_limit, 1),
             "cost": -(h["cost"] / max_cost) if h else 0.0,

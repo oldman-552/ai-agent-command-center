@@ -1,12 +1,12 @@
 {
-  "date": "2026-11-10 06:29",
+  "date": "2026-11-10 06:37",
   "spec_version": "4.0",
-  "current_phase": "Phases 14, 15",
+  "current_phase": "Phases 1, 19, 23, 25",
   "current_milestone": {
-    "id": 12,
-    "name": "Evaluation and Recovery"
+    "id": 1,
+    "name": "Foundation"
   },
-  "overall_percent": 51.4,
+  "overall_percent": 53.8,
   "milestones": [
     {
       "id": 1,
@@ -100,8 +100,8 @@
       "id": 12,
       "name": "Evaluation and Recovery",
       "weight": 6,
-      "percent": 20.0,
-      "done": 1,
+      "percent": 60.0,
+      "done": 3,
       "total": 5
     },
     {
@@ -183,6 +183,8 @@
     "A2A-01",
     "A2A-02",
     "EV-01",
+    "EV-02",
+    "EV-05",
     "SEC-01",
     "SEC-02",
     "SEC-03",
@@ -191,39 +193,30 @@
     "SEC-06",
     "SEC-07"
   ],
-  "in_progress": [
-    "EV-05"
-  ],
+  "in_progress": [],
   "files_changed": [
     "PROJECT_STATUS.json",
-    "backend/app/config.py",
-    "backend/app/evaluation/engine.py",
     "backend/app/main.py",
-    "backend/app/worker.py",
-    "backend/tests/conftest.py",
-    "docs/ARCHITECTURE_DECISIONS.md",
+    "backend/app/orchestration/selection.py",
+    "backend/tests/test_orchestration.py",
     "docs/REQUIREMENTS.md",
     "docs/requirements.json",
     "frontend/messages/ar.json",
     "frontend/messages/en.json",
     "frontend/src/components/app-shell.tsx",
     "progress.txt",
-    "backend/app/governance/audit_api.py",
-    "backend/app/sandbox/",
-    "backend/tests/test_audit.py",
-    "backend/tests/test_sandbox.py",
-    "docker/sandbox/",
-    "frontend/e2e/audit.spec.ts",
-    "frontend/src/app/(app)/audit/",
-    "frontend/src/lib/audit.ts"
+    "backend/app/evaluation/api.py",
+    "backend/app/evaluation/profiles.py",
+    "frontend/e2e/evaluations.spec.ts",
+    "frontend/src/app/(app)/evaluations/"
   ],
   "tests": {
     "passed": [
-      "backend: 146/146 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox containers — full suite twice and every module in isolation — 2026-11-10",
+      "backend: 147/147 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox containers — full suite twice — 2026-11-10",
       "migrations: 5 revisions (43 tables + langgraph schema); base → head → -1 → head; alembic check clean",
-      "frontend: i18n guard (472 keys), contrast, tsc, next build",
+      "frontend: i18n guard (496 keys), contrast, tsc, next build",
       "ruff: clean",
-      "frontend: 42/42 Playwright in real Chrome against API + worker in bus mode — task center, approval center, audit log, axe WCAG 2.2 AA × ar/en incl. dialogs; screenshots reviewed RTL/LTR"
+      "frontend: 44/44 Playwright in real Chrome against API + worker in bus mode — tasks, approvals, audit, evaluations, axe WCAG 2.2 AA × ar/en incl. dialogs"
     ],
     "failed": []
   },
@@ -242,5 +235,5 @@
   "requires_owner_approval": [
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
-  "next_action": "EV-02 performance profiles feeding selection, EV-05 evaluation UI, EV-03 failure categorization/circuit breaker, EV-04 graceful shutdown; then M12 rest, M7 context, M8 GitHub/worktrees (files.write/git tools in the sandbox)"
+  "next_action": "EV-03 failure categorization + recovery workflow + circuit breaker, EV-04 graceful shutdown; SEC-08 scanning; then M7 context, M8 GitHub/worktrees (files.write/git tools inside the sandbox)"
 }

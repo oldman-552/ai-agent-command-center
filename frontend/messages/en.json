@@ -15,7 +15,8 @@
     "tasks": "Task center",
     "approvals": "Approvals",
     "pendingApprovals": "{n} pending approvals",
-    "audit": "Audit log"
+    "audit": "Audit log",
+    "evaluations": "Evaluations"
   },
   "language": {
     "label": "Language",
@@ -609,6 +610,37 @@
       "projects": "Projects",
       "a2a": "A2A",
       "system": "System"
+    }
+  },
+  "evaluations": {
+    "title": "Evaluations",
+    "subtitle": "Independent, evidence-based verdicts on agent work, and the performance profiles that steer task assignment.",
+    "profiles": "Performance profiles",
+    "groupBy": "Group by",
+    "trustedHelp": "Profiles with at least {n} evaluations are trusted and used when assigning tasks.",
+    "trusted": "Trusted profile",
+    "empty": "No evaluations yet.",
+    "recent": "Recent evaluations",
+    "overall": "overall {n}%",
+    "groups": {
+      "agent": "Agent",
+      "role": "Role",
+      "provider": "Provider",
+      "model": "Model",
+      "task_type": "Task type",
+      "project": "Project"
+    },
+    "columns": {
+      "evaluations": "Evaluations",
+      "approve_rate": "Passed",
+      "avg_task_completion": "Criteria met",
+      "avg_test_pass_rate": "Tests passed",
+      "last": "Last evaluated"
+    },
+    "decision": {
+      "approve": "Passed",
+      "revise": "Needs revision",
+      "reject": "Rejected"
     }
   }
 }

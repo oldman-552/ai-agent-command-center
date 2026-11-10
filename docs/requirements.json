@@ -1161,8 +1161,8 @@
           "depends": [
             "EV-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_orchestration.py::test_profiles_update_from_evaluations_and_steer_assignment (profiles by agent/role/provider/model/task_type/project from evaluation_results; neutral prior below 3 samples; selection prefers the agent with the better evaluated record for that task type; audited quality factor)"
         },
         {
           "id": "EV-03",
@@ -1198,8 +1198,8 @@
           "depends": [
             "EV-01"
           ],
-          "status": "in_progress",
-          "evidence": ""
+          "status": "done",
+          "evidence": "frontend/e2e/evaluations.spec.ts: /evaluations performance profiles grouped (URL state), recent verdicts linked to tasks, no page overflow 375/1440, axe WCAG 2.2 AA ar/en; per-task evaluation (checks, criteria coverage, notes) in task details covered by tasks/approvals specs"
         }
       ]
     },
@@ -1470,14 +1470,14 @@
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
   "in_progress": [],
-  "next_step": "EV-02 performance profiles feeding selection, EV-05 evaluation UI, EV-03 failure categorization/circuit breaker, EV-04 graceful shutdown; then M12 rest, M7 context, M8 GitHub/worktrees (files.write/git tools in the sandbox)",
+  "next_step": "EV-03 failure categorization + recovery workflow + circuit breaker, EV-04 graceful shutdown; SEC-08 scanning; then M7 context, M8 GitHub/worktrees (files.write/git tools inside the sandbox)",
   "tests": {
     "passed": [
-      "backend: 146/146 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox containers — full suite twice and every module in isolation — 2026-11-10",
+      "backend: 147/147 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox containers — full suite twice — 2026-11-10",
       "migrations: 5 revisions (43 tables + langgraph schema); base → head → -1 → head; alembic check clean",
-      "frontend: i18n guard (472 keys), contrast, tsc, next build",
+      "frontend: i18n guard (496 keys), contrast, tsc, next build",
       "ruff: clean",
-      "frontend: 42/42 Playwright in real Chrome against API + worker in bus mode — task center, approval center, audit log, axe WCAG 2.2 AA × ar/en incl. dialogs; screenshots reviewed RTL/LTR"
+      "frontend: 44/44 Playwright in real Chrome against API + worker in bus mode — tasks, approvals, audit, evaluations, axe WCAG 2.2 AA × ar/en incl. dialogs"
     ],
     "failed": []
   },

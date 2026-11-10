@@ -386,3 +386,39 @@ def test_rejected_approval_fails_the_task_and_blocks_dependents(db, make_user):
     assert tasks_of(db, wf)["Drop table"].status == "FAILED"
     assert scheduler.advance(db, wf.id)["status"] == "failed"
     assert tasks_of(db, wf)["Reindex"].status == "BLOCKED"
+
+
+# ---------------- EV-02: performance profiles feed assignment ----------------
+def test_profiles_update_from_evaluations_and_steer_assignment(admin_client, db):
+    from app.models import EvaluationResult
+
+    good, poor = agent(db, "backend"), agent(db, "backend")
+    proj = project(db, [good, poor])
+    tt = f"api-{uuid.uuid4().hex[:4]}"
+
+    def evaluate_n(a, decision, n):
+        for _ in range(n):
+            db.add(EvaluationResult(organization_id=1, agent_id=a.id, task_type=tt, provider="mock", model="mock-model",
+                                    decision=decision, overall=1.0 if decision == "approve" else 0.4, scores={}))
+        db.commit()
+
+    t = Task(organization_id=1, project_id=proj.id, title="x", task_type=tt, required_skills=[])
+    db.add(t)
+    db.commit()
+    first = select_agent(db, t)
+    assert {c["quality"] for c in first.candidates} == {0.5}  # no evidence yet: neutral for everyone
+    evaluate_n(poor, "revise", 4)
+    evaluate_n(good, "approve", 4)
+    s = select_agent(db, t)
+    assert s.agent.id == good.id
+    by_agent = {c["agent_id"]: c["quality"] for c in s.candidates}
+    assert by_agent[good.id] == 1.0 and by_agent[poor.id] == 0.0
+    body = admin_client.get(f"/api/evaluations/profiles?group=agent&task_type={tt}").json()
+    rows = {r["key"]: r for r in body["items"]}
+    assert rows[good.id]["approve_rate"] == 1.0 and rows[good.id]["trusted"] and rows[good.id]["label"] == good.name
+    assert rows[poor.id]["approve_rate"] == 0.0
+    for g in ("role", "provider", "model", "task_type", "project"):
+        assert admin_client.get(f"/api/evaluations/profiles?group={g}").status_code == 200
+    assert admin_client.get("/api/evaluations/profiles?group=nope").status_code == 422
+    recent = admin_client.get(f"/api/evaluations?task_type={tt}&decision=approve").json()
+    assert len(recent) == 4 and all(r["agent_name"] == good.name for r in recent)
