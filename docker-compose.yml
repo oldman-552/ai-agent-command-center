@@ -108,7 +108,9 @@ services:
 
   # Browser Bridge (EXPERIMENTAL, disabled in the UI by default — ADR-005/025). Owns the headless browsers; not
   # published to the host. Real providers need a visible window for sign-in: run the bridge on the host instead.
+  # Optional: its Playwright image is ~1.5 GB. Started only with COMPOSE_PROFILES=browser-bridge in .env.
   browser-bridge:
+    profiles: ["browser-bridge"]
     build:
       context: ./backend
       dockerfile: Dockerfile.bridge

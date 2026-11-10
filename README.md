@@ -40,6 +40,9 @@ provider.
 
 Logs of every script run are written to `logs/`.
 
+The first build downloads roughly 1 GB (base images and libraries). The experimental Browser Bridge is not
+built unless you add `COMPOSE_PROFILES=browser-bridge` to `.env` (its Playwright image adds ~1.5 GB).
+
 ## What is inside
 
 - **20-page web app** (Next.js, RTL-first, WCAG 2.2 AA tested): Command Center, Projects, Agents, Agent Teams,

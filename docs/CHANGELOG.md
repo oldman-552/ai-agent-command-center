@@ -6,6 +6,8 @@ to `docs/requirements.json`.
 ## Unreleased — 2026-11-10
 
 ### Added
+- The Browser Bridge service is optional in the default compose file (`COMPOSE_PROFILES=browser-bridge`), so a first
+  install no longer downloads the ~1.5 GB Playwright image.
 - **Agents can ask a person** (`ask.human`): the execution waits in `WAITING_FOR_INPUT`, the question appears in the
   execution timeline with an answer box, A2A clients answer with `taskId`; the run resumes from its checkpoint.
 - **Model tool calling** in the `api` engine for Anthropic, OpenAI/compatible and Gemini: permitted platform and MCP
