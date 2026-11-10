@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 63.2%**
+**Overall verified completion: 69.2%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -88,16 +88,16 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | OR-08 | P0 | Tasks never marked complete on agent claim alone (evidence gate) | Completion requires passing evaluation | pytest | EV-01 | done | test_human_cannot_approve_without_a_passing_evaluation (409 evaluation_not_passed); evaluator revise/reject never reaches REVIEW (test_reviewer_model_can_withhold_but_never_grant_approval) |
 | OR-09 | P1 | Project modes: new / existing (repo inspection, tech detection) / maintenance | Existing-repo analysis produces map | pytest | GH-02 | pending | — |
 
-## M7 — Agent Supervisor (weight 6%, 0%) — spec Phase 5
+## M7 — Agent Supervisor (weight 6%, 100%) — spec Phase 5
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| SV-01 | P0 | Independent supervisor service monitoring agent/execution states | Separate module/worker | pytest | RT-03 | pending | — |
-| SV-02 | P0 | Detect stalled, repeatedly failing, runaway-cost, excessive-retry executions | Detection tests | pytest | SV-01 | pending | — |
-| SV-03 | P0 | Policy-authorized reversible actions: retry, reassign, stop runaway, isolate agent, fallback model | Action tests + audit | pytest | SV-02 | pending | — |
-| SV-04 | P1 | Detect deadlocks, duplicate work, conflicting changes | Detection tests | pytest | SV-01 | pending | — |
-| SV-05 | P0 | Supervisor never overrides security/approval policies | Test: approval-gated op not executed by supervisor | pytest | SEC-03 | pending | — |
-| SV-06 | P0 | Supervisor UI: health, findings, actions log | E2E | Playwright | SV-01 | pending | — |
+| SV-01 | P0 | Independent supervisor service monitoring agent/execution states | Separate module/worker | pytest | RT-03 | done | app/supervisor as a separate worker role with leader lock; tests/test_supervisor.py::test_supervisor_api (health/findings/actions/run, permissions) |
+| SV-02 | P0 | Detect stalled, repeatedly failing, runaway-cost, excessive-retry executions | Detection tests | pytest | SV-01 | done | test_stalled_execution_is_resumed_through_the_bus, test_runaway_execution_is_stopped, test_repeated_failures_isolate_the_agent_until_released, test_policy_denials_are_suspicious_and_reduce_concurrency (excessive retries/idle detectors in the same sweep) |
+| SV-03 | P0 | Policy-authorized reversible actions: retry, reassign, stop runaway, isolate agent, fallback model | Action tests + audit | pytest | SV-02 | done | actions tested: resume via bus (once, deduplicated), stop runaway, isolate + release, reduce concurrency, retry transient task within budget; test_actions_can_be_made_advisory_only; all audited |
+| SV-04 | P1 | Detect deadlocks, duplicate work, conflicting changes | Detection tests | pytest | SV-01 | done | test_deadlock_duplicates_conflicts_and_idle_agents_are_detected (advisory, self-resolving findings) |
+| SV-05 | P0 | Supervisor never overrides security/approval policies | Test: approval-gated op not executed by supervisor | pytest | SEC-03 | done | test_supervisor_never_overrides_approvals_or_touches_tasks_awaiting_humans (approval stays pending, task in APPROVAL untouched, no code path to approvals) |
+| SV-06 | P0 | Supervisor UI: health, findings, actions log | E2E | Playwright | SV-01 | done | frontend/e2e/supervisor.spec.ts: health tiles, manual sweep, findings/all-clear, log; axe WCAG 2.2 AA ar/en (caught and fixed an invalid definition list), no overflow 375/1440 |
 
 ## M8 — GitHub Development (weight 7%, 100%) — spec Phase 12
 

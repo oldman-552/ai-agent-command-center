@@ -17,7 +17,8 @@
     "pendingApprovals": "{n} pending approvals",
     "audit": "Audit log",
     "evaluations": "Evaluations",
-    "github": "GitHub"
+    "github": "GitHub",
+    "supervisor": "Supervisor"
   },
   "language": {
     "label": "Language",
@@ -699,6 +700,64 @@
       "notFound": "Repository not found or not visible to this token.",
       "unreachable": "GitHub could not be reached. Try again later.",
       "exists": "This repository is already connected."
+    }
+  },
+  "supervisor": {
+    "title": "Agent supervisor",
+    "subtitle": "Independent monitoring of agent and execution health. It may take reversible actions; it never overrides approvals or security policy.",
+    "runNow": "Run a sweep now",
+    "swept": "{n} findings, {a} actions",
+    "lastSweep": "Last sweep {when}",
+    "neverSwept": "No sweep yet",
+    "autonomous": "Acts on its own: {list}",
+    "advisoryOnly": "Advisory only — takes no actions",
+    "findings": "Open findings",
+    "allClear": "Nothing needs attention.",
+    "taken": "Action taken: {action}",
+    "resolve": "Mark resolved",
+    "actionLog": "Supervisor log",
+    "noActions": "No supervisor activity yet.",
+    "health": {
+      "agents": "Agents",
+      "executions": "Active executions",
+      "findings": "Open findings",
+      "isolated": "Isolated agents"
+    },
+    "severity": {
+      "info": "Info",
+      "warning": "Warning",
+      "critical": "Critical"
+    },
+    "subject": {
+      "execution": "Execution",
+      "agent": "Agent",
+      "task": "Task",
+      "workflow": "Workflow",
+      "worktree": "Worktree"
+    },
+    "columns": {
+      "time": "Time",
+      "action": "Action",
+      "actor": "By"
+    },
+    "kinds": {
+      "stalled_execution": "Stalled execution",
+      "runaway_execution": "Runaway execution",
+      "excessive_retries": "Excessive retries",
+      "repeated_failures": "Repeated failures",
+      "suspicious_tool_usage": "Suspicious tool usage",
+      "idle_agent_with_waiting_work": "Idle agent while work waits",
+      "deadlock": "Workflow deadlock",
+      "duplicate_work": "Duplicate work",
+      "conflicting_changes": "Conflicting changes",
+      "retryable_task_failure": "Retryable task failure"
+    },
+    "actions": {
+      "stop_runaway": "stop runaway executions",
+      "resume_stalled": "resume stalled executions",
+      "isolate_agent": "isolate unhealthy agents",
+      "retry_task": "retry eligible tasks",
+      "reduce_concurrency": "reduce concurrency"
     }
   }
 }

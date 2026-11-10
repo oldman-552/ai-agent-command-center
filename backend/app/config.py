@@ -28,7 +28,16 @@ class Settings(BaseSettings):
     sandbox_timeout_seconds: int = 900
     circuit_failure_threshold: int = 5      # consecutive failures that open an agent/provider circuit
     circuit_cooldown_seconds: int = 300     # open → one trial request (half-open) after this long
-    shutdown_grace_seconds: int = 30        # worker: let in-flight work finish before checkpoint-and-handoff
+    shutdown_grace_seconds: int = 30
+    supervisor_interval_seconds: int = 30
+    supervisor_stall_seconds: int = 300        # running with no event for this long = stalled
+    supervisor_runaway_cost_usd: float = 5.0   # one execution costing more than this = runaway
+    supervisor_failure_window_minutes: int = 60
+    supervisor_repeated_failures: int = 3
+    supervisor_retry_threshold: int = 3
+    supervisor_denials_threshold: int = 3
+    # reversible actions the supervisor may take on its own (spec Phase 5); remove one to make it advisory only
+    supervisor_actions: str = "stop_runaway,resume_stalled,isolate_agent,retry_task,reduce_concurrency"        # worker: let in-flight work finish before checkpoint-and-handoff
     sandbox_image: str = "acc/sandbox:python"  # built from docker/sandbox/Dockerfile
 
     cookie_secure: bool = False  # set True behind HTTPS

@@ -698,8 +698,8 @@
           "depends": [
             "RT-03"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "app/supervisor as a separate worker role with leader lock; tests/test_supervisor.py::test_supervisor_api (health/findings/actions/run, permissions)"
         },
         {
           "id": "SV-02",
@@ -710,8 +710,8 @@
           "depends": [
             "SV-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_stalled_execution_is_resumed_through_the_bus, test_runaway_execution_is_stopped, test_repeated_failures_isolate_the_agent_until_released, test_policy_denials_are_suspicious_and_reduce_concurrency (excessive retries/idle detectors in the same sweep)"
         },
         {
           "id": "SV-03",
@@ -722,8 +722,8 @@
           "depends": [
             "SV-02"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "actions tested: resume via bus (once, deduplicated), stop runaway, isolate + release, reduce concurrency, retry transient task within budget; test_actions_can_be_made_advisory_only; all audited"
         },
         {
           "id": "SV-04",
@@ -734,8 +734,8 @@
           "depends": [
             "SV-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_deadlock_duplicates_conflicts_and_idle_agents_are_detected (advisory, self-resolving findings)"
         },
         {
           "id": "SV-05",
@@ -746,8 +746,8 @@
           "depends": [
             "SEC-03"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_supervisor_never_overrides_approvals_or_touches_tasks_awaiting_humans (approval stays pending, task in APPROVAL untouched, no code path to approvals)"
         },
         {
           "id": "SV-06",
@@ -758,8 +758,8 @@
           "depends": [
             "SV-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "frontend/e2e/supervisor.spec.ts: health tiles, manual sweep, findings/all-clear, log; axe WCAG 2.2 AA ar/en (caught and fixed an invalid definition list), no overflow 375/1440"
         }
       ]
     },
@@ -1470,14 +1470,14 @@
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
   "in_progress": [],
-  "next_step": "M7 Agent Supervisor (SV-01..06), then M11 context & memory, M9 browser bridge, M5 CLI engines, M14 automation, M15 docs/launchers",
+  "next_step": "M11 context & memory (CX-01..03, MEM-01..04), then M9 browser bridge, M5 CLI engines, M14 automation, M15 docs/launchers",
   "tests": {
     "passed": [
-      "backend: 172/172 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox + real git — full suite twice and every module in isolation — 2026-11-10",
-      "migrations: 9 revisions (45 tables + langgraph schema); base → head → -1 → head; alembic check clean",
-      "frontend: i18n guard (542 keys), contrast, tsc, next build",
+      "backend: 181/181 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox + real git — full suite twice and every module in isolation — 2026-11-10",
+      "migrations: 10 revisions (46 tables + langgraph schema); base → head → -1 → head; alembic check clean",
+      "frontend: i18n guard (587 keys), contrast, tsc, next build",
       "ruff: clean",
-      "frontend: 47/47 Playwright in real Chrome against API + worker in bus mode — tasks, approvals, audit, evaluations, GitHub, axe WCAG 2.2 AA × ar/en incl. dialogs",
+      "frontend: 49/49 Playwright in real Chrome against API + worker in bus mode — tasks, approvals, audit, evaluations, GitHub, supervisor, axe WCAG 2.2 AA × ar/en incl. dialogs",
       "security: scripts/security-scan.sh — pip-audit on backend lock (no known vulnerabilities), npm audit --omit=dev (0 vulnerabilities); --strict exits 2 when a scanner is missing (verified)"
     ],
     "failed": []

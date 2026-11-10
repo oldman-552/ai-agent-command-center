@@ -254,7 +254,8 @@ WORKER = (
 
 
 def start_worker(**extra_env: str) -> subprocess.Popen:
-    env = {**os.environ, "EXECUTION_DISPATCH": "bus", "RABBITMQ_URL": TEST_AMQP, "PYTHONUNBUFFERED": "1", **extra_env}
+    env = {**os.environ, "EXECUTION_DISPATCH": "bus", "RABBITMQ_URL": TEST_AMQP, "PYTHONUNBUFFERED": "1",
+           "WORKER_ROLES": "executions,orchestrator", **extra_env}  # the supervisor has its own tests
     p = subprocess.Popen([sys.executable, "-c", WORKER], cwd=BACKEND, env=env, stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT, text=True)
     deadline = time.monotonic() + 30

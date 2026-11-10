@@ -17,7 +17,8 @@
     "pendingApprovals": "{n} موافقات بانتظار القرار",
     "audit": "سجل التدقيق",
     "evaluations": "التقييمات",
-    "github": "GitHub"
+    "github": "GitHub",
+    "supervisor": "المشرف"
   },
   "language": {
     "label": "اللغة",
@@ -699,6 +700,64 @@
       "notFound": "المستودع غير موجود أو غير مرئي لهذا الرمز.",
       "unreachable": "تعذّر الوصول إلى GitHub. حاول لاحقاً.",
       "exists": "هذا المستودع مربوط مسبقاً."
+    }
+  },
+  "supervisor": {
+    "title": "مشرف الوكلاء",
+    "subtitle": "مراقبة مستقلة لصحة الوكلاء والتنفيذ. يمكنه اتخاذ إجراءات قابلة للتراجع، ولا يتجاوز الموافقات أو سياسات الأمان أبداً.",
+    "runNow": "افحص الآن",
+    "swept": "{n} ملاحظات، {a} إجراءات",
+    "lastSweep": "آخر فحص {when}",
+    "neverSwept": "لم يُجرَ فحص بعد",
+    "autonomous": "يتصرف تلقائياً في: {list}",
+    "advisoryOnly": "استشاري فقط — لا يتخذ إجراءات",
+    "findings": "الملاحظات المفتوحة",
+    "allClear": "لا شيء يحتاج انتباهاً.",
+    "taken": "الإجراء المتخذ: {action}",
+    "resolve": "تعليم كمحلولة",
+    "actionLog": "سجل المشرف",
+    "noActions": "لا نشاط للمشرف بعد.",
+    "health": {
+      "agents": "الوكلاء",
+      "executions": "عمليات تنفيذ نشطة",
+      "findings": "ملاحظات مفتوحة",
+      "isolated": "وكلاء معزولون"
+    },
+    "severity": {
+      "info": "معلومة",
+      "warning": "تحذير",
+      "critical": "حرِجة"
+    },
+    "subject": {
+      "execution": "تنفيذ",
+      "agent": "وكيل",
+      "task": "مهمة",
+      "workflow": "سير عمل",
+      "worktree": "مساحة عمل"
+    },
+    "columns": {
+      "time": "الوقت",
+      "action": "الإجراء",
+      "actor": "بواسطة"
+    },
+    "kinds": {
+      "stalled_execution": "تنفيذ متوقف",
+      "runaway_execution": "تنفيذ خارج عن السيطرة",
+      "excessive_retries": "إعادات محاولة مفرطة",
+      "repeated_failures": "أعطال متكررة",
+      "suspicious_tool_usage": "استخدام مريب للأدوات",
+      "idle_agent_with_waiting_work": "وكيل خامل والعمل ينتظر",
+      "deadlock": "انسداد في سير العمل",
+      "duplicate_work": "عمل مكرر",
+      "conflicting_changes": "تغييرات متعارضة",
+      "retryable_task_failure": "عطل مهمة قابل للإعادة"
+    },
+    "actions": {
+      "stop_runaway": "إيقاف التنفيذ الخارج عن السيطرة",
+      "resume_stalled": "استئناف التنفيذ المتوقف",
+      "isolate_agent": "عزل الوكيل المتعثر",
+      "retry_task": "إعادة المهام المؤهلة",
+      "reduce_concurrency": "تقليل التوازي"
     }
   }
 }

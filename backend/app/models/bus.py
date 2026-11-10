@@ -58,3 +58,24 @@ class CircuitBreaker(Base):
     opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_failure: Mapped[str | None] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class SupervisorFinding(Base):
+    """Something the supervisor noticed (SV-02/SV-04) and what, if anything, it did about it (SV-03)."""
+
+    __tablename__ = "supervisor_findings"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(Integer, index=True)
+    kind: Mapped[str] = mapped_column(String(48), index=True)
+    severity: Mapped[str] = mapped_column(String(16), default="warning")  # info | warning | critical
+    subject_type: Mapped[str] = mapped_column(String(24))  # execution | agent | task | workflow | worktree
+    subject_id: Mapped[str] = mapped_column(String(64))
+    fingerprint: Mapped[str] = mapped_column(String(160), unique=True)  # one open finding per problem
+    details: Mapped[dict] = mapped_column(JSONB, default=dict)
+    recommendation: Mapped[str] = mapped_column(Text, default="")
+    action: Mapped[dict | None] = mapped_column(JSONB)  # what the supervisor did, if anything
+    status: Mapped[str] = mapped_column(String(16), default="open", index=True)  # open | actioned | resolved
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -25,6 +25,7 @@ from app.runtime import api as runtime_api
 from app.runtime.engines import mock as _mock_engine  # noqa: F401  (registers the mock engine)
 from app.sandbox import tools as _sandbox_tools  # noqa: F401  (registers shell.test / shell.build)
 from app.security import auth
+from app.supervisor import api as supervisor_api
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -69,6 +70,7 @@ app.include_router(approvals_api.router)
 app.include_router(audit_api.router)
 app.include_router(evaluation_api.router)
 app.include_router(devplane_api.router)
+app.include_router(supervisor_api.router)
 
 
 @app.get("/api/health", tags=["system"])

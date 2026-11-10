@@ -256,3 +256,21 @@ agents never modify protected branches, merge after human approval. Repository c
 **Verification limits:** github.com is unreachable from the development environment; the client is tested against an
 in-memory fake implementing the same endpoints and pushes go to a real local bare repository. A live check against a
 real repository must be done on the owner's machine.
+
+## ADR-023 — Agent Supervisor: separate role, findings with fingerprints, a closed list of reversible actions (2026-11-10)
+**Context:** Phase 5 — independent monitoring of agent-team health that may take reversible, policy-authorized actions,
+must log everything, and must never override security policy or approvals.
+**Decision:**
+- `app/supervisor/` runs as its own worker role (`WORKER_ROLES=supervisor`; on by default), one leader across all
+  workers via a PostgreSQL advisory lock, sweeping every `SUPERVISOR_INTERVAL_SECONDS` (30).
+- Detectors: stalled executions (no event for 300 s), runaway cost/token budget, excessive retries, repeated agent
+  failures (policy denials excluded), suspicious tool usage (repeated policy denials), idle agents while compatible
+  work waits, workflow deadlocks, duplicate tasks, conflicting worktree changes, retryable transient task failures.
+- Findings are deduplicated by fingerprint (kind + subject), keep `last_seen_at`, and resolve themselves when the
+  problem disappears. Every detection and action is audited (`category=supervisor`).
+- Actions are a closed list — stop_runaway, resume_stalled (via the bus; the execution lock makes it safe),
+  isolate_agent (open its circuit; releasable), retry_task (only transient failures within budget), reduce_concurrency —
+  and each can be switched off with `SUPERVISOR_ACTIONS` (empty = advisory only). Deadlocks, duplicates and conflicts
+  are reported, not acted on.
+- SV-05: the module has no path to approvals, permissions, merges or credentials, and never acts on a task in REVIEW,
+  APPROVAL, COMPLETED or CANCELLED — enforced by code structure and tested.

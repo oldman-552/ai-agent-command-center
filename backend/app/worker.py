@@ -3,6 +3,7 @@
     uv run python -m app.worker                     # all engine queues
     WORKER_ENGINES=api,cli uv run python -m app.worker   # a specialised worker
     WORKER_ROLES=orchestrator uv run python -m app.worker  # only the orchestrator (planning + scheduling)
+    WORKER_ROLES=supervisor uv run python -m app.worker    # only the agent supervisor
 
 Exits non-zero if RabbitMQ or PostgreSQL is unreachable at start, so failures are visible to the supervisor
 (Docker restart policy). After start, broker outages are survived: the robust connection reconnects, consumers
@@ -57,7 +58,11 @@ async def main() -> int:
 
     relay_ch = await conn.channel(publisher_confirms=True, on_return_raises=True)
     relay = asyncio.create_task(Relay(relay_ch).run(stop))
-    roles = os.environ.get("WORKER_ROLES", "executions,orchestrator").split(",")
+    roles = os.environ.get("WORKER_ROLES", "executions,orchestrator,supervisor").split(",")
+    supervisor = None
+    if "supervisor" in roles:  # M7: independent of the orchestrator; one leader across all workers
+        from app.supervisor import service as supervisor_service
+        supervisor = asyncio.create_task(supervisor_service.run(stop))
     consumers = (execution_consumers(_engines()) if "executions" in roles else []) + (
         orchestrator_consumers() if "orchestrator" in roles else [])
     if "orchestrator" in roles:
@@ -90,6 +95,8 @@ async def main() -> int:
                 t.cancel()
             await asyncio.gather(*pending, return_exceptions=True)
     await relay
+    if supervisor is not None:
+        await supervisor
     await conn.close()
     log.info("worker stopped cleanly")
     return 0
