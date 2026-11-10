@@ -26,7 +26,9 @@ from sqlalchemy.orm import Session
 
 from app.bus.contract import Envelope, MessageType, workflow_command
 from app.bus.outbox import enqueue
-from app.models import Execution, Task, TaskDependency, Workflow
+from app.evaluation.engine import evaluate_and_record, notes_of
+from app.governance.approvals import on_decision, request_approval
+from app.models import EvaluationResult, Execution, Task, TaskDependency, Workflow
 from app.models import ExecutionStatus as X
 from app.models import TaskStatus as T
 from app.orchestration.selection import select_agent
@@ -138,33 +140,57 @@ def advance(db: Session, workflow_id: int, causation: Envelope | None = None) ->
     return {"dispatched": dispatched, "waiting": waiting, "status": wf.status}
 
 
-def on_execution_finished(db: Session, execution_id: str, causation: Envelope | None = None) -> str:
-    """Fold an execution's outcome into its task. Duplicate or stale events are ignored."""
+async def on_execution_finished(db: Session, execution_id: str, causation: Envelope | None = None) -> str:
+    """Fold an execution's outcome into its task through the evaluation gate (OR-08). Duplicate or stale events are
+    ignored. Evaluation (which may call a reviewer model) runs before the workflow lock is taken."""
     ex = db.get(Execution, execution_id)
     if ex is None or ex.task_id is None:
         return "not_a_task"
-    task = db.get(Task, ex.task_id)
-    wf = db.get(Workflow, task.workflow_id, with_for_update=True, populate_existing=True) if task and task.workflow_id else None
+    db.refresh(ex)
+    task = db.get(Task, ex.task_id, populate_existing=True)
+    if task is None or task.status != T.IN_PROGRESS.value or ex.idempotency_key != execution_key(task):
+        return "ignored"
+    evaluation = None
+    if X(ex.status) == X.COMPLETED:
+        evaluation = await evaluate_and_record(db, task, ex)
+        db.commit()
+
+    wf = db.get(Workflow, task.workflow_id, with_for_update=True, populate_existing=True) if task.workflow_id else None
     db.refresh(task)
     db.refresh(ex)  # read the outcome after taking the workflow lock
     if wf is None or task.status != T.IN_PROGRESS.value or ex.idempotency_key != execution_key(task):
         db.rollback()
         return "ignored"
     st = X(ex.status)
+    now = datetime.now(UTC)
     if st == X.COMPLETED:
         output = str((ex.output or {}).get("text", ""))
-        task.status, task.review_status = T.REVIEW.value, "pending"
-        task.result = {**(task.result or {}), "output": output, "execution_id": ex.id}
+        task.result = {**(task.result or {}), "output": output, "execution_id": ex.id,
+                       "evaluation_id": evaluation.id}
         task.evidence = [*(task.evidence or []), {
             "kind": "execution", "execution_id": ex.id, "agent_id": ex.agent_id, "is_mock": ex.is_mock,
-            "output_sha256": hashlib.sha256(output.encode()).hexdigest(), "at": datetime.now(UTC).isoformat()}]
-        outcome = "review"
+            "output_sha256": hashlib.sha256(output.encode()).hexdigest(), "at": now.isoformat()}, {
+            "kind": "evaluation", "evaluation_id": evaluation.id, "decision": evaluation.decision,
+            "overall": evaluation.overall, "at": now.isoformat()}]
+        if evaluation.decision == "approve":
+            task.status, task.review_status = T.REVIEW.value, "pending"
+            outcome = "review"
+        elif task.attempts < task.max_attempts:  # the evaluator asks for another attempt, with its reasons
+            task.status, task.review_status = T.READY.value, "revise"
+            task.result = {**task.result, "review_notes": [*(task.result or {}).get("review_notes", []),
+                                                           *[f"EVALUATOR: {n}" for n in notes_of(evaluation)]]}
+            task.error = f"evaluation {evaluation.decision} on attempt {task.attempts}"
+            outcome = "evaluation_revise"
+        else:
+            task.status, task.finished_at = T.FAILED.value, now
+            task.error = f"evaluation did not pass after {task.attempts} attempts"
+            outcome = "evaluation_failed"
     elif st == X.FAILED and task.attempts < task.max_attempts:
         task.status, task.error = T.READY.value, f"attempt {task.attempts} failed: {ex.error_category or 'error'}"
         outcome = "retry"
     elif st in (X.FAILED, X.CANCELLED):
         task.status = T.FAILED.value if st == X.FAILED else T.CANCELLED.value
-        task.error, task.finished_at = ex.error or st.value, datetime.now(UTC)
+        task.error, task.finished_at = ex.error or st.value, now
         outcome = task.status.lower()
     else:
         db.rollback()
@@ -184,7 +210,28 @@ def review(db: Session, task: Task, decision: str, note: str, actor: str) -> Tas
         raise HTTPException(409, f"task_not_in_review:{task.status}")
     now = datetime.now(UTC)
     if decision == "approve":
-        task.status, task.review_status, task.finished_at = T.COMPLETED.value, "approved", now
+        ev_id = (task.result or {}).get("evaluation_id")
+        ev = db.get(EvaluationResult, ev_id) if ev_id else None
+        if ev is None or ev.decision != "approve":  # OR-08: never complete without a passing evaluation
+            raise HTTPException(409, "evaluation_not_passed")
+        task.review_status = "approved"
+        if task.critical_operation:  # OR-04 approval stage: wait for a human decision in the Approval Center
+            task.status = T.APPROVAL.value
+            out = str((task.result or {}).get("output", ""))
+            ap = request_approval(
+                db, organization_id=task.organization_id, operation=task.critical_operation,
+                title=f"Task #{task.id}: {task.title}", requested_by="orchestrator",
+                summary=f"Accepting this task authorizes: {task.critical_operation}",
+                payload={"task_id": task.id, "operation": task.critical_operation, "evaluation_id": ev.id,
+                         "output_sha256": hashlib.sha256(out.encode()).hexdigest()},
+                evidence=[{"kind": "evaluation", "evaluation_id": ev.id, "overall": ev.overall},
+                          {"kind": "review", "by": actor, "note": note[:2000]}],
+                agent_id=task.assigned_agent_id, project_id=task.project_id, task_id=task.id,
+                execution_id=(task.result or {}).get("execution_id"),
+                idempotency_key=f"task:{task.id}:attempt:{task.attempts}:approval")
+            task.result = {**(task.result or {}), "approval_id": ap.id}
+        else:
+            task.status, task.finished_at = T.COMPLETED.value, now
     elif decision == "revise":
         task.status, task.review_status = T.READY.value, "revise"
         task.result = {**(task.result or {}), "review_notes": [*(task.result or {}).get("review_notes", []), note]}
@@ -216,3 +263,31 @@ def recover_running(db: Session) -> int:
         n += 1
     db.commit()
     return n
+
+
+def _on_approval_decision(db: Session, a) -> None:
+    """Approval Center listener: settle a task waiting in the APPROVAL stage."""
+    if not a.task_id:
+        return
+    task = db.get(Task, a.task_id)
+    if task is None or task.status != T.APPROVAL.value or (task.result or {}).get("approval_id") != a.id:
+        return
+    wf = db.get(Workflow, task.workflow_id, with_for_update=True, populate_existing=True) if task.workflow_id else None
+    db.refresh(task)
+    now = datetime.now(UTC)
+    if a.status in ("approved", "executed"):
+        task.status, task.finished_at = T.COMPLETED.value, now
+    elif a.status == "changes_requested":
+        task.status, task.review_status = T.READY.value, "revise"
+        task.result = {**(task.result or {}), "review_notes": [*(task.result or {}).get("review_notes", []),
+                                                               f"APPROVER: {a.reason}"]}
+        task.max_attempts = max(task.max_attempts, task.attempts + 1)
+    else:
+        task.status, task.finished_at, task.error = T.FAILED.value, now, f"approval {a.status}: {a.reason}"[:2000]
+    task.evidence = [*(task.evidence or []), {"kind": "approval", "approval_id": a.id, "status": a.status,
+                                              "approver_id": a.approver_id, "at": now.isoformat()}]
+    if wf is not None:
+        request_advance(db, wf, f"task {task.id} approval {a.status}")
+
+
+on_decision(_on_approval_decision)

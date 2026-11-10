@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from app.bus.contract import MessageType, workflow_command
 from app.bus.outbox import enqueue
-from app.models import Agent, Execution, Project, Task, TaskDependency, User, Workflow
+from app.models import Agent, EvaluationResult, Execution, Project, Task, TaskDependency, User, Workflow
 from app.models import TaskStatus as T
 from app.models.agents import project_agents
 from app.orchestration import scheduler
@@ -153,7 +153,7 @@ def cancel_workflow(workflow_id: int, db: DB, user: User = Depends(require("task
 def task_out(t: Task) -> dict:
     cols = ["id", "project_id", "workflow_id", "title", "description", "task_type", "required_skills", "status",
             "priority", "assigned_agent_id", "acceptance_criteria", "evidence", "review_status", "result", "error",
-            "attempts", "max_attempts", "estimated_effort", "started_at", "finished_at", "created_at", "updated_at"]
+            "attempts", "max_attempts", "estimated_effort", "critical_operation", "started_at", "finished_at", "created_at", "updated_at"]
     out = {c: getattr(t, c) for c in cols}
     out["budget_usd"] = str(t.budget_usd) if t.budget_usd is not None else None
     return out
@@ -178,7 +178,11 @@ def get_task(task_id: int, db: DB, user: User = Depends(require("tasks.read"))) 
     t = get_scoped(db, Task, task_id, user)
     deps = db.scalars(select(TaskDependency.depends_on_id).where(TaskDependency.task_id == t.id)).all()
     execs = db.scalars(select(Execution).where(Execution.task_id == t.id).order_by(Execution.created_at)).all()
+    evals = db.scalars(select(EvaluationResult).where(EvaluationResult.task_id == t.id)
+                       .order_by(EvaluationResult.id)).all()
     return {**task_out(t), "depends_on": list(deps),
+            "evaluations": [{"id": e.id, "execution_id": e.execution_id, "decision": e.decision, "overall": e.overall,
+                             "scores": e.scores, "evidence": e.evidence, "created_at": e.created_at} for e in evals],
             "executions": [{"id": e.id, "status": e.status, "agent_id": e.agent_id, "is_mock": e.is_mock,
                             "created_at": e.created_at, "ended_at": e.ended_at} for e in execs]}
 

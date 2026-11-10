@@ -1,6 +1,7 @@
 "use client";
-import { CheckCircle2, ClipboardList, FolderPlus, LayoutGrid, List, Loader2, RotateCcw, Sparkles, Target, XCircle } from "lucide-react";
+import { CheckCircle2, ClipboardList, ShieldAlert, FolderPlus, LayoutGrid, List, Loader2, RotateCcw, Sparkles, Target, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { useCan } from "@/components/providers";
@@ -221,14 +222,51 @@ function WorkflowBanner({ wf }: { wf: NonNullable<ReturnType<typeof useWorkflow>
         <span className="font-semibold" dir="auto">#{wf.id} {wf.title}</span>
         <span className="text-sm">— {t(`workflowStatus.${wf.status}`)}</span>
         {wf.plan?.planner?.is_mock && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-            <Sparkles className="size-3.5" aria-hidden />{t("mockPlan")}
+          <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-foreground">
+            <Sparkles className="size-3.5 text-warning" aria-hidden />{t("mockPlan")}
           </span>
         )}
       </div>
       {wf.plan?.summary && <p className="text-sm text-muted-foreground" dir="auto">{wf.plan.summary}</p>}
       {wf.error && <p className="text-sm" dir="auto">{wf.error}</p>}
     </Card>
+  );
+}
+
+function EvaluationView({ ev, count }: { ev: import("@/lib/tasks").Evaluation; count: number }) {
+  const t = useTranslations("tasks");
+  const checks = (ev.evidence.find((e) => e.kind === "checks") as { checks: import("@/lib/tasks").EvaluationCheck[] } | undefined)?.checks ?? [];
+  const notes = (ev.evidence.find((e) => e.kind === "notes") as { notes: string[] } | undefined)?.notes ?? [];
+  const Icon = ev.decision === "approve" ? CheckCircle2 : ev.decision === "revise" ? RotateCcw : XCircle;
+  const tone = ev.decision === "approve" ? "text-success" : ev.decision === "revise" ? "text-warning" : "text-destructive";
+  return (
+    <Section title={t("evaluation.title")}>
+      <div className="flex flex-col gap-2 rounded-md border p-3 text-sm" data-testid="evaluation">
+        <p className="flex flex-wrap items-center gap-2 font-medium">
+          <Icon className={cn("size-4", tone)} aria-hidden />
+          {t(`evaluation.decision.${ev.decision}`)}
+          {ev.overall !== null && <span className="text-muted-foreground">· {t("evaluation.overall", { n: Math.round(ev.overall * 100) })}</span>}
+          {count > 1 && <span className="text-muted-foreground">· {t("evaluation.attempts", { n: count })}</span>}
+        </p>
+        <ul className="flex flex-col gap-1">
+          {checks.map((c, i) => {
+            const CIcon = c.passed ? CheckCircle2 : XCircle;
+            return (
+              <li key={i} className="flex items-start gap-2">
+                <CIcon className={cn("mt-0.5 size-4 shrink-0", c.passed ? "text-success" : "text-destructive")} aria-hidden />
+                <span dir="auto">
+                  <span className="sr-only">{c.passed ? t("evaluation.passed") : t("evaluation.failed")}: </span>
+                  {c.check === "acceptance_criterion" ? <>{t("evaluation.criterion")}: {c.criterion} <span className="text-muted-foreground">({Math.round((c.coverage ?? 0) * 100)}%)</span></>
+                    : t.has(`evaluation.checks.${c.check}`) ? t(`evaluation.checks.${c.check}`) : c.check}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        {notes.length > 0 && <ul className="list-disc ps-5 text-muted-foreground">{notes.map((n, i) => <li key={i}><span dir="auto">{n}</span></li>)}</ul>}
+        <p className="text-xs text-muted-foreground">{t("evaluation.help")}</p>
+      </div>
+    </Section>
   );
 }
 
@@ -253,6 +291,7 @@ function TaskDetails({ id, agentName, projects, onClose }: {
   const errorText = useErrorText();
   const [note, setNote] = useState("");
   const [noteError, setNoteError] = useState(false);
+  const ta = useTranslations("approvals");
   const d = task.data;
   const deps = useTasks({ workflowId: d?.workflow_id ?? undefined });
   const title = (tid: number) => deps.data?.find((x) => x.id === tid)?.title ?? `#${tid}`;
@@ -299,22 +338,34 @@ function TaskDetails({ id, agentName, projects, onClose }: {
 
             <Section title={t("fields.dependencies")}>
               {d.depends_on.length === 0 ? <p className="text-sm text-muted-foreground">{tc("none")}</p> : (
-                <ul className="list-disc ps-5 text-sm">{d.depends_on.map((x) => <li key={x} dir="auto">{title(x)}</li>)}</ul>
+                <ul className="list-disc ps-5 text-sm">{d.depends_on.map((x) => <li key={x}><span dir="auto">{title(x)}</span></li>)}</ul>
               )}
             </Section>
 
             <Section title={t("fields.acceptance")}>
               <ul className="list-disc ps-5 text-sm" data-testid="acceptance-criteria">
-                {d.acceptance_criteria.map((c, i) => <li key={i} dir="auto">{c}</li>)}
+                {d.acceptance_criteria.map((c, i) => <li key={i}><span dir="auto">{c}</span></li>)}
               </ul>
             </Section>
 
             {d.result?.output && (
               <Section title={t("fields.output")}>
-                <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-3 text-xs" dir="auto">{d.result.output}</pre>
+                <pre tabIndex={0} aria-label={t("fields.output")} className="max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" dir="auto">{d.result.output}</pre>
               </Section>
             )}
             {d.error && <p role="alert" className="rounded-md bg-destructive/10 p-2 text-sm text-destructive" dir="auto">{d.error}</p>}
+
+            {d.critical_operation && (
+              <p className="flex flex-wrap items-center gap-2 rounded-md border border-warning/50 p-2 text-sm" data-testid="critical-operation">
+                <ShieldAlert className="size-4 text-warning" aria-hidden />
+                {t("criticalOperation", { op: ta.has(`operations.${d.critical_operation.replaceAll(".", "_")}`) ? ta(`operations.${d.critical_operation.replaceAll(".", "_")}`) : d.critical_operation })}
+                {d.result?.approval_id && (
+                  <Link className="text-primary underline" href={`/approvals?id=${d.result.approval_id}&view=all`}>{t("openApproval")}</Link>
+                )}
+              </p>
+            )}
+
+            {d.evaluations.length > 0 && <EvaluationView ev={d.evaluations[d.evaluations.length - 1]} count={d.evaluations.length} />}
 
             <Section title={t("fields.history")}>
               {d.executions.length === 0 ? <p className="text-sm text-muted-foreground">{tc("none")}</p> : (
@@ -325,7 +376,7 @@ function TaskDetails({ id, agentName, projects, onClose }: {
                       <span className="font-mono text-xs" dir="ltr">{e.id.slice(0, 8)}</span>
                       <span>{e.status}</span>
                       {e.agent_id && <span className="text-muted-foreground">{agentName.get(e.agent_id) ?? `#${e.agent_id}`}</span>}
-                      {e.is_mock && <span className="rounded bg-warning/10 px-1.5 text-xs text-warning">{t("mock")}</span>}
+                      {e.is_mock && <span className="rounded bg-warning/10 px-1.5 text-xs text-foreground">{t("mock")}</span>}
                     </li>
                   ))}
                 </ol>
@@ -337,9 +388,10 @@ function TaskDetails({ id, agentName, projects, onClose }: {
                 <ul className="flex flex-col gap-1 text-sm" data-testid="evidence">
                   {d.evidence.map((ev, i) => (
                     <li key={i} className="rounded-md border p-2" dir="auto">
-                      {ev.kind === "execution"
-                        ? <>{t("evidenceExecution")} <span className="font-mono text-xs" dir="ltr">{ev.execution_id.slice(0, 8)} · sha256 {ev.output_sha256.slice(0, 12)}</span>{ev.is_mock && <> · {t("mock")}</>}</>
-                        : <>{t(`reviewDone.${ev.decision}`)}{ev.note && <>: {ev.note}</>}</>}
+                      {ev.kind === "execution" && <>{t("evidenceExecution")} <span className="font-mono text-xs" dir="ltr">{ev.execution_id.slice(0, 8)} · sha256 {ev.output_sha256.slice(0, 12)}</span>{ev.is_mock && <> · {t("mock")}</>}</>}
+                      {ev.kind === "evaluation" && <>{t("evidenceEvaluation")}: {t(`evaluation.decision.${ev.decision}`)}</>}
+                      {ev.kind === "review" && <>{t(`reviewDone.${ev.decision}`)}{ev.note && <>: {ev.note}</>}</>}
+                      {ev.kind === "approval" && <>{t("evidenceApproval")}: {t(`approvalStatus.${ev.status}`)}</>}
                     </li>
                   ))}
                 </ul>

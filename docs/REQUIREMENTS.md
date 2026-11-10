@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 44.7%**
+**Overall verified completion: 48.8%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -74,18 +74,18 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | EE-03 | P1 | External agent runtime adapter (A2A client) | Adapter contract test | pytest | A2A-02 | done | tests/test_a2a.py::test_a2a_engine_delegates_to_external_agent_and_reattaches_on_resume (platform agent → A2A provider → remote agent over HTTP; resume re-attaches without resubmitting), test_a2a_engine_unreachable_service_fails_cleanly |
 | EE-04 | P0 | Unsupported integrations explicitly documented | PROVIDER_INTEGRATION.md table | inspection | — | pending | — |
 
-## M6 — Intelligent Orchestration (weight 9%, 67%) — spec Phases 4, 13
+## M6 — Intelligent Orchestration (weight 9%, 89%) — spec Phases 4, 13
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
 | OR-01 | P0 | Objective → plan → task DAG (LangGraph) | Plan creates tasks + dependencies (mock provider) | pytest | RT-01, AG-01 | done | tests/test_orchestration.py::test_langgraph_planner_creates_task_dag_and_resumes_from_checkpoint (LangGraph + PostgresSaver, mock provider → 4 tasks + 4 dependency edges), test_plan_validation_rejects_bad_graphs, test_invalid_plans_are_retried_with_feedback_then_fail_the_workflow |
 | OR-02 | P0 | Agent selection by skills, permissions, workload, availability, cost, history | Selection tests | pytest | OR-01 | done | tests/test_orchestration.py::test_agent_selection_filters_then_scores (roster, required skills, history, workload, availability; audited score breakdown) |
 | OR-03 | P0 | Parallel fan-out/fan-in of independent tasks; dependency-driven scheduling | Independent tasks run concurrently | pytest | MQ-02 | done | test_fan_out_fan_in_with_review_gate (rounds 1/2/1; fan-in prompt carries prerequisite outputs), test_failure_retries_then_blocks_dependents; test_bus::test_workflow_runs_end_to_end_over_bus_and_survives_worker_kill (both branches dispatched in one round, run by workers) |
-| OR-04 | P0 | Review loop and human approval stage | Review requests revision; approval stage blocks | pytest | OR-01, SEC-03 | in_progress | — |
+| OR-04 | P0 | Review loop and human approval stage | Review requests revision; approval stage blocks | pytest | OR-01, SEC-03 | done | test_review_revise_loop_feeds_note_into_next_attempt, test_critical_task_waits_for_approval_while_independent_work_continues, test_rejected_approval_fails_the_task_and_blocks_dependents; e2e approvals.spec.ts critical task flow |
 | OR-05 | P0 | Workflow persistence and resume after restart | Restart mid-workflow resumes | pytest | OR-01 | done | test_bus::test_workflow_runs_end_to_end_over_bus_and_survives_worker_kill (kill -9 mid-workflow, reviews recorded while down, new worker completes, every task attempts==1); planner resumes from LangGraph checkpoint without re-calling the model |
 | OR-06 | P0 | Duplicate execution prevention | Same idempotency key never runs twice | pytest | MQ-03 | done | test_duplicate_events_and_advances_never_run_work_twice (duplicate advance + duplicate execution.finished), task execution idempotency key task:{id}:attempt:{n}; API workflow idempotency_key → same workflow |
 | OR-07 | P0 | Task center: Kanban (9 columns) + list + details with acceptance criteria, evidence, history | E2E | Playwright | OR-01 | done | frontend/e2e/tasks.spec.ts: objective → mock-planned task → worker execution → REVIEW column → details (acceptance criteria, evidence, history, deep link) → note required for changes → approve → COMPLETED + workflow completed; list view; axe WCAG 2.2 AA + no page overflow at 375/1440 in ar/en. Kanban has the spec's 9 columns; screenshots reviewed in RTL and LTR |
-| OR-08 | P0 | Tasks never marked complete on agent claim alone (evidence gate) | Completion requires passing evaluation | pytest | EV-01 | pending | — |
+| OR-08 | P0 | Tasks never marked complete on agent claim alone (evidence gate) | Completion requires passing evaluation | pytest | EV-01 | done | test_human_cannot_approve_without_a_passing_evaluation (409 evaluation_not_passed); evaluator revise/reject never reaches REVIEW (test_reviewer_model_can_withhold_but_never_grant_approval) |
 | OR-09 | P1 | Project modes: new / existing (repo inspection, tech detection) / maintenance | Existing-repo analysis produces map | pytest | GH-02 | pending | — |
 
 ## M7 — Agent Supervisor (weight 6%, 0%) — spec Phase 5
@@ -148,23 +148,23 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | MEM-03 | P0 | Project isolation of memory | Cross-project retrieval denied | pytest | MEM-01 | pending | — |
 | MEM-04 | P0 | Context & Memory UI with human correction/deletion | E2E | Playwright | MEM-01 | pending | — |
 
-## M12 — Evaluation and Recovery (weight 6%, 0%) — spec Phases 14, 15
+## M12 — Evaluation and Recovery (weight 6%, 20%) — spec Phases 14, 15
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| EV-01 | P0 | Evaluation engine: deterministic checks (tests, lint, diff, acceptance criteria) + optional LLM review | Evidence-based result | pytest | RT-02 | pending | — |
+| EV-01 | P0 | Evaluation engine: deterministic checks (tests, lint, diff, acceptance criteria) + optional LLM review | Evidence-based result | pytest | RT-02 | done | test_evaluator_is_deterministic_and_reports_each_criterion, test_reviewer_model_can_withhold_but_never_grant_approval; every task execution in test_orchestration/test_bus/e2e passes through evaluate_and_record (idempotent per execution) |
 | EV-02 | P0 | Performance profiles by agent/role/provider/model/task type; feed assignment | Profiles update; used by OR-02 | pytest | EV-01 | pending | — |
 | EV-03 | P0 | Failure categorization + recovery workflow + circuit breaker | Recovery tests | pytest | RT-06, RT-08 | pending | — |
 | EV-04 | P0 | Graceful shutdown preserving partial results | Shutdown test | pytest | RT-06 | pending | — |
-| EV-05 | P0 | Evaluation UI | E2E | Playwright | EV-01 | pending | — |
+| EV-05 | P0 | Evaluation UI | E2E | Playwright | EV-01 | in_progress | — |
 
-## M13 — Enterprise Security (weight 7%, 38%) — spec Phases 16, 17, 22
+## M13 — Enterprise Security (weight 7%, 50%) — spec Phases 16, 17, 22
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
 | SEC-01 | P0 | RBAC: 6 roles + permissions, server-side enforcement on every endpoint | Authorization matrix tests | pytest | FND-04 | done | 6 roles/38 permissions seeded; require() on every route; tests test_rbac.py |
 | SEC-02 | P0 | Agents cannot escalate own permissions or change security policy | Tests | pytest | SEC-01 | done | agents have no login/roles; tool ceilings per security profile on create/edit; no merge/deploy tools exist; role grants limited to caller's own permissions (tests) |
-| SEC-03 | P0 | Approval Center: risk levels, evidence, decision records; critical ops blocked until approved | Tests + E2E | pytest + Playwright | SEC-01 | pending | — |
+| SEC-03 | P0 | Approval Center: risk levels, evidence, decision records; critical ops blocked until approved | Tests + E2E | pytest + Playwright | SEC-01 | done | tests/test_approvals.py (6): frozen payload hash, risk never lowered, idempotent requests, executed exactly once with config version, tampered payload refused but decision kept, profile ceiling not liftable, HUMAN_ONLY decide + no self-approval + reason required, pending-first listing, 7-day expiry, tenant isolation; frontend/e2e/approvals.spec.ts: critical task → approval center (ack required for critical, reason required for reject) → approve → task COMPLETED; axe WCAG 2.2 AA ar/en incl. open dialog |
 | SEC-04 | P0 | Docker sandbox: CPU/mem/time/pids limits, no network by default, workspace-only mount, no secrets | Real container tests | pytest (docker) | — | pending | — |
 | SEC-05 | P0 | Command policy (default deny, allowlist per tool permission) | Tests | pytest | SEC-04 | pending | — |
 | SEC-06 | P0 | Audit log searchable/filterable, redacted; Audit UI | Tests + E2E | pytest + Playwright | FND-06 | pending | — |

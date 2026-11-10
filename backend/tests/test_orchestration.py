@@ -67,7 +67,7 @@ def run_ready_executions(db, wf) -> list[str]:
         Task.workflow_id == wf.id, Execution.status == "CREATED")).all()
     for ex in exs:
         asyncio.run(service.run_execution(ex.id))
-        scheduler.on_execution_finished(db, ex.id)
+        asyncio.run(scheduler.on_execution_finished(db, ex.id))
     return [e.id for e in exs]
 
 
@@ -261,7 +261,7 @@ def test_duplicate_events_and_advances_never_run_work_twice(db):
     root = tasks_of(db, wf)["Design API"]
     assert db.scalar(select(func.count()).select_from(Execution).where(Execution.task_id == root.id)) == 1
     ex_id = run_ready_executions(db, wf)[0]
-    assert scheduler.on_execution_finished(db, ex_id) == "ignored"  # duplicate execution.finished
+    assert asyncio.run(scheduler.on_execution_finished(db, ex_id)) == "ignored"  # duplicate execution.finished
     assert tasks_of(db, wf)["Design API"].attempts == 1
 
 
@@ -280,3 +280,109 @@ def test_orchestration_api_permissions_and_idempotent_submission(admin_client, c
     v = login_as(client, "viewer-or", "user-password-123")
     assert v.post("/api/workflows", json={**body, "idempotency_key": "obj-2"}).status_code == 403
     assert v.get(f"/api/workflows/{w1['id']}").status_code == 200
+
+
+# ---------------- EV-01 / OR-08: evaluation gate ----------------
+def test_evaluator_is_deterministic_and_reports_each_criterion(db):
+    from app.evaluation.engine import criterion_coverage, evaluate
+
+    assert criterion_coverage("Endpoint validates input", "The endpoint now validates every input field") == 1.0
+    assert criterion_coverage("Returns pagination metadata", "hello world") == 0.0
+    dev = agent(db, "backend")
+    t = Task(organization_id=1, title="x", acceptance_criteria=["Endpoint validates input", "Adds pagination metadata"])
+    db.add(t)
+    db.flush()
+    ex = Execution(organization_id=1, agent_id=dev.id, task_id=t.id, engine="api", status="COMPLETED",
+                   input_context={}, output={"text": "The endpoint validates input."})
+    db.add(ex)
+    db.commit()
+    ev = asyncio.run(evaluate(db, t, ex))
+    assert ev.decision == "revise"  # second criterion has no evidence
+    crit = [c for c in ev.checks if c["check"] == "acceptance_criterion"]
+    assert [c["passed"] for c in crit] == [True, False]
+    assert ev.scores["test_pass_rate"] is None and ev.scores["security_findings"] is None  # not guessed
+    ex.output = {"text": ""}
+    assert asyncio.run(evaluate(db, t, ex)).decision == "reject"
+
+
+def test_reviewer_model_can_withhold_but_never_grant_approval(db):
+    pm = agent(db, "project_manager", tools=["tasks.plan"], priority=1)
+    dev = agent(db, "backend")
+    rev = agent(db, "code_reviewer", tools=["pr.review"], skills=["review"])
+    wf = workflow(db, project(db, [pm, dev, rev]), "1. Build it [backend]")
+    asyncio.run(planner.run_planning(wf.id, wf.thread_id))
+    t = tasks_of(db, wf)["Build it"]
+    t.description, t.max_attempts = "[[mock:review-fail]]", 2  # the mock reviewer rejects every criterion
+    db.commit()
+    for _ in range(2):
+        scheduler.advance(db, wf.id)
+        run_ready_executions(db, wf)
+    t = tasks_of(db, wf)["Build it"]
+    assert t.status == "FAILED" and "evaluation did not pass" in t.error
+    assert any("EVALUATOR: reviewer: criterion 1 not met" in n for n in t.result["review_notes"])
+    with pytest.raises(Exception, match="task_not_in_review"):
+        scheduler.review(db, t, "approve", "", "user:1")
+
+
+def test_human_cannot_approve_without_a_passing_evaluation(db):
+    wf, _ = planned_diamond(db)
+    scheduler.advance(db, wf.id)
+    run_ready_executions(db, wf)
+    t = tasks_of(db, wf)["Design API"]
+    assert t.status == "REVIEW" and t.evidence[-1]["kind"] == "evaluation" and t.evidence[-1]["decision"] == "approve"
+    from app.models import EvaluationResult
+    ev = db.get(EvaluationResult, t.result["evaluation_id"])
+    ev.decision = "revise"  # simulate a failed evaluation reaching review
+    db.commit()
+    with pytest.raises(Exception, match="evaluation_not_passed"):
+        scheduler.review(db, t, "approve", "", "user:1")
+
+
+# ---------------- OR-04: approval stage for critical operations ----------------
+def test_critical_task_waits_for_approval_while_independent_work_continues(db, make_user):
+    from app.governance import approvals
+    from app.models import Approval
+
+    pm = agent(db, "project_manager", tools=["tasks.plan"], priority=1)
+    ops, dev = agent(db, "devops"), agent(db, "backend")
+    wf = workflow(db, project(db, [pm, ops, dev]),
+                  "1. Deploy service [devops] {deploy.production}\n2. Write docs [backend]\n3. Announce [backend] (after 1)")
+    asyncio.run(planner.run_planning(wf.id, wf.thread_id))
+    ts = tasks_of(db, wf)
+    assert ts["Deploy service"].critical_operation == "deploy.production"
+    scheduler.advance(db, wf.id)
+    run_ready_executions(db, wf)
+    approve_all_in_review(db, wf)
+    ts = tasks_of(db, wf)
+    assert ts["Deploy service"].status == "APPROVAL" and ts["Write docs"].status == "COMPLETED"
+    a = db.get(Approval, ts["Deploy service"].result["approval_id"])
+    assert (a.status, a.operation, a.risk_level, a.task_id) == ("pending", "deploy.production", "critical",
+                                                                ts["Deploy service"].id)
+    assert scheduler.advance(db, wf.id)["dispatched"] == []  # the dependent waits; nothing else is stuck
+    assert tasks_of(db, wf)["Announce"].status == "PLANNED"
+    approver = make_user("approver-or", "SUPER_ADMIN")
+    approvals.decide(db, a, user_id=approver.id, decision="approve", reason="")
+    db.commit()
+    assert tasks_of(db, wf)["Deploy service"].status == "COMPLETED"
+    assert scheduler.advance(db, wf.id)["dispatched"] == [tasks_of(db, wf)["Announce"].id]
+
+
+def test_rejected_approval_fails_the_task_and_blocks_dependents(db, make_user):
+    from app.governance import approvals
+    from app.models import Approval
+
+    pm = agent(db, "project_manager", tools=["tasks.plan"], priority=1)
+    ops = agent(db, "devops")
+    wf = workflow(db, project(db, [pm, ops]), "1. Drop table [devops] {db.destructive}\n2. Reindex [devops] (after 1)")
+    asyncio.run(planner.run_planning(wf.id, wf.thread_id))
+    scheduler.advance(db, wf.id)
+    run_ready_executions(db, wf)
+    approve_all_in_review(db, wf)
+    t = tasks_of(db, wf)["Drop table"]
+    a = db.get(Approval, t.result["approval_id"])
+    approvals.decide(db, a, user_id=make_user("approver-rej", "SUPER_ADMIN").id, decision="reject",
+                     reason="not during business hours")
+    db.commit()
+    assert tasks_of(db, wf)["Drop table"].status == "FAILED"
+    assert scheduler.advance(db, wf.id)["status"] == "failed"
+    assert tasks_of(db, wf)["Reindex"].status == "BLOCKED"

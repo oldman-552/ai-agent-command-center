@@ -16,14 +16,14 @@ const MAP: Record<string, { icon: LucideIcon; tone: string }> = {
   CANCELLED: { icon: Ban, tone: "bg-muted text-muted-foreground" },
 };
 
-/** Task status with icon + text (never color alone). */
+/** Task status: full-contrast text on a neutral chip; the status color tints only the icon (never color alone). */
 export function TaskStatusBadge({ status, className }: { status: string; className?: string }) {
   const t = useTranslations("taskStatus");
   const m = MAP[status] ?? MAP.BACKLOG;
   const Icon = m.icon;
   return (
-    <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium", m.tone, className)}>
-      <Icon className="size-3.5" aria-hidden />
+    <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground", className)}>
+      <Icon className={cn("size-3.5", statusTone(status))} aria-hidden />
       {t.has(status) ? t(status) : status}
     </span>
   );

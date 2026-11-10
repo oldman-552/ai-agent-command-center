@@ -190,11 +190,12 @@ class GoogleAdapter:
 
 
 PLAN_MARKER = "ACC_PLAN_JSON_V1"
-_PLAN_LINE = re.compile(r"^\s*(\d+)[.)]\s*(.+?)\s*(?:\[([\w,\s-]+)\])?\s*(?:\(after\s*([\d,\s]+)\))?\s*$")
+_PLAN_LINE = re.compile(r"^\s*(\d+)[.)]\s*(.+?)\s*(?:\[([\w,\s-]+)\])?\s*(?:\(after\s*([\d,\s]+)\))?"
+                        r"\s*(?:\{([\w.]+)\})?\s*$")
 
 
 def mock_plan(prompt: str) -> str:
-    """TEST ONLY. Turns numbered objective lines into a plan:  `2. Build API [backend] (after 1)`.
+    """TEST ONLY. Turns numbered objective lines into a plan:  `2. Build API [backend] (after 1) {deploy.production}`.
     Every title is prefixed [MOCK] so a mock plan can never pass for a model's plan."""
     objective = prompt.split("OBJECTIVE:", 1)[-1].split("\n\nAVAILABLE", 1)[0]
     tasks = []
@@ -202,17 +203,30 @@ def mock_plan(prompt: str) -> str:
         m = _PLAN_LINE.match(line)
         if not m:
             continue
-        n, title, skills, after = m.groups()
+        n, title, skills, after, critical = m.groups()
         sk = [x.strip() for x in (skills or "").split(",") if x.strip()]
         tasks.append({"key": f"t{n}", "title": f"[MOCK] {title}", "description": f"[MOCK] {title}",
                       "task_type": sk[0] if sk else "general", "required_skills": sk,
                       "acceptance_criteria": [f"[MOCK] Output addresses: {title}"],
-                      "depends_on": [f"t{x.strip()}" for x in (after or "").split(",") if x.strip()], "priority": 5})
+                      "depends_on": [f"t{x.strip()}" for x in (after or "").split(",") if x.strip()], "priority": 5,
+                      "critical_operation": critical})
     if not tasks:
         tasks = [{"key": "t1", "title": "[MOCK] " + objective.strip()[:200], "description": objective.strip(),
                   "task_type": "general", "required_skills": [], "acceptance_criteria": ["[MOCK] Objective addressed"],
                   "depends_on": [], "priority": 5}]
     return json.dumps({"summary": "[MOCK] deterministic plan — not real AI", "tasks": tasks})
+
+
+EVAL_MARKER = "ACC_EVAL_JSON_V1"
+
+
+def mock_review(prompt: str) -> str:
+    """TEST ONLY. Every criterion is met unless the output contains [[mock:review-fail]]."""
+    crit = prompt.split("ACCEPTANCE CRITERIA:", 1)[-1].split("\n\nOUTPUT:", 1)[0]
+    fail = "[[mock:review-fail]]" in prompt.split("OUTPUT:", 1)[-1]
+    n = len([ln for ln in crit.splitlines() if re.match(r"^\s*\d+\.", ln)])
+    return json.dumps({"criteria": [{"index": i, "met": not fail, "reason": "[MOCK] reviewer verdict"}
+                                    for i in range(1, n + 1)]})
 
 
 class MockAdapter:
@@ -226,6 +240,12 @@ class MockAdapter:
 
     async def stream(self, req: ChatRequest) -> AsyncIterator[GatewayEvent]:
         last = req.messages[-1]["content"] if req.messages else ""
+        if EVAL_MARKER in (req.system or ""):
+            text = mock_review(last)  # deterministic reviewer verdicts, labelled mock
+            yield GatewayEvent("delta", text=text)
+            yield GatewayEvent("usage", usage={"input_tokens": len(last.split()), "output_tokens": len(text.split()),
+                                               "cached_tokens": 0})
+            return
         if PLAN_MARKER in (req.system or ""):
             text = mock_plan(last)  # deterministic plan so orchestration can be tested without a real model
             yield GatewayEvent("delta", text=text)

@@ -112,7 +112,7 @@ async def handle_execution_finished(env: Envelope) -> None:
 
     ex_id = str(env.payload.get("execution_id") or "")
     with session_factory()() as db:
-        scheduler.on_execution_finished(db, ex_id, env)
+        await scheduler.on_execution_finished(db, ex_id, env)
 
 
 def orchestrator_consumers() -> list[Consumer]:

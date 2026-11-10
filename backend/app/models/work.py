@@ -104,6 +104,8 @@ class Task(TimestampMixin, Base):
     estimated_effort: Mapped[str | None] = mapped_column(String(32))
     evidence: Mapped[list] = mapped_column(JSONB, default=list)
     review_status: Mapped[str] = mapped_column(String(16), default="none")  # none|pending|approved|revise|rejected
+    # A critical operation (Approval Center catalogue) this task performs: acceptance then needs a human approval.
+    critical_operation: Mapped[str | None] = mapped_column(String(64))
     result: Mapped[dict | None] = mapped_column(JSONB)
     error: Mapped[str | None] = mapped_column(Text)
     attempts: Mapped[int] = mapped_column(Integer, default=0)

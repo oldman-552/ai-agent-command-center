@@ -12,7 +12,9 @@
     "agents": "Agents",
     "templates": "Agent templates",
     "providers": "Providers & models",
-    "tasks": "Task center"
+    "tasks": "Task center",
+    "approvals": "Approvals",
+    "pendingApprovals": "{n} pending approvals"
   },
   "language": {
     "label": "Language",
@@ -433,6 +435,38 @@
       "note_required": "Write a note explaining what must change.",
       "not_found": "Not found.",
       "forbidden": "You do not have permission for this."
+    },
+    "criticalOperation": "Critical operation: {op} — completion needs a human approval.",
+    "openApproval": "Open approval",
+    "evidenceEvaluation": "Evaluation",
+    "evidenceApproval": "Approval",
+    "approvalStatus": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "changes_requested": "Changes requested",
+      "executed": "Executed",
+      "expired": "Expired"
+    },
+    "evaluation": {
+      "title": "Evaluation",
+      "decision": {
+        "approve": "Passed",
+        "revise": "Needs revision",
+        "reject": "Rejected"
+      },
+      "overall": "overall {n}%",
+      "attempts": "{n} evaluations",
+      "passed": "Passed",
+      "failed": "Failed",
+      "criterion": "Criterion",
+      "checks": {
+        "execution_completed": "Execution completed",
+        "output_present": "Output present",
+        "no_tool_denials": "No tool calls denied by policy",
+        "within_budget": "Within budget"
+      },
+      "help": "Deterministic checks decide; a reviewer model can only withhold approval. Tests, lint and security scans are not measured until the sandbox is available."
     }
   },
   "taskStatus": {
@@ -446,5 +480,84 @@
     "COMPLETED": "Completed",
     "FAILED": "Failed",
     "CANCELLED": "Cancelled"
+  },
+  "approvals": {
+    "title": "Approval center",
+    "subtitle": "Critical operations requested by agents wait here. Nothing in this list runs until a human decides.",
+    "filters": {
+      "view": "Show",
+      "pending": "Pending ({n})",
+      "all": "All decisions",
+      "risk": "Risk"
+    },
+    "risk": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "changes_requested": "Changes requested",
+      "executed": "Executed",
+      "expired": "Expired"
+    },
+    "requestedBy": "Requested by {who}",
+    "empty": "No approval requests yet.",
+    "emptyPending": "Nothing is waiting for a decision.",
+    "fields": {
+      "requestedBy": "Requested by",
+      "requestedAt": "Requested",
+      "task": "Task",
+      "decidedAt": "Decided",
+      "executedAt": "Executed",
+      "reason": "Reason",
+      "payload": "Exact operation",
+      "evidence": "Evidence"
+    },
+    "payloadHelp": "This is exactly what was requested. It was fingerprinted at request time; any later change is refused.",
+    "payloadHelpExecutable": "On approval the platform runs exactly this operation, once. It was fingerprinted at request time; any later change is refused.",
+    "evidence": {
+      "payload": "Payload fingerprint",
+      "evaluation": "Evaluation",
+      "review": "Review",
+      "execution": "Executed",
+      "execution_failed": "Execution refused"
+    },
+    "decision": {
+      "title": "Your decision",
+      "reason": "Reason",
+      "reasonHelp": "Required to reject or request changes; recorded with your decision.",
+      "reasonRequired": "Write the reason for this decision.",
+      "ack": "I have reviewed the operation and its evidence.",
+      "approve": "Approve",
+      "changes": "Request changes",
+      "reject": "Reject"
+    },
+    "done": {
+      "approved": "Approved",
+      "executed": "Approved and executed",
+      "rejected": "Rejected",
+      "changes_requested": "Changes requested"
+    },
+    "errors": {
+      "self_approval_forbidden": "You cannot decide on a request you made yourself.",
+      "approval_not_pending": "This request has already been decided.",
+      "reason_required": "Write the reason for this decision.",
+      "forbidden": "You do not have permission for this."
+    },
+    "operations": {
+      "deploy_production": "Production deployment",
+      "db_destructive": "Destructive database operation",
+      "exposure_public": "External public exposure",
+      "credential_change": "Credential change",
+      "permission_escalation": "Permission escalation",
+      "infra_sensitive": "Sensitive infrastructure change",
+      "git_merge_protected": "Merge into a protected branch",
+      "irreversible": "Irreversible operation",
+      "task_critical": "Accept a task that performs a critical operation"
+    }
   }
 }

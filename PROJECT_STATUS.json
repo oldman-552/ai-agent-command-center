@@ -1,12 +1,12 @@
 {
-  "date": "2026-11-10 00:13",
+  "date": "2026-11-10 05:58",
   "spec_version": "4.0",
-  "current_phase": "Phases 4, 13",
+  "current_phase": "Phases 14, 15",
   "current_milestone": {
-    "id": 6,
-    "name": "Intelligent Orchestration"
+    "id": 12,
+    "name": "Evaluation and Recovery"
   },
-  "overall_percent": 44.7,
+  "overall_percent": 48.8,
   "milestones": [
     {
       "id": 1,
@@ -52,8 +52,8 @@
       "id": 6,
       "name": "Intelligent Orchestration",
       "weight": 9,
-      "percent": 66.7,
-      "done": 6,
+      "percent": 88.9,
+      "done": 8,
       "total": 9
     },
     {
@@ -100,16 +100,16 @@
       "id": 12,
       "name": "Evaluation and Recovery",
       "weight": 6,
-      "percent": 0.0,
-      "done": 0,
+      "percent": 20.0,
+      "done": 1,
       "total": 5
     },
     {
       "id": 13,
       "name": "Enterprise Security",
       "weight": 7,
-      "percent": 37.5,
-      "done": 3,
+      "percent": 50.0,
+      "done": 4,
       "total": 8
     },
     {
@@ -171,50 +171,70 @@
     "OR-01",
     "OR-02",
     "OR-03",
+    "OR-04",
     "OR-05",
     "OR-06",
     "OR-07",
+    "OR-08",
     "MQ-01",
     "MQ-02",
     "MQ-03",
     "MQ-04",
     "A2A-01",
     "A2A-02",
+    "EV-01",
     "SEC-01",
     "SEC-02",
+    "SEC-03",
     "SEC-07"
   ],
   "in_progress": [
-    "OR-04"
+    "EV-05"
   ],
   "files_changed": [
     "PROJECT_STATUS.json",
+    "backend/app/bus/handlers.py",
+    "backend/app/connectivity/gateway/adapters.py",
+    "backend/app/main.py",
+    "backend/app/models/work.py",
     "backend/app/orchestration/api.py",
+    "backend/app/orchestration/planner.py",
+    "backend/app/orchestration/scheduler.py",
+    "backend/tests/test_orchestration.py",
+    "docs/ARCHITECTURE_DECISIONS.md",
     "docs/REQUIREMENTS.md",
     "docs/requirements.json",
+    "frontend/e2e/tasks.spec.ts",
     "frontend/messages/ar.json",
     "frontend/messages/en.json",
+    "frontend/src/app/(app)/tasks/page.tsx",
     "frontend/src/components/app-shell.tsx",
-    "progress.txt",
-    "frontend/e2e/tasks.spec.ts",
-    "frontend/src/app/(app)/tasks/",
     "frontend/src/components/task-status-badge.tsx",
-    "frontend/src/lib/tasks.ts"
+    "frontend/src/lib/tasks.ts",
+    "progress.txt",
+    "backend/alembic/versions/ccb8f99fc779_task_critical_operation.py",
+    "backend/app/evaluation/",
+    "backend/app/governance/",
+    "backend/tests/test_approvals.py",
+    "frontend/e2e/approvals.spec.ts",
+    "frontend/src/app/(app)/approvals/",
+    "frontend/src/lib/approvals.ts"
   ],
   "tests": {
     "passed": [
-      "backend: 104/104 pytest on PostgreSQL 16 + live RabbitMQ 3.12 — full suite twice and every module in isolation; incl. bus (worker kill -9, broker restart), A2A over real HTTP, orchestration (LangGraph planner resume, fan-out/fan-in, review loop, workflow surviving worker kill) — 2026-11-10",
-      "migrations: 4 revisions (43 tables + langgraph schema); base → head → -1 → head; alembic check clean",
-      "frontend: i18n guard (348 keys), contrast, tsc, next build",
+      "backend: 115/115 pytest on PostgreSQL 16 + live RabbitMQ 3.12 — full suite twice and every module in isolation; incl. bus, A2A over real HTTP, orchestration, approval center, evaluation gate — 2026-11-10",
+      "migrations: 5 revisions (43 tables + langgraph schema); base → head → -1 → head; alembic check clean",
+      "frontend: i18n guard (433 keys), contrast, tsc, next build",
       "ruff: clean",
-      "frontend: 36/36 Playwright in real Chrome against API + worker in bus mode — i18n/RTL/LTR/layout, agents, templates, providers, task center (full objective→review→completed flow), axe WCAG 2.2 AA × ar/en"
+      "frontend: 39/39 Playwright in real Chrome against API + worker in bus mode — task center, approval center, axe WCAG 2.2 AA × ar/en including open dialogs; screenshots reviewed RTL/LTR"
     ],
     "failed": []
   },
   "known_issues": [
     "Docker stack verification predates the v4 schema; re-run with docker/offline override after next milestone",
     "Runtime uses a sync SQLAlchemy session inside async code (short blocking calls); acceptable now, revisit with workers",
-    "A2A: no UI yet for access keys / A2A services beyond the Providers page (API only); streaming, push notifications and multi-turn follow-ups not implemented"
+    "A2A: no UI yet for access keys / A2A services beyond the Providers page (API only); streaming, push notifications and multi-turn follow-ups not implemented",
+    "ui-ux-pro-max search database (data/*.csv) is not in the repo checkout; UI work used the skill's bundled references + design-system/MASTER.md"
   ],
   "blockers": [
     "Dev environment blocks all container registries: official images cannot be pulled here; verified instead with locally-built equivalent images (docker/offline). Official images must be verified on the owner's machine",
@@ -223,5 +243,5 @@
   "requires_owner_approval": [
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
-  "next_action": "SEC-03 approvals (approval stage for critical operations; unblocks OR-04) and EV-01 evaluator (automated evidence gate; OR-08). Then M13 sandbox/audit UI, M12, M7, M8, M11, M9, M5 CLI, M14, M15"
+  "next_action": "M13 rest: SEC-04 Docker sandbox (unblocks real tests/lint in evaluation and file/shell tools), SEC-05 command policy, SEC-06 audit search + UI; then EV-02 performance profiles → selection, EV-05 evaluation UI, EV-03/04"
 }

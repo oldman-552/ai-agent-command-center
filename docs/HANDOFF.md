@@ -52,12 +52,15 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - Task Center (`frontend/src/app/(app)/tasks/page.tsx`, `lib/tasks.ts`): state lives in the query string
   (project, workflow, task, view) so every view is deep-linkable. Status color on tinted backgrounds failed axe
   contrast once — keep status color on icons or solid backgrounds.
+- next-intl reads dots in message keys as nesting: store keys like `deploy_production`, never `deploy.production`.
+- In RTL put `dir="auto"` on an inner span, not on `<li>`, or the list marker escapes the padding.
 - Rows read under `with_for_update=True` also need `populate_existing=True`, or a stale identity-map copy is used.
 - Tests that rebind the mock engine to 'api' must `import app.main` first, or a later import re-registers the real
   ApiEngine over the mock (this caused order-dependent failures).
 - The dev DB is disposable; the super admin password in the dev container is `dev-only-password-123` (backend/.env, not committed).
 
 ### Next steps (in order)
-1. SEC-03 approvals (critical operations need Super Admin approval; also the APPROVAL column/stage → OR-04) and
-   EV-01 automated evaluator plugged into the review gate (OR-08). Task Center UI is `/tasks` (OR-07 done).
+1. SEC-04 Docker sandbox + SEC-05 command policy (then evaluation can run real tests/lint), SEC-06 audit search/UI.
+   Approval Center (`app/governance/`, `/approvals`, ADR-017) and evaluation gate (`app/evaluation/`, ADR-018) are done;
+   register executors for deploy/merge/destructive ops when their planes exist.
 2. Then M13 approvals/sandbox/audit UI, M12, M7, M8, M11, M9, M5 CLI, M14, M15 (see IMPLEMENTATION_PLAN.md).

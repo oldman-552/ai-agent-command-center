@@ -1,21 +1,23 @@
 "use client";
-import { Bot, KanbanSquare, LayoutDashboard, LayoutTemplate, LogOut, Menu, Plug, X, type LucideIcon } from "lucide-react";
+import { Bot, KanbanSquare, ShieldCheck, LayoutDashboard, LayoutTemplate, LogOut, Menu, Plug, X, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { AppProviders } from "@/components/providers";
+import { AppProviders, useCan } from "@/components/providers";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Toaster } from "@/components/toaster";
 import { Button } from "@/components/ui/button";
 import { api, type User } from "@/lib/api";
+import { useApprovals } from "@/lib/approvals";
 import { cn } from "@/lib/utils";
 
 // Only pages that actually exist are listed. New pages are added here as they are built.
-const NAV: { href: string; key: "dashboard" | "tasks" | "agents" | "templates" | "providers"; icon: LucideIcon }[] = [
+const NAV: { href: string; key: "dashboard" | "tasks" | "approvals" | "agents" | "templates" | "providers"; icon: LucideIcon; perm?: string }[] = [
   { href: "/", key: "dashboard", icon: LayoutDashboard },
   { href: "/tasks", key: "tasks", icon: KanbanSquare },
+  { href: "/approvals", key: "approvals", icon: ShieldCheck, perm: "approvals.read" },
   { href: "/agents", key: "agents", icon: Bot },
   { href: "/templates", key: "templates", icon: LayoutTemplate },
   { href: "/providers", key: "providers", icon: Plug },
@@ -24,9 +26,11 @@ const NAV: { href: string; key: "dashboard" | "tasks" | "agents" | "templates" |
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
+  const can = useCan();
+  const pending = useApprovals({ status: "pending" }, can("approvals.read")).data?.counts.pending ?? 0;
   return (
     <ul className="flex flex-col gap-1">
-      {NAV.map(({ href, key, icon: Icon }) => {
+      {NAV.filter((n) => !n.perm || can(n.perm)).map(({ href, key, icon: Icon }) => {
         const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
         return (
           <li key={href}>
@@ -41,6 +45,11 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             >
               <Icon className="size-4 shrink-0" aria-hidden />
               {t(key)}
+              {key === "approvals" && pending > 0 && (
+                <span className="ms-auto rounded-full bg-destructive px-2 py-0.5 text-xs font-semibold tabular-nums text-destructive-foreground" data-testid="nav-approvals-count">
+                  <span aria-hidden>{pending}</span><span className="sr-only">{t("pendingApprovals", { n: pending })}</span>
+                </span>
+              )}
             </Link>
           </li>
         );

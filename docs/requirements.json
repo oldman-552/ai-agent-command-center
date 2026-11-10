@@ -618,8 +618,8 @@
             "OR-01",
             "SEC-03"
           ],
-          "status": "in_progress",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_review_revise_loop_feeds_note_into_next_attempt, test_critical_task_waits_for_approval_while_independent_work_continues, test_rejected_approval_fails_the_task_and_blocks_dependents; e2e approvals.spec.ts critical task flow"
         },
         {
           "id": "OR-05",
@@ -666,8 +666,8 @@
           "depends": [
             "EV-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_human_cannot_approve_without_a_passing_evaluation (409 evaluation_not_passed); evaluator revise/reject never reaches REVIEW (test_reviewer_model_can_withhold_but_never_grant_approval)"
         },
         {
           "id": "OR-09",
@@ -1149,8 +1149,8 @@
           "depends": [
             "RT-02"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_evaluator_is_deterministic_and_reports_each_criterion, test_reviewer_model_can_withhold_but_never_grant_approval; every task execution in test_orchestration/test_bus/e2e passes through evaluate_and_record (idempotent per execution)"
         },
         {
           "id": "EV-02",
@@ -1198,7 +1198,7 @@
           "depends": [
             "EV-01"
           ],
-          "status": "pending",
+          "status": "in_progress",
           "evidence": ""
         }
       ]
@@ -1242,8 +1242,8 @@
           "depends": [
             "SEC-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_approvals.py (6): frozen payload hash, risk never lowered, idempotent requests, executed exactly once with config version, tampered payload refused but decision kept, profile ceiling not liftable, HUMAN_ONLY decide + no self-approval + reason required, pending-first listing, 7-day expiry, tenant isolation; frontend/e2e/approvals.spec.ts: critical task → approval center (ack required for critical, reason required for reject) → approve → task COMPLETED; axe WCAG 2.2 AA ar/en incl. open dialog"
         },
         {
           "id": "SEC-04",
@@ -1470,14 +1470,14 @@
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
   "in_progress": [],
-  "next_step": "SEC-03 approvals (approval stage for critical operations; unblocks OR-04) and EV-01 evaluator (automated evidence gate; OR-08). Then M13 sandbox/audit UI, M12, M7, M8, M11, M9, M5 CLI, M14, M15",
+  "next_step": "M13 rest: SEC-04 Docker sandbox (unblocks real tests/lint in evaluation and file/shell tools), SEC-05 command policy, SEC-06 audit search + UI; then EV-02 performance profiles → selection, EV-05 evaluation UI, EV-03/04",
   "tests": {
     "passed": [
-      "backend: 104/104 pytest on PostgreSQL 16 + live RabbitMQ 3.12 — full suite twice and every module in isolation; incl. bus (worker kill -9, broker restart), A2A over real HTTP, orchestration (LangGraph planner resume, fan-out/fan-in, review loop, workflow surviving worker kill) — 2026-11-10",
-      "migrations: 4 revisions (43 tables + langgraph schema); base → head → -1 → head; alembic check clean",
-      "frontend: i18n guard (348 keys), contrast, tsc, next build",
+      "backend: 115/115 pytest on PostgreSQL 16 + live RabbitMQ 3.12 — full suite twice and every module in isolation; incl. bus, A2A over real HTTP, orchestration, approval center, evaluation gate — 2026-11-10",
+      "migrations: 5 revisions (43 tables + langgraph schema); base → head → -1 → head; alembic check clean",
+      "frontend: i18n guard (433 keys), contrast, tsc, next build",
       "ruff: clean",
-      "frontend: 36/36 Playwright in real Chrome against API + worker in bus mode — i18n/RTL/LTR/layout, agents, templates, providers, task center (full objective→review→completed flow), axe WCAG 2.2 AA × ar/en"
+      "frontend: 39/39 Playwright in real Chrome against API + worker in bus mode — task center, approval center, axe WCAG 2.2 AA × ar/en including open dialogs; screenshots reviewed RTL/LTR"
     ],
     "failed": []
   },
@@ -1485,6 +1485,7 @@
   "known_issues": [
     "Docker stack verification predates the v4 schema; re-run with docker/offline override after next milestone",
     "Runtime uses a sync SQLAlchemy session inside async code (short blocking calls); acceptable now, revisit with workers",
-    "A2A: no UI yet for access keys / A2A services beyond the Providers page (API only); streaming, push notifications and multi-turn follow-ups not implemented"
+    "A2A: no UI yet for access keys / A2A services beyond the Providers page (API only); streaming, push notifications and multi-turn follow-ups not implemented",
+    "ui-ux-pro-max search database (data/*.csv) is not in the repo checkout; UI work used the skill's bundled references + design-system/MASTER.md"
   ]
 }

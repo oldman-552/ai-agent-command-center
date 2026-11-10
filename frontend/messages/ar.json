@@ -12,7 +12,9 @@
     "agents": "الوكلاء",
     "templates": "قوالب الوكلاء",
     "providers": "المزوّدون والنماذج",
-    "tasks": "مركز المهام"
+    "tasks": "مركز المهام",
+    "approvals": "الموافقات",
+    "pendingApprovals": "{n} موافقات بانتظار القرار"
   },
   "language": {
     "label": "اللغة",
@@ -433,6 +435,38 @@
       "note_required": "اكتب ملاحظة توضّح ما يجب تغييره.",
       "not_found": "غير موجود.",
       "forbidden": "ليست لديك صلاحية لذلك."
+    },
+    "criticalOperation": "عملية حساسة: {op} — إكمالها يحتاج موافقة بشرية.",
+    "openApproval": "فتح طلب الموافقة",
+    "evidenceEvaluation": "التقييم",
+    "evidenceApproval": "الموافقة",
+    "approvalStatus": {
+      "pending": "بانتظار القرار",
+      "approved": "مقبولة",
+      "rejected": "مرفوضة",
+      "changes_requested": "مطلوب تعديلات",
+      "executed": "نُفِّذت",
+      "expired": "انتهت صلاحيتها"
+    },
+    "evaluation": {
+      "title": "التقييم",
+      "decision": {
+        "approve": "اجتاز",
+        "revise": "يحتاج تعديلاً",
+        "reject": "مرفوض"
+      },
+      "overall": "الإجمالي {n}%",
+      "attempts": "{n} تقييمات",
+      "passed": "نجح",
+      "failed": "فشل",
+      "criterion": "معيار",
+      "checks": {
+        "execution_completed": "اكتمل التنفيذ",
+        "output_present": "توجد مخرجات",
+        "no_tool_denials": "لم تُرفض أي أداة بسبب السياسة",
+        "within_budget": "ضمن الميزانية"
+      },
+      "help": "الفحوص الحتمية هي التي تقرّر؛ نموذج المراجعة يستطيع فقط حجب القبول. الاختبارات والفحص الأمني لا تُقاس حتى تتوفر بيئة التنفيذ المعزولة."
     }
   },
   "taskStatus": {
@@ -446,5 +480,84 @@
     "COMPLETED": "مكتملة",
     "FAILED": "فاشلة",
     "CANCELLED": "ملغاة"
+  },
+  "approvals": {
+    "title": "مركز الموافقات",
+    "subtitle": "العمليات الحساسة التي يطلبها الوكلاء تنتظر هنا. لا يُنفَّذ شيء من هذه القائمة حتى يقرّر إنسان.",
+    "filters": {
+      "view": "عرض",
+      "pending": "بانتظار القرار ({n})",
+      "all": "كل القرارات",
+      "risk": "مستوى الخطورة"
+    },
+    "risk": {
+      "critical": "حرِجة",
+      "high": "عالية",
+      "medium": "متوسطة",
+      "low": "منخفضة"
+    },
+    "status": {
+      "pending": "بانتظار القرار",
+      "approved": "مقبولة",
+      "rejected": "مرفوضة",
+      "changes_requested": "مطلوب تعديلات",
+      "executed": "نُفِّذت",
+      "expired": "انتهت صلاحيتها"
+    },
+    "requestedBy": "طلبها {who}",
+    "empty": "لا توجد طلبات موافقة بعد.",
+    "emptyPending": "لا شيء بانتظار قرار.",
+    "fields": {
+      "requestedBy": "مقدّم الطلب",
+      "requestedAt": "تاريخ الطلب",
+      "task": "المهمة",
+      "decidedAt": "تاريخ القرار",
+      "executedAt": "تاريخ التنفيذ",
+      "reason": "السبب",
+      "payload": "العملية بالضبط",
+      "evidence": "الأدلة"
+    },
+    "payloadHelp": "هذا بالضبط ما طُلب. أُخذت بصمته لحظة الطلب، وأي تغيير لاحق يُرفض.",
+    "payloadHelpExecutable": "عند الموافقة تنفّذ المنصة هذه العملية بالضبط مرة واحدة. أُخذت بصمتها لحظة الطلب، وأي تغيير لاحق يُرفض.",
+    "evidence": {
+      "payload": "بصمة العملية",
+      "evaluation": "التقييم",
+      "review": "المراجعة",
+      "execution": "نُفِّذت",
+      "execution_failed": "رُفض التنفيذ"
+    },
+    "decision": {
+      "title": "قرارك",
+      "reason": "السبب",
+      "reasonHelp": "مطلوب للرفض أو طلب التعديلات، ويُسجَّل مع قرارك.",
+      "reasonRequired": "اكتب سبب هذا القرار.",
+      "ack": "راجعتُ العملية وأدلتها.",
+      "approve": "موافقة",
+      "changes": "طلب تعديلات",
+      "reject": "رفض"
+    },
+    "done": {
+      "approved": "تمت الموافقة",
+      "executed": "تمت الموافقة والتنفيذ",
+      "rejected": "تم الرفض",
+      "changes_requested": "طُلبت تعديلات"
+    },
+    "errors": {
+      "self_approval_forbidden": "لا يمكنك اتخاذ القرار في طلب قدّمته بنفسك.",
+      "approval_not_pending": "تم اتخاذ القرار في هذا الطلب مسبقاً.",
+      "reason_required": "اكتب سبب هذا القرار.",
+      "forbidden": "ليست لديك صلاحية لذلك."
+    },
+    "operations": {
+      "deploy_production": "نشر إلى بيئة الإنتاج",
+      "db_destructive": "عملية هدّامة على قاعدة البيانات",
+      "exposure_public": "إتاحة عامة خارجية",
+      "credential_change": "تغيير بيانات اعتماد",
+      "permission_escalation": "رفع صلاحيات",
+      "infra_sensitive": "تغيير حساس في البنية التحتية",
+      "git_merge_protected": "دمج في فرع محمي",
+      "irreversible": "عملية لا يمكن التراجع عنها",
+      "task_critical": "قبول مهمة تنفّذ عملية حساسة"
+    }
   }
 }

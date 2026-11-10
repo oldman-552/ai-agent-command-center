@@ -150,3 +150,32 @@ LangGraph where appropriate".
 **Consequences:** worker kill mid-workflow and duplicate messages are harmless (tested over a live broker). Waiting on
 busy agents re-polls through the bus delay tier; waiting on a missing skill waits for a human nudge
 (`POST /api/workflows/{id}/advance`).
+
+## ADR-017 — Approval Center: frozen payloads, human-only, never on one's own request (2026-11-10)
+**Context:** Phase 16 — critical operations must be blocked until approved, with full records, without stopping work.
+**Decision:** `app/governance/approvals.py` holds the catalogue of critical operations with a minimum risk each (a
+requester can raise but never lower it). A request freezes the exact payload and stores its SHA-256 as the first
+evidence item; only `approvals.decide` (HUMAN_ONLY) can decide, never on a request the same user made; reject /
+changes-requested need a reason; pending requests expire after 7 days. On approval the platform runs the registered
+executor for that operation exactly once, after re-checking the payload hash; a changed payload or an executor error
+is recorded as evidence and leaves the request APPROVED-but-not-executed (the decision itself is never lost).
+Executors cannot exceed agent security-profile ceilings. Built-in executor: `permission.escalation`.
+Tasks may declare a `critical_operation`; after a passing evaluation and human review they wait in APPROVAL, while
+independent tasks continue; the decision settles the task (approve → COMPLETED, changes → READY with the note,
+reject → FAILED, dependents BLOCKED).
+**Scope note:** humans acting directly with HUMAN_ONLY permissions (e.g. rotating a provider key) are themselves the
+authorization; the center gates what agents and automation request. Executors for deploy/destructive-DB/merge do not
+exist yet — those approvals stay APPROVED until their planes (M8 GitHub, M13 sandbox) register an executor.
+
+## ADR-018 — Evaluation engine: deterministic checks decide, a reviewer model can only withhold (2026-11-10)
+**Context:** Phase 14 / OR-08 — tasks must never complete on an agent's claim; do not rely on another LLM alone.
+**Decision:** `app/evaluation/engine.py` evaluates every completed task execution before it can reach REVIEW:
+execution completed, output present, each acceptance criterion evidenced in the output (transparent keyword-coverage
+heuristic, threshold 0.6, reported per criterion), no policy-denied tool calls, within task budget. An optional
+reviewer agent on the project roster (tool `pr.review`) gives per-criterion verdicts that can turn approve into revise
+but never the reverse. Scores per Phase-14 dimension; dimensions that need the sandbox (tests, lint, security,
+regression, architecture, documentation) are stored as null, not guessed. Revise/reject sends the task back to READY
+with the evaluator's notes until max_attempts, then FAILED. A human cannot approve a task whose latest evaluation did
+not pass (409 `evaluation_not_passed`). Results are stored per execution (idempotent on redelivery).
+**Limitation:** keyword coverage is a weak proxy for "criterion met"; it is the gate until sandboxed tests exist
+(SEC-04), when test results become the primary signal.

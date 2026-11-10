@@ -7,18 +7,28 @@ export const ALL_STATUSES = [...BOARD_COLUMNS, "CANCELLED"] as const;
 
 export type Evidence =
   | { kind: "execution"; execution_id: string; agent_id: number; is_mock: boolean; output_sha256: string; at: string }
-  | { kind: "review"; decision: "approve" | "revise" | "reject"; by: string; note: string; at: string };
+  | { kind: "review"; decision: "approve" | "revise" | "reject"; by: string; note: string; at: string }
+  | { kind: "evaluation"; evaluation_id: number; decision: "approve" | "revise" | "reject"; overall: number | null; at: string }
+  | { kind: "approval"; approval_id: number; status: string; approver_id: number | null; at: string };
 
 export type Task = {
   id: number; project_id: number | null; workflow_id: number | null; title: string; description: string;
   task_type: string; required_skills: string[]; status: string; priority: number; assigned_agent_id: number | null;
   acceptance_criteria: string[]; evidence: Evidence[]; review_status: string;
-  result: { output?: string; execution_id?: string; review_notes?: string[] } | null; error: string | null;
+  result: { output?: string; execution_id?: string; review_notes?: string[]; evaluation_id?: number; approval_id?: number } | null;
+  error: string | null; critical_operation: string | null;
   attempts: number; max_attempts: number; budget_usd: string | null; estimated_effort: string | null; started_at: string | null; finished_at: string | null;
   created_at: string; updated_at: string;
 };
+export type EvaluationCheck = { check: string; passed: boolean; index?: number; criterion?: string; coverage?: number; [k: string]: unknown };
+export type Evaluation = {
+  id: number; execution_id: string | null; decision: "approve" | "revise" | "reject"; overall: number | null;
+  scores: Record<string, number | null>; created_at: string;
+  evidence: ({ kind: "checks"; checks: EvaluationCheck[] } | { kind: "notes"; notes: string[] } | { kind: string; [k: string]: unknown })[];
+};
 export type TaskDetail = Task & {
   depends_on: number[];
+  evaluations: Evaluation[];
   executions: { id: string; status: string; agent_id: number | null; is_mock: boolean; created_at: string; ended_at: string | null }[];
 };
 export type Project = { id: number; name: string; description: string; mode: string; agent_ids: number[]; created_at: string };
