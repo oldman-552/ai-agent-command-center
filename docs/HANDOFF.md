@@ -52,6 +52,8 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - Task Center (`frontend/src/app/(app)/tasks/page.tsx`, `lib/tasks.ts`): state lives in the query string
   (project, workflow, task, view) so every view is deep-linkable. Status color on tinted backgrounds failed axe
   contrast once — keep status color on icons or solid backgrounds.
+- Tests that need an approver must use ORGANIZATION_ADMIN, not SUPER_ADMIN: the bootstrap test requires exactly one
+  Super Admin and runs after test_devplane alphabetically.
 - next-intl reads dots in message keys as nesting: store keys like `deploy_production`, never `deploy.production`.
 - In RTL put `dir="auto"` on an inner span, not on `<li>`, or the list marker escapes the padding.
 - Rows read under `with_for_update=True` also need `populate_existing=True`, or a stale identity-map copy is used.
@@ -60,7 +62,8 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - The dev DB is disposable; the super admin password in the dev container is `dev-only-password-123` (backend/.env, not committed).
 
 ### Next steps (in order)
-1. SEC-08 scanning; then M7 context, M8 GitHub/worktrees (files.write + git tools inside the sandbox), M11 memory.
+1. M8 rest (GitHub auth/API/PR/webhooks/UI) — local worktrees, protected branches and approved merges are done
+   (`app/devplane/`, ADR-021); then M7 supervisor, M11 context & memory. SEC-08: image scan still never run here.
    M12 (evaluation, profiles, recovery, circuit breakers, graceful shutdown — ADR-018/020) is complete. Sandbox (`app/sandbox/`, ADR-019), audit (`/audit`), approvals (ADR-017) and the
    evaluation gate (ADR-018) are done.
    Dev sandbox image: `dockerd &` then the image `acc/sandbox:python` must exist (built offline here with

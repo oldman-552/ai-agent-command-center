@@ -800,8 +800,8 @@
           "acceptance": "Real git worktree tests",
           "verification": "pytest",
           "depends": [],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_devplane.py on real git 2.43: per-task worktrees on agent branches, isolation between tasks, modified files + overlap tracking, author/committer, hooks never execute (even when the repo re-enables them), path/symlink escapes refused, sandbox pytest runs inside the task worktree"
         },
         {
           "id": "GH-04",
@@ -813,8 +813,8 @@
             "GH-03",
             "SEC-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_protected_branches_cannot_be_written_by_agents: protected branch target refused + audited; detached worktree commit refused; base repo stays on main and untouched by agent work"
         },
         {
           "id": "GH-05",
@@ -837,8 +837,8 @@
           "depends": [
             "SEC-03"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_merge_happens_only_through_an_approved_request (nothing merged while pending; direct execute refused; approve → --no-ff merge of the frozen commit → task COMPLETED), test_branch_moved_after_approval_request_is_not_merged, test_textual_conflict_with_base_blocks_review_approval"
         },
         {
           "id": "GH-07",
@@ -1470,11 +1470,11 @@
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
   "in_progress": [],
-  "next_step": "SEC-08 dependency/container scanning scripts; then M7 context engineering, M8 GitHub + worktrees (files.write/git tools inside the sandbox), M11 memory, M9 browser bridge, M5 CLI engines, M14 automation, M15 docs",
+  "next_step": "M8 rest: GH-01 GitHub auth (encrypted token/App), GH-02 API client (HTTP mocks), GH-05 PR with description + test results, GH-07 webhooks + checks, GH-08 GitHub UI; then M7 supervisor, M11 context & memory",
   "tests": {
     "passed": [
-      "backend: 153/153 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox containers — full suite twice and every module in isolation — 2026-11-10",
-      "migrations: 7 revisions (44 tables + langgraph schema); base → head → -1 → head; alembic check clean",
+      "backend: 166/166 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox + real git — full suite twice and every module in isolation — 2026-11-10",
+      "migrations: 8 revisions (45 tables + langgraph schema); base → head → -1 → head; alembic check clean",
       "frontend: i18n guard (496 keys), contrast, tsc, next build",
       "ruff: clean",
       "frontend: 44/44 Playwright in real Chrome against API + worker in bus mode — tasks, approvals, audit, evaluations, axe WCAG 2.2 AA × ar/en incl. dialogs",

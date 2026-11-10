@@ -50,6 +50,16 @@ from app.models.identity import (
                                team_users,
 )
 from app.models.runtime import AgentMessage, Checkpoint, Execution, ExecutionEvent, ExecutionStatus
-from app.models.work import Project, ProjectMode, PullRequest, Repository, Task, TaskDependency, TaskStatus, Workflow
+from app.models.work import (
+                               Project,
+                               ProjectMode,
+                               PullRequest,
+                               Repository,
+                               Task,
+                               TaskDependency,
+                               TaskStatus,
+                               Workflow,
+                               Worktree,
+)
 
 __all__ = [n for n in dir() if not n.startswith("_")]

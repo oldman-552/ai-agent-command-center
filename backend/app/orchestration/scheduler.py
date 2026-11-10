@@ -28,7 +28,7 @@ from app.bus.contract import Envelope, MessageType, workflow_command
 from app.bus.outbox import enqueue
 from app.evaluation.engine import evaluate_and_record, notes_of
 from app.governance.approvals import on_decision, request_approval
-from app.models import EvaluationResult, Execution, Task, TaskDependency, Workflow
+from app.models import EvaluationResult, Execution, Task, TaskDependency, Workflow, Worktree
 from app.models import ExecutionStatus as X
 from app.models import TaskStatus as T
 from app.orchestration.selection import select_agent
@@ -215,7 +215,29 @@ def review(db: Session, task: Task, decision: str, note: str, actor: str) -> Tas
         if ev is None or ev.decision != "approve":  # OR-08: never complete without a passing evaluation
             raise HTTPException(409, "evaluation_not_passed")
         task.review_status = "approved"
-        if task.critical_operation:  # OR-04 approval stage: wait for a human decision in the Approval Center
+        wt = db.scalar(select(Worktree).where(Worktree.task_id == task.id, Worktree.status == "committed"))
+        if wt is not None:  # GH-06: committed code reaches the protected base branch only via an approved merge
+            from app.devplane.worktrees import refresh
+            refresh(db, wt)
+            textual = [c for c in wt.conflicts if c.get("with")]
+            if textual:
+                raise HTTPException(409, f"merge_conflicts:{','.join(textual[0]['files'])}")
+            task.status = T.APPROVAL.value
+            ap = request_approval(
+                db, organization_id=task.organization_id, operation="git.merge_protected",
+                title=f"Merge {wt.branch} into {wt.base_branch} (task #{task.id})", requested_by="orchestrator",
+                summary=f"{len(wt.modified_files)} file(s) changed; approved head {wt.head_commit[:12]}",
+                payload={"task_id": task.id, "worktree_id": wt.id, "branch": wt.branch, "base_branch": wt.base_branch,
+                         "head_commit": wt.head_commit, "evaluation_id": ev.id},
+                evidence=[{"kind": "evaluation", "evaluation_id": ev.id, "overall": ev.overall},
+                          {"kind": "review", "by": actor, "note": note[:2000]},
+                          {"kind": "changes", "files": wt.modified_files[:200], "commits": wt.commits[-20:],
+                           "overlaps": wt.conflicts}],
+                agent_id=task.assigned_agent_id, project_id=task.project_id, task_id=task.id,
+                execution_id=(task.result or {}).get("execution_id"),
+                idempotency_key=f"task:{task.id}:merge:{wt.head_commit}")
+            task.result = {**(task.result or {}), "approval_id": ap.id}
+        elif task.critical_operation:  # OR-04 approval stage: wait for a human decision in the Approval Center
             task.status = T.APPROVAL.value
             out = str((task.result or {}).get("output", ""))
             ap = request_approval(
@@ -275,7 +297,15 @@ def _on_approval_decision(db: Session, a) -> None:
     wf = db.get(Workflow, task.workflow_id, with_for_update=True, populate_existing=True) if task.workflow_id else None
     db.refresh(task)
     now = datetime.now(UTC)
-    if a.status in ("approved", "executed"):
+    from app.governance.approvals import _EXECUTORS
+    if a.status == "approved" and a.operation in _EXECUTORS:  # approved, but the platform could not execute it
+        failure = next((e.get("error") for e in reversed(a.evidence or []) if e.get("kind") == "execution_failed"),
+                       "execution failed")
+        task.status, task.review_status = T.READY.value, "revise"
+        task.result = {**(task.result or {}), "review_notes": [*(task.result or {}).get("review_notes", []),
+                                                               f"PLATFORM: approved but not executed — {failure}"]}
+        task.max_attempts = max(task.max_attempts, task.attempts + 1)
+    elif a.status in ("approved", "executed"):
         task.status, task.finished_at = T.COMPLETED.value, now
     elif a.status == "changes_requested":
         task.status, task.review_status = T.READY.value, "revise"

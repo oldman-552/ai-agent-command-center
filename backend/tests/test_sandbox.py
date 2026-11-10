@@ -215,7 +215,7 @@ def test_evaluation_uses_real_sandbox_test_results(db, monkeypatch):
     proj = Project(organization_id=1, name=f"eval {uuid.uuid4().hex[:6]}")
     db.add(proj)
     db.commit()
-    ws = _project_dir(1, proj.id)
+    _project_dir(1, proj.id)
     a = Agent(organization_id=1, name="dev", identifier=f"ev-{uuid.uuid4().hex[:6]}", role="backend", state="IDLE",
               execution_engine="api", security_profile="developer", tool_permissions=["shell.test"],
               retry_policy={"max_attempts": 1, "backoff_seconds": 0, "backoff_multiplier": 1})
@@ -225,8 +225,12 @@ def test_evaluation_uses_real_sandbox_test_results(db, monkeypatch):
     db.commit()
     script = [{"tool": "shell.test", "args": {"argv": ["python3", "-m", "pytest", "-q"]}}, {"say": "adder implemented"}]
 
+    from app.devplane.worktrees import ensure_worktree
+    wt = ensure_worktree(db, t, a)  # sandbox tests run inside the task's worktree
+    db.commit()
+
     def run_with(test_body: str) -> str:
-        (ws / "test_adder.py").write_text(test_body)
+        (Path(wt.path) / "test_adder.py").write_text(test_body)
         runner.ensure_workspace(1, proj.id)
         ex = service.create_execution(db, organization_id=1, agent=a, project_id=proj.id, task_id=t.id, actor="test",
                                       input={"mock_script": script})

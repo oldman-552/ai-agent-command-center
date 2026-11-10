@@ -360,7 +360,7 @@ def test_critical_task_waits_for_approval_while_independent_work_continues(db, m
                                                                 ts["Deploy service"].id)
     assert scheduler.advance(db, wf.id)["dispatched"] == []  # the dependent waits; nothing else is stuck
     assert tasks_of(db, wf)["Announce"].status == "PLANNED"
-    approver = make_user("approver-or", "SUPER_ADMIN")
+    approver = make_user("approver-or", "ORGANIZATION_ADMIN")
     approvals.decide(db, a, user_id=approver.id, decision="approve", reason="")
     db.commit()
     assert tasks_of(db, wf)["Deploy service"].status == "COMPLETED"
@@ -380,7 +380,7 @@ def test_rejected_approval_fails_the_task_and_blocks_dependents(db, make_user):
     approve_all_in_review(db, wf)
     t = tasks_of(db, wf)["Drop table"]
     a = db.get(Approval, t.result["approval_id"])
-    approvals.decide(db, a, user_id=make_user("approver-rej", "SUPER_ADMIN").id, decision="reject",
+    approvals.decide(db, a, user_id=make_user("approver-rej", "ORGANIZATION_ADMIN").id, decision="reject",
                      reason="not during business hours")
     db.commit()
     assert tasks_of(db, wf)["Drop table"].status == "FAILED"

@@ -214,3 +214,24 @@ circuit breakers, graceful shutdown with partial-result preservation.
   finish, then interrupt the rest: they keep partial output and their checkpoint, become TERMINATED, and their
   un-acked messages are redelivered to another worker which resumes them. A retry interrupted during its back-off is
   continued too.
+
+## ADR-021 — Development plane: hardened local git, one worktree per task, merges only via approval (2026-11-10)
+**Context:** Phase 12 — isolated worktrees and feature branches per agent, tracking of files/ownership/conflicts,
+agents never modify protected branches, merge after human approval. Repository content is untrusted (Phase 17).
+**Decision:**
+- `app/devplane/git.py` runs git with a scrubbed environment (no global/system config, no credentials), hooks disabled
+  (`core.hooksPath=/dev/null`, also overriding a repo's own setting), no fsmonitor/external diff/ssh, fixed argv.
+- Project repository at `<WORKSPACES_DIR>/<org>/<project>/repo` (default branch checked out; new-project mode creates
+  it with an initial commit). Each task gets `wt/task-<id>` on `agent/<agent-identifier>/task-<id>` from the default
+  branch. Tools `repo.read`, `files.write`, `git.branch`, `git.commit` work only inside that worktree: relative paths,
+  no `..`, no `.git`, no symlink traversal, 1 MB per file. Commits carry the agent as author and the platform as
+  committer. Sandbox shell tools mount the task's worktree, so tests see exactly the agent's changes.
+- Protected branches (repository rule or `main`/`master` + the project default) can never be an agent's write target;
+  a worktree moved off its branch (detached or switched) cannot commit. Attempts are audited.
+- Tracking per worktree: modified files vs base, overlaps with other active worktrees, textual conflicts with the
+  base branch (`git merge-tree --write-tree`), commit history, status active → committed → merged.
+- Integration: a reviewed task with committed changes requests `git.merge_protected` in the Approval Center with the
+  frozen head commit; textual conflicts block review approval. The executor merges `--no-ff` only if the branch tip
+  still equals the approved commit; otherwise (or on conflicts) the approval stays un-executed and the task returns to
+  READY with the reason.
+**Not yet:** GitHub remote (auth, push, PRs, webhooks, CI) — GH-01/02/05/07/08.

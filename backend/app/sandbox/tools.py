@@ -23,6 +23,22 @@ def _audit(ex: Execution, action: str, level: str, details: dict[str, Any]) -> N
         db.commit()
 
 
+def _workspace_for(ex: Execution):
+    """The task's git worktree when the execution belongs to a task (tests see exactly the agent's changes),
+    otherwise the project's sandbox root."""
+    from app.devplane.worktrees import worktree_for_execution
+
+    root = runner.ensure_workspace(ex.organization_id, ex.project_id)
+    if ex.task_id is not None:
+        with session_factory()() as db:
+            wt = worktree_for_execution(db, ex)
+            db.commit()
+            if wt is not None:
+                runner.ensure_workspace(ex.organization_id, ex.project_id)
+                return wt.path
+    return root
+
+
 def _tool(name: str):
     async def run_command(ex: Execution, args: dict[str, Any]) -> dict[str, Any]:
         argv = args.get("argv")
@@ -33,8 +49,7 @@ def _tool(name: str):
         if ex.project_id is None:
             return {"error": "no_workspace", "reason": "the execution is not attached to a project"}
         try:
-            ws = runner.resolve_workspace(runner.ensure_workspace(ex.organization_id, ex.project_id),
-                                          ex.organization_id, ex.project_id)
+            ws = runner.resolve_workspace(_workspace_for(ex), ex.organization_id, ex.project_id)
             result = await runner.run(ws, argv)
         except runner.SandboxError as e:
             _audit(ex, "sandbox.unavailable", "error", {"tool": name, "argv": argv, "error": str(e)})

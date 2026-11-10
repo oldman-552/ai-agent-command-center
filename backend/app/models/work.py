@@ -143,3 +143,26 @@ class PullRequest(TimestampMixin, Base):
     state: Mapped[str] = mapped_column(String(32), default="open")
     checks: Mapped[dict | None] = mapped_column(JSONB)
     merged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Worktree(TimestampMixin, Base):
+    """An agent's isolated git worktree + feature branch for one task (GH-03, spec Phase 12)."""
+
+    __tablename__ = "worktrees"
+    __table_args__ = (UniqueConstraint("project_id", "branch"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organization_id: Mapped[int] = org_fk()
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    task_id: Mapped[int | None] = mapped_column(ForeignKey("tasks.id", ondelete="SET NULL"), index=True)
+    agent_id: Mapped[int | None] = mapped_column(ForeignKey("agents.id", ondelete="SET NULL"))
+    branch: Mapped[str] = mapped_column(String(255))
+    base_branch: Mapped[str] = mapped_column(String(255))
+    base_commit: Mapped[str] = mapped_column(String(64))
+    head_commit: Mapped[str | None] = mapped_column(String(64))
+    path: Mapped[str] = mapped_column(String(1024))
+    status: Mapped[str] = mapped_column(String(16), default="active")  # active|committed|merged|abandoned
+    modified_files: Mapped[list] = mapped_column(JSONB, default=list)
+    conflicts: Mapped[list] = mapped_column(JSONB, default=list)
+    commits: Mapped[list] = mapped_column(JSONB, default=list)
+    merged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

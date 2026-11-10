@@ -24,6 +24,7 @@ from app.config import get_settings
 from app.connectivity.a2a import engine as _a2a_engine  # noqa: F401  (registers the a2a engine)
 from app.connectivity.gateway import service as _gateway  # noqa: F401  (registers the api engine)
 from app.db import session_factory
+from app.devplane import tools as _devplane_tools  # noqa: F401  (repo.read/files.write/git.*)
 from app.runtime import service
 from app.runtime.engines import mock as _mock_engine  # noqa: F401  (registers the TEST-ONLY mock engine)
 from app.sandbox import tools as _sandbox_tools  # noqa: F401  (registers shell.test / shell.build)
