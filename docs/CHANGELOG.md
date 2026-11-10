@@ -6,6 +6,8 @@ to `docs/requirements.json`.
 ## Unreleased — 2026-11-10
 
 ### Added
+- **A2A extended card and multi-turn**: `GetExtendedAgentCard`; conversations continue across tasks in a `contextId`,
+  `referenceTaskIds` and `taskId` follow-ups (per key, bounded, fenced).
 - **A2A push notifications**: the four config methods and `taskPushNotificationConfig` in SendMessage; webhook
   deliveries via a transactional outbox, retries with backoff, SSRF guard (spec §13.2).
 - **Agent form: command-line tool settings** — tool, key source (the agent's provider), provider-kind check, OpenCode key

@@ -123,7 +123,9 @@ internal bus. A2A v1.0 (JSON-RPC binding: `SendMessage`/`GetTask`/`ListTasks`/`C
   deliveries written by `set_status`, sent by a worker loop with backoff and per-config ordering; SSRF guard at
   creation and before each delivery. The token is sent as `X-A2A-Notification-Token` (the header of earlier A2A
   versions; v1.0 does not name one).
-- Not yet: extended card, multi-turn follow-ups — advertised `false` and answered with the spec's error codes.
+- Extended card and multi-turn (added 2026-11-10): context inheritance per (key, agent, contextId), bounded and
+  fenced like other untrusted context; follow-ups to finished tasks become new tasks that reference them, because
+  finished executions are immutable evidence. Not yet: input-required mid-task.
 - Client (`client.py`): the RPC URL must come from the card's JSONRPC interface **on the same host** as the card, so a
   hostile card cannot redirect the bearer token; only http(s); size-capped, validated responses; transport errors →
   retryable.

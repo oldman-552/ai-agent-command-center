@@ -13,7 +13,7 @@ below with exactly what is missing; none of them is hidden behind a mock.
 
 | Suite | Result | Command |
 |---|---|---|
-| Backend (pytest, real PostgreSQL, RabbitMQ, Redis, Docker sandbox, headless Chromium) | **298 / 298 passed** | `cd backend && uv run pytest -q` |
+| Backend (pytest, real PostgreSQL, RabbitMQ, Redis, Docker sandbox, headless Chromium) | **301 / 301 passed** | `cd backend && uv run pytest -q` |
 | Lint | clean | `uv run ruff check app tests` |
 | Frontend type check + i18n guard (1 081 keys, ar = en) | clean | `npm run check` |
 | Design-token contrast (WCAG) | all pass | `node scripts/check-contrast.mjs` |
@@ -63,8 +63,8 @@ below with exactly what is missing; none of them is hidden behind a mock.
   paraphrases.
 - **Token counts for budgets** in context assembly are estimates without a tokenizer; recorded usage comes from the
   providers.
-- **A2A**: no extended card or multi-turn follow-ups yet (streaming and push notifications are supported); push
-  webhooks have a DNS-rebinding residual risk (see A2A_INTEGRATION.md).
+- **A2A**: no input-required mid-task and text parts only (streaming, push notifications, extended card and
+  multi-turn are supported); push webhooks have a DNS-rebinding residual risk (see A2A_INTEGRATION.md).
 - **Scaling out**: two API processes sharing PostgreSQL and Redis are tested (sessions, shared sign-in throttling,
   live updates across replicas — `tests/test_replicas.py`); workers scale out with leader election for supervisor and
   automations. A real load balancer in front of them (sticky-free, WebSocket upgrade) was not set up here.

@@ -87,7 +87,7 @@ def test_agent_card_requires_key_and_hides_unexposed_agents(admin_client, client
     iface = card["supportedInterfaces"][0]
     assert iface["protocolBinding"] == "JSONRPC" and iface["protocolVersion"] == "1.0"
     assert iface["url"].endswith(f"/api/a2a/agents/{a.identifier}")
-    assert card["capabilities"] == {"streaming": True, "pushNotifications": True, "extendedAgentCard": False}
+    assert card["capabilities"] == {"streaming": True, "pushNotifications": True, "extendedAgentCard": True}
     assert card["skills"][0]["id"] == "research"
 
 
@@ -156,13 +156,12 @@ def test_tasks_are_private_to_their_key(admin_client, client, db, exposed):
     ("SendStreamingMessage", {}, V, -32602),
     ("SubscribeToTask", {"id": "does-not-exist"}, V, -32001),
     ("CreateTaskPushNotificationConfig", {"taskId": "does-not-exist", "url": "https://example.com/h"}, V, -32001),
-    ("GetExtendedAgentCard", {}, V, -32007),
     ("GetTask", {}, V, -32602),
     ("GetTask", {"id": "does-not-exist"}, V, -32001),
     ("SendMessage", {"message": {"messageId": "m", "role": "ROLE_AGENT", "parts": [{"text": "x"}]}}, V, -32602),
     ("SendMessage", {"message": {"messageId": "m2", "role": "ROLE_USER", "parts": [{"url": "http://x/y"}]}}, V, -32005),
     ("SendMessage", {"message": {"messageId": "m3", "role": "ROLE_USER", "parts": [{"text": "x"}], "taskId": "t"}},
-     V, -32004),
+     V, -32001),  # §3.4.2: a taskId must reference an existing task
 ])
 def test_spec_errors(client, exposed, method, params, headers, code):
     a, token, _ = exposed
@@ -447,3 +446,104 @@ def test_a2a_engine_streams_when_card_allows_and_polls_otherwise(admin_client, d
     polled = run()
     assert polled.output["text"] == want
     assert "submitted to external A2A agent" in [e.payload.get("message") for e in _events_of(db, polled.id, "log")]
+
+
+def _prompt(db, task_id):
+    from app.models import Execution
+    db.expire_all()
+    return db.get(Execution, task_id).input_context["prompt"]
+
+
+def test_same_context_inherits_earlier_turns_fenced_and_per_key(client, exposed, admin_client, db):
+    a, token, _ = exposed
+    t1 = rpc(client, a, token, "SendMessage", msg("my name is Rana", contextId="conv-1"))["result"]["task"]
+    t2 = rpc(client, a, token, "SendMessage", msg("what is my name?", contextId="conv-1"))["result"]["task"]
+    p = _prompt(db, t2["id"])
+    assert "UNTRUSTED DATA" in p and "user: my name is Rana" in p and f"[task {t1['id']}]" in p
+    assert p.rstrip().endswith("what is my name?") and t2["contextId"] == "conv-1"
+    assert _prompt(db, t1["id"]) == "my name is Rana"  # the first turn has no history
+    # another context or another key never sees it
+    t3 = rpc(client, a, token, "SendMessage", msg("hello", contextId="conv-2"))["result"]["task"]
+    assert _prompt(db, t3["id"]) == "hello"
+    other = admin_client.post("/api/a2a/keys", json={"name": "other", "agent_ids": [a.id]}).json()["token"]
+    t4 = rpc(client, a, other, "SendMessage", msg("what is my name?", contextId="conv-1"))["result"]["task"]
+    assert "Rana" not in _prompt(db, t4["id"])
+
+
+def test_history_is_bounded(client, exposed, db):
+    from app.connectivity.a2a import server as srv
+    a, token, _ = exposed
+    from app.models import Execution
+
+    def answered(task, text):  # what a real model would answer (the mock echoes its whole prompt)
+        ex = db.get(Execution, task["id"])
+        ex.output = {"text": text, "parts": [text]}
+        db.commit()
+    for i in range(srv.HISTORY_TURNS + 3):
+        answered(rpc(client, a, token, "SendMessage", msg(f"turn {i} " + "x" * 50, contextId="long"))["result"]["task"],
+                 f"answer {i}")
+    t = rpc(client, a, token, "SendMessage", msg("last", contextId="long"))["result"]["task"]
+    p = _prompt(db, t["id"])
+    assert p.count("[task ") == srv.HISTORY_TURNS and "turn 0 " not in p and f"turn {srv.HISTORY_TURNS + 2} " in p
+    big = rpc(client, a, token, "SendMessage", msg("y" * 5000, contextId="big"))["result"]["task"]
+    answered(big, "z" * 5000)
+    t = rpc(client, a, token, "SendMessage", msg("after big", contextId="big"))["result"]["task"]
+    assert len(_prompt(db, t["id"])) < srv.TURN_CHARS * 2 + 600 and big["id"] in _prompt(db, t["id"])
+
+
+def test_follow_up_with_task_id_refines_in_a_new_task(client, exposed, admin_client, db, monkeypatch):
+    a, token, _ = exposed
+    first = rpc(client, a, token, "SendMessage", msg("draft a title", contextId="ctx-f"))["result"]["task"]
+    m = msg("make it shorter")
+    m["message"]["taskId"] = first["id"]  # contextId inferred from the task (§3.4.3)
+    nxt = rpc(client, a, token, "SendMessage", m)["result"]["task"]
+    assert nxt["id"] != first["id"] and nxt["contextId"] == "ctx-f"
+    assert f"[task {first['id']}]" in _prompt(db, nxt["id"])
+    bad = msg("x", contextId="another")
+    bad["message"]["taskId"] = first["id"]
+    assert rpc(client, a, token, "SendMessage", bad)["error"]["code"] == -32602  # mismatching contextId
+    # a task of another key cannot be continued or referenced
+    other = admin_client.post("/api/a2a/keys", json={"name": "o2", "agent_ids": [a.id]}).json()["token"]
+    m2 = msg("steal")
+    m2["message"]["taskId"] = first["id"]
+    assert rpc(client, a, other, "SendMessage", m2)["error"]["code"] == -32001
+    m3 = msg("steal")
+    m3["message"]["referenceTaskIds"] = [first["id"]]
+    assert rpc(client, a, other, "SendMessage", m3)["error"]["code"] == -32001
+    # a running task cannot take a follow-up
+    from app.config import get_settings
+    from app.models import OutboxMessage
+    monkeypatch.setenv("EXECUTION_DISPATCH", "bus")
+    get_settings.cache_clear()
+    try:
+        p = msg("slow")
+        p["configuration"] = {"returnImmediately": True}
+        running = rpc(client, a, token, "SendMessage", p)["result"]["task"]
+        m4 = msg("more")
+        m4["message"]["taskId"] = running["id"]
+        assert rpc(client, a, token, "SendMessage", m4)["error"]["code"] == -32004
+    finally:
+        get_settings.cache_clear()
+        db.query(OutboxMessage).filter(OutboxMessage.published_at.is_(None)).update(
+            {"published_at": OutboxMessage.created_at})
+        db.commit()
+
+
+def test_extended_card_requires_auth_and_adds_assigned_skills(client, exposed, db):
+    from app.models import Skill
+    a, token, _ = exposed
+    sk = Skill(organization_id=1, key=f"pdf-{uuid.uuid4().hex[:6]}", name="PDF reading", source="local",
+               version="1.2", instructions="SECRET-INSTRUCTIONS", enabled=True, agent_ids=[a.id])
+    off = Skill(organization_id=1, key=f"off-{uuid.uuid4().hex[:6]}", name="Disabled one", source="local",
+                enabled=False, agent_ids=[a.id])
+    db.add_all([sk, off])
+    db.commit()
+    public = client.get(f"/api/a2a/agents/{a.identifier}/.well-known/agent-card.json",
+                        headers={"Authorization": f"Bearer {token}"}).json()
+    ext = rpc(client, a, token, "GetExtendedAgentCard")["result"]
+    assert [s_["id"] for s_ in ext["skills"]] == [public["skills"][0]["id"], f"skill:{sk.key}"]
+    assert "30 s timeout" in ext["description"] and ext["capabilities"]["extendedAgentCard"] is True
+    assert "SECRET-INSTRUCTIONS" not in json.dumps(ext)
+    r = client.post(f"/api/a2a/agents/{a.identifier}", headers=V,  # no key: refused before anything
+                    json={"jsonrpc": "2.0", "id": 1, "method": "GetExtendedAgentCard"})
+    assert r.status_code == 401

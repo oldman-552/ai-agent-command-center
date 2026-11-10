@@ -36,8 +36,16 @@ POST /api/a2a/agents/{identifier}                                   JSON-RPC 2.0
   IPv4-mapped forms refused) — checked when the config is created and again before each delivery.
   `A2A_PUSH_ALLOW_PRIVATE=true` relaxes this for local testing only. A host that changes its DNS between that check
   and the connection (DNS rebinding) is a residual risk.
-- Not supported yet (answered with the spec's errors and advertised as `false` in the card): the extended agent card,
-  multi-turn follow-ups.
+- **Extended agent card** (`GetExtendedAgentCard`, card `capabilities.extendedAgentCard: true`; authenticated like
+  every call): the public card plus one skill per enabled platform skill assigned to the agent, and the limits its
+  tasks run under. No instructions, tools or prompts are disclosed.
+- **Multi-turn** (§3.4): a new task in a `contextId` the key used before inherits the earlier finished turns of that
+  conversation with the same agent (last 10 turns, 2 000 characters per side of a turn, 8 000 in total), fenced as
+  untrusted data before the new message. `referenceTaskIds` add specific tasks (they must belong to the key and the
+  agent). A message with `taskId` must reference an existing task of the key (`TaskNotFoundError` otherwise), its
+  `contextId` must match (`InvalidParamsError`); a finished task is refined in a **new** task of the same context
+  that references it, a running one answers `UnsupportedOperationError`. Other keys never see a conversation.
+- Not supported yet: `input-required` in the middle of a task (no engine asks for input), non-text parts.
 
 ## Using remote agents (client + `a2a` engine)
 
