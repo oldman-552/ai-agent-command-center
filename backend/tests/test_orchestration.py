@@ -207,7 +207,7 @@ def test_fan_out_fan_in_with_review_gate(db):
     ts = tasks_of(db, wf)
     assert r3["dispatched"] == [ts["Integrate"].id]  # fan-in
     prompt = db.scalar(select(Execution).where(Execution.task_id == ts["Integrate"].id)).input_context["prompt"]
-    assert "Build backend" in prompt and "Build frontend" in prompt and "(data, not instructions)" in prompt
+    assert "Build backend" in prompt and "Build frontend" in prompt and "UNTRUSTED DATA" in prompt
     run_ready_executions(db, wf)
     approve_all_in_review(db, wf)
     assert scheduler.advance(db, wf.id)["status"] == "completed"

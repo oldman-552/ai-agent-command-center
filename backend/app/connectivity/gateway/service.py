@@ -16,6 +16,7 @@ from sqlalchemy import select
 
 from app.connectivity.gateway import adapters as _adapters  # noqa: F401  (registers adapters)
 from app.connectivity.gateway.base import ChatRequest, ProviderError, ProviderUnavailable, adapter_for
+from app.context.assembler import system_message
 from app.db import session_factory
 from app.models import Agent, CostRecord, Execution, ModelInfo, Provider, UsageRecord
 from app.runtime import circuit
@@ -103,7 +104,7 @@ class ApiEngine:
                     yield EngineEvent("log", {"message": f"fallback to {provider.name}/{model}"})
                 ex.provider, ex.model, ex.is_mock = provider.kind, model, provider.is_mock
                 db.commit()
-                req = ChatRequest(model=model, messages=messages, system=agent.system_instructions,
+                req = ChatRequest(model=model, messages=messages, system=system_message(agent.system_instructions),
                                   max_tokens=int(agent.context_policy.get("max_output_tokens", 4096)),
                                   temperature=agent.context_policy.get("temperature"))
                 started, usage, produced = time.monotonic(), {}, False

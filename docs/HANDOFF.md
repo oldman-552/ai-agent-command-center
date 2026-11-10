@@ -59,10 +59,13 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - Rows read under `with_for_update=True` also need `populate_existing=True`, or a stale identity-map copy is used.
 - Tests that rebind the mock engine to 'api' must `import app.main` first, or a later import re-registers the real
   ApiEngine over the mock (this caused order-dependent failures).
+- Task prompts come from `app/context/service.for_task` (scheduler.build_prompt returns prompt + manifest); the
+  engine's system message is always `context.assembler.system_message()` — never put retrieved text there.
 - The dev DB is disposable; the super admin password in the dev container is `dev-only-password-123` (backend/.env, not committed).
 
 ### Next steps (in order)
-1. M11 context & memory. M7 supervisor (`app/supervisor/`, `/supervisor`, ADR-023) and M8 GitHub are complete;
+1. M9 browser bridge (ADR-005), then M5 CLI engines, M14 automation, M15 docs/launchers. M11 context & memory is
+   complete (`app/memory/`, `app/context/`, `/memory`, ADR-024). M7 supervisor (`app/supervisor/`, `/supervisor`, ADR-023) and M8 GitHub are complete;
    GitHub was only verified against an HTTP fake. SEC-08: image scan still never run here.
    Bus test workers run with WORKER_ROLES=executions,orchestrator so the supervisor doesn't act on shared test data.
    M12 (evaluation, profiles, recovery, circuit breakers, graceful shutdown — ADR-018/020) is complete. Sandbox (`app/sandbox/`, ADR-019), audit (`/audit`), approvals (ADR-017) and the

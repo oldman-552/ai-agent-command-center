@@ -18,7 +18,8 @@
     "audit": "Audit log",
     "evaluations": "Evaluations",
     "github": "GitHub",
-    "supervisor": "Supervisor"
+    "supervisor": "Supervisor",
+    "memory": "Context & Memory"
   },
   "language": {
     "label": "Language",
@@ -759,5 +760,83 @@
       "retry_task": "retry eligible tasks",
       "reduce_concurrency": "reduce concurrency"
     }
+  },
+  "memory": {
+    "title": "Context & Memory",
+    "subtitle": "What agents remember about each project, where it came from, and whether a human verified it. Correct or delete anything that is wrong — agents only ever see current, unexpired memories of their own project.",
+    "add": "Add memory",
+    "filters": "Memory filters",
+    "project": "Project",
+    "search": "Search memories",
+    "type": "Type",
+    "verificationLabel": "Verification",
+    "rankedFor": "Ranked by relevance to “{q}”.",
+    "clearSearch": "Clear search",
+    "noProjects": "Create a project first.",
+    "empty": "No memories for this project yet.",
+    "listLabel": "Memories",
+    "version": "version {n}",
+    "score": "relevance {s}",
+    "provenance": "Source",
+    "verify": "Mark verified",
+    "verified": "Memory marked as verified.",
+    "correct": "Correct",
+    "correctTitle": "Correct memory",
+    "corrected": "Correction saved as a new version.",
+    "delete": "Delete",
+    "deleteTitle": "Delete this memory?",
+    "deleteBody": "“{title}” and all of its earlier versions will be deleted permanently. Agents will no longer receive it.",
+    "deleted": "Memory deleted.",
+    "correctHelp": "Your correction becomes a new, verified version; the previous version is kept as history and no longer used.",
+    "addHelp": "Memories you add are marked as verified and scoped to the selected project.",
+    "fieldTitle": "Title",
+    "fieldContent": "Content",
+    "history": "Earlier versions",
+    "contextTitle": "Context preview",
+    "contextHelp": "The exact context the platform would assemble for a task right now: trusted requirements first, then untrusted data (prerequisite outputs and memories) fenced so it can never override platform policy.",
+    "task": "Task",
+    "budgetUse": "≈{used} of {budget} tokens · profile: {type}",
+    "segments": "Context segments",
+    "segment": "Segment",
+    "item": "Item",
+    "trust": "Trust",
+    "tokens": "Tokens",
+    "trusted": "Trusted",
+    "untrusted": "Untrusted data",
+    "flagged": "Looks like instructions",
+    "compressedItem": "Compressed: {title} ({from} → {to} tokens)",
+    "droppedItem": "Left out: {title} — {reason}",
+    "showPrompt": "Show the full prompt",
+    "systemMessage": "System message (policy)",
+    "userMessage": "Task message",
+    "kinds": {
+      "requirements": "Requirements",
+      "user": "Human notes",
+      "tool_output": "Tool & task output",
+      "retrieved": "Memory"
+    },
+    "reasons": {
+      "duplicate": "duplicate",
+      "near_duplicate": "near-duplicate",
+      "over_budget": "over the token budget"
+    },
+    "verification": {
+      "verified": "Verified",
+      "assumption": "Assumption",
+      "suggestion": "Agent suggestion"
+    },
+    "types": {
+      "project": "Project",
+      "task": "Task",
+      "technical_decision": "Technical decision",
+      "codebase": "Codebase",
+      "execution": "Execution",
+      "lesson": "Lesson learned",
+      "conversation": "Conversation",
+      "agent_identity": "Agent identity",
+      "team_shared": "Team shared"
+    },
+    "itemTask": "Task description & acceptance criteria",
+    "itemReviewNote": "Reviewer change request"
   }
 }

@@ -1057,8 +1057,8 @@
           "depends": [
             "RT-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_assembles_within_budget_per_profile (4 profiles/budgets) + test_context_preview_endpoint; scheduler uses assembler"
         },
         {
           "id": "CX-02",
@@ -1069,8 +1069,8 @@
           "depends": [
             "CX-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "4 parametrized injection tests (EN/AR/tag forgery) + nonce forgery + project memory injection stays data; system message is policy-only"
         },
         {
           "id": "CX-03",
@@ -1081,8 +1081,8 @@
           "depends": [
             "CX-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_dedup_prioritization_and_compression"
         },
         {
           "id": "MEM-01",
@@ -1093,8 +1093,8 @@
           "depends": [
             "FND-03"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "backend/tests/test_memory.py: scope rules, provenance, agents cannot verify, versioning/history, expiry, delete chain, viewer read-only (197/197 backend)"
         },
         {
           "id": "MEM-02",
@@ -1105,8 +1105,8 @@
           "depends": [
             "MEM-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_relevant_memories_rank_first (EN + AR + word-form); hybrid ts_rank + local hashed embedding"
         },
         {
           "id": "MEM-03",
@@ -1117,8 +1117,8 @@
           "depends": [
             "MEM-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_cross_project_and_cross_tenant_retrieval_denied (store, API, other tenant 404, task prompt)"
         },
         {
           "id": "MEM-04",
@@ -1129,8 +1129,8 @@
           "depends": [
             "MEM-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "frontend/e2e/memory.spec.ts ar+en: add, ranked search, verify, correct with history, delete, context preview, axe WCAG 2.2 AA, no overflow 375/1440; full E2E 51/51"
         }
       ]
     },

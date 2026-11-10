@@ -19,6 +19,8 @@ from app.devplane import tools as _devplane_tools  # noqa: F401  (repo.read/file
 from app.evaluation import api as evaluation_api
 from app.governance import api as approvals_api
 from app.governance import audit_api
+from app.memory import api as memory_api
+from app.memory import tools as _memory_tools  # noqa: F401  (memory.write)
 from app.observability import dashboard
 from app.orchestration import api as orchestration_api
 from app.runtime import api as runtime_api
@@ -71,6 +73,8 @@ app.include_router(audit_api.router)
 app.include_router(evaluation_api.router)
 app.include_router(devplane_api.router)
 app.include_router(supervisor_api.router)
+app.include_router(memory_api.router)
+app.include_router(memory_api.context_router)
 
 
 @app.get("/api/health", tags=["system"])

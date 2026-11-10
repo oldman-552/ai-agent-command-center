@@ -274,3 +274,32 @@ must log everything, and must never override security policy or approvals.
   are reported, not acted on.
 - SV-05: the module has no path to approvals, permissions, merges or credentials, and never acts on a task in REVIEW,
   APPROVAL, COMPLETED or CANCELLED — enforced by code structure and tested.
+
+## ADR-024 — Context & memory: trust-separated assembly, scoped memory, local hybrid retrieval (2026-11-10)
+**Context:** Phases 7–8 — agents need relevant, budgeted context per task type; memory must be scoped, carry
+provenance, separate verified knowledge from assumptions, be correctable by humans, and never leak across projects.
+Retrieved text and tool output are attacker-controllable (prompt injection) and must not override platform policy.
+**Decision:**
+- `app/memory/store.py` over the existing `memories` table: nine types, each with a mandatory scope (project types
+  need a project, `agent_identity` an agent, `team_shared` a team). Provenance in `source`; only a human (`kind=user`)
+  can make a memory `verified` — agents' `memory.write` tool stores `suggestion`s with the execution as provenance.
+  Corrections create a new version (`supersedes_id`, old row `is_current=false`), deletion removes the whole chain,
+  expired or non-current rows are never retrieved. Text is secret-redacted before storage. Everything is audited.
+- Retrieval (MEM-02) is hybrid and fully local: PostgreSQL `ts_rank` on the existing GIN `tsv` column + cosine of a
+  deterministic 256-d hashed word/char-trigram embedding stored in `embedding` (works for Arabic and English, no
+  external model, no pgvector dependency). Verified memories get a small boost, suggestions a small penalty.
+  A real embedding model can replace `embed()` later without schema change.
+- Isolation (MEM-03): every query is filtered by organization, and a project query admits only that project's rows
+  (plus project-less agent/team rows of the same organization). The API checks the scope objects with `get_scoped`.
+- `app/context/assembler.py` (CX-01..03): per-task-type profiles (architecture, frontend, backend, database,
+  security, testing, code_review, general) set the budget shares and preferred memory types; budget from
+  `agent.context_policy.max_context_tokens` (default 8000). Exact duplicates are dropped everywhere, near-duplicate
+  memories (cosine ≥ 0.92) are collapsed, items are ranked, over-budget items are compressed extractively
+  (head + tail) before being dropped; the manifest records what was kept, compressed, dropped and flagged.
+- Trust separation (CX-02): the SYSTEM message is built by the engine from platform policy + the agent's configured
+  instructions only (`system_message()`); callers cannot create system/policy segments. Requirements and human notes
+  are trusted; memories and prerequisite/tool outputs are fenced in `<<<UNTRUSTED DATA {nonce}>>>` blocks with a
+  per-assembly random nonce (a document cannot close its own block), instruction-like content is flagged, and a policy
+  reminder follows all untrusted data. This is a mitigation, not a guarantee — the real enforcement remains in the
+  backend (permissions, approvals, protected branches) which no prompt can change.
+- UI `/memory`: browse/search per project, verify, correct (with history), delete, and a context preview per task.

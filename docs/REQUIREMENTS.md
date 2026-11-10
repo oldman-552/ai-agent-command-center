@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 69.2%**
+**Overall verified completion: 76.2%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -136,17 +136,17 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | A2A-01 | P1 | A2A agent card + task endpoint for platform agents | Spec-compatible JSON | pytest | — | done | tests/test_a2a.py (21 tests): agent card fields, key-gated exposure (401/404), human-only hashed audited keys, revocation, SendMessage blocking/returnImmediately, idempotent messageId, GetTask, ListTasks filter+pagination, CancelTask, per-key task privacy, 11 spec error codes; test_bus::test_a2a_task_runs_through_bus_and_worker; live smoke on dev stack (API→outbox→RabbitMQ→worker) |
 | A2A-02 | P1 | A2A client for external agent services | Client test against local server | pytest | A2A-01 | done | tests/test_a2a.py::test_client_against_local_server (real uvicorn over TCP: card discovery, send blocking/non-blocking, wait, list, error mapping, bad token), test_client_refuses_card_that_redirects_credentials_elsewhere |
 
-## M11 — Context and Memory (weight 7%, 0%) — spec Phases 7, 8
+## M11 — Context and Memory (weight 7%, 100%) — spec Phases 7, 8
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| CX-01 | P0 | Context assembler with per-task-type profiles and token budget | Assembles within budget; tests | pytest | RT-01 | pending | — |
-| CX-02 | P0 | Trust separation: system/policy/requirements/user/retrieved/tool-output segments; retrieved content cannot override policy | Injection tests | pytest | CX-01 | pending | — |
-| CX-03 | P0 | Context dedup, prioritization, compression/summarization | Tests | pytest | CX-01 | pending | — |
-| MEM-01 | P0 | Scoped memory store (9 types) with provenance, verified vs assumption flag, versioning, expiry | CRUD + scope isolation tests | pytest | FND-03 | pending | — |
-| MEM-02 | P0 | Semantic retrieval | Relevant memories ranked first | pytest | MEM-01 | pending | — |
-| MEM-03 | P0 | Project isolation of memory | Cross-project retrieval denied | pytest | MEM-01 | pending | — |
-| MEM-04 | P0 | Context & Memory UI with human correction/deletion | E2E | Playwright | MEM-01 | pending | — |
+| CX-01 | P0 | Context assembler with per-task-type profiles and token budget | Assembles within budget; tests | pytest | RT-01 | done | test_assembles_within_budget_per_profile (4 profiles/budgets) + test_context_preview_endpoint; scheduler uses assembler |
+| CX-02 | P0 | Trust separation: system/policy/requirements/user/retrieved/tool-output segments; retrieved content cannot override policy | Injection tests | pytest | CX-01 | done | 4 parametrized injection tests (EN/AR/tag forgery) + nonce forgery + project memory injection stays data; system message is policy-only |
+| CX-03 | P0 | Context dedup, prioritization, compression/summarization | Tests | pytest | CX-01 | done | test_dedup_prioritization_and_compression |
+| MEM-01 | P0 | Scoped memory store (9 types) with provenance, verified vs assumption flag, versioning, expiry | CRUD + scope isolation tests | pytest | FND-03 | done | backend/tests/test_memory.py: scope rules, provenance, agents cannot verify, versioning/history, expiry, delete chain, viewer read-only (197/197 backend) |
+| MEM-02 | P0 | Semantic retrieval | Relevant memories ranked first | pytest | MEM-01 | done | test_relevant_memories_rank_first (EN + AR + word-form); hybrid ts_rank + local hashed embedding |
+| MEM-03 | P0 | Project isolation of memory | Cross-project retrieval denied | pytest | MEM-01 | done | test_cross_project_and_cross_tenant_retrieval_denied (store, API, other tenant 404, task prompt) |
+| MEM-04 | P0 | Context & Memory UI with human correction/deletion | E2E | Playwright | MEM-01 | done | frontend/e2e/memory.spec.ts ar+en: add, ranked search, verify, correct with history, delete, context preview, axe WCAG 2.2 AA, no overflow 375/1440; full E2E 51/51 |
 
 ## M12 — Evaluation and Recovery (weight 6%, 100%) — spec Phases 14, 15
 
