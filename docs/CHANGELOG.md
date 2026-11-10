@@ -6,6 +6,8 @@ to `docs/requirements.json`.
 ## Unreleased — 2026-11-10
 
 ### Added
+- **A2A streaming**: `SendStreamingMessage` and `SubscribeToTask` over SSE on the server; the `a2a` engine streams
+  remote output live when the agent card offers it, without duplicating output on resume.
 - **Launchers & deployment** (FI-01..03): `START.bat`, `STOP.bat`, `UPDATE.bat`, `RESET-DEV.bat`, `INSTALL.ps1`,
   `HEALTH-CHECK.ps1/.bat`; `install.sh`, `start.sh`, `stop.sh`, `update.sh`, `health-check.sh`; generated secrets,
   logs in `logs/`; `docker-compose.prod.yml`; Redis service; Browser Bridge image.

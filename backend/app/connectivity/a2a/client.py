@@ -4,6 +4,7 @@
         card = await c.get_card()
         task = await c.send_message("Summarise X", blocking=True)
         task = await c.wait(task["id"])            # poll until terminal / input-required
+        async for ev in c.stream("SendStreamingMessage", {...}):   # SSE: StreamResponse dicts
 
 Hardening: only http(s) URLs; the RPC endpoint comes from the card's JSONRPC interface and must stay on the card's
 host (a card cannot redirect calls — and the bearer token — to another origin); responses are size-capped and
@@ -12,7 +13,9 @@ validated; JSON-RPC errors become `A2AError(code, message)`. External agents are
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
+from collections.abc import AsyncIterator
 from typing import Any, Self
 from urllib.parse import urlsplit
 
@@ -101,6 +104,52 @@ class A2AClient:
         req_id = str(uuid.uuid4())
         body = await self._get_json("POST", self.rpc_url,
                                     json={"jsonrpc": "2.0", "id": req_id, "method": method, "params": params})
+        if not isinstance(body, dict) or body.get("jsonrpc") != "2.0" or body.get("id") != req_id:
+            raise A2AError(-32006, "invalid JSON-RPC response")
+        if "error" in body:
+            e = body["error"] or {}
+            raise A2AError(int(e.get("code", -32603)), str(e.get("message", "error")), e.get("data"))
+        return body.get("result")
+
+    async def stream(self, method: str, params: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        """A streaming JSON-RPC call (SendStreamingMessage / SubscribeToTask): yields each StreamResponse.
+        A plain JSON answer (the agent refused before streaming) is raised as its JSON-RPC error."""
+        if self.rpc_url is None:
+            await self.get_card()
+        req_id = str(uuid.uuid4())
+        headers = self._headers() | {"Accept": "text/event-stream"}
+        body = {"jsonrpc": "2.0", "id": req_id, "method": method, "params": params}
+        try:
+            async with self._http.stream("POST", self.rpc_url, headers=headers, json=body,
+                                         timeout=httpx.Timeout(30.0, read=None)) as r:
+                if r.status_code in (401, 403):
+                    raise A2AError(-32600, f"not authorized by the agent service (HTTP {r.status_code})")
+                if r.status_code >= 400:
+                    raise A2AError(-32603, f"agent service returned HTTP {r.status_code}")
+                if not r.headers.get("content-type", "").startswith("text/event-stream"):
+                    raw = await r.aread()
+                    if len(raw) > MAX_RESPONSE_BYTES:
+                        raise A2AError(-32006, "response too large")
+                    yield self._result(json.loads(raw or b"null"), req_id)
+                    return
+                data: list[str] = []
+                async for line in r.aiter_lines():
+                    if len(line) > MAX_RESPONSE_BYTES:
+                        raise A2AError(-32006, "stream event too large")
+                    if line.startswith("data:"):
+                        data.append(line[5:].lstrip())
+                    elif line == "" and data:
+                        yield self._result(json.loads("\n".join(data)), req_id)
+                        data = []
+                if data:
+                    yield self._result(json.loads("\n".join(data)), req_id)
+        except httpx.TransportError as e:
+            raise A2AError(-32603, f"agent service unreachable ({type(e).__name__})") from e
+        except ValueError as e:
+            raise A2AError(-32006, "invalid JSON in agent stream") from e
+
+    @staticmethod
+    def _result(body: Any, req_id: str) -> Any:
         if not isinstance(body, dict) or body.get("jsonrpc") != "2.0" or body.get("id") != req_id:
             raise A2AError(-32006, "invalid JSON-RPC response")
         if "error" in body:

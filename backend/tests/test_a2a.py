@@ -87,7 +87,7 @@ def test_agent_card_requires_key_and_hides_unexposed_agents(admin_client, client
     iface = card["supportedInterfaces"][0]
     assert iface["protocolBinding"] == "JSONRPC" and iface["protocolVersion"] == "1.0"
     assert iface["url"].endswith(f"/api/a2a/agents/{a.identifier}")
-    assert card["capabilities"] == {"streaming": False, "pushNotifications": False, "extendedAgentCard": False}
+    assert card["capabilities"] == {"streaming": True, "pushNotifications": False, "extendedAgentCard": False}
     assert card["skills"][0]["id"] == "research"
 
 
@@ -153,7 +153,8 @@ def test_tasks_are_private_to_their_key(admin_client, client, db, exposed):
     ("GetTask", {"id": "x"}, {}, -32009),                          # no A2A-Version → 0.3 → not supported
     ("GetTask", {"id": "x"}, {"A2A-Version": "2.0"}, -32009),
     ("Nope", {}, V, -32601),
-    ("SendStreamingMessage", {}, V, -32004),
+    ("SendStreamingMessage", {}, V, -32602),
+    ("SubscribeToTask", {"id": "does-not-exist"}, V, -32001),
     ("CreateTaskPushNotificationConfig", {}, V, -32003),
     ("GetExtendedAgentCard", {}, V, -32007),
     ("GetTask", {}, V, -32602),
@@ -166,6 +167,77 @@ def test_tasks_are_private_to_their_key(admin_client, client, db, exposed):
 def test_spec_errors(client, exposed, method, params, headers, code):
     a, token, _ = exposed
     assert rpc(client, a, token, method, params, headers=headers)["error"]["code"] == code
+
+
+def sse(client, agent, token, method, params, id_=7):
+    """Collect the JSON-RPC responses of an SSE stream."""
+    out = []
+    with client.stream("POST", f"/api/a2a/agents/{agent.identifier}",
+                       headers={"Authorization": f"Bearer {token}", **V},
+                       json={"jsonrpc": "2.0", "id": id_, "method": method, "params": params}) as r:
+        assert r.status_code == 200 and r.headers["content-type"].startswith("text/event-stream")
+        assert r.headers["a2a-version"] == "1.0"
+        for line in r.iter_lines():
+            if line.startswith("data: "):
+                out.append(json.loads(line[6:]))
+    assert out and all(e["jsonrpc"] == "2.0" and e["id"] == id_ and "result" in e for e in out)
+    return [e["result"] for e in out]
+
+
+def _kinds(events):
+    return [next(iter(e)) for e in events]
+
+
+def test_streaming_message_emits_task_chunks_and_final_status(client, exposed):
+    a, token, _ = exposed
+    card = client.get(f"/api/a2a/agents/{a.identifier}/.well-known/agent-card.json",
+                      headers={"Authorization": f"Bearer {token}"}).json()
+    assert card["capabilities"]["streaming"] is True
+    ev = sse(client, a, token, "SendStreamingMessage", msg("streamed", contextId="ctx-s"))
+    kinds = _kinds(ev)
+    assert kinds[0] == "task" and kinds[-1] == "statusUpdate"  # spec: the stream begins with the Task
+    assert ev[-1]["statusUpdate"]["status"]["state"] == "TASK_STATE_COMPLETED"
+    chunks = [e["artifactUpdate"] for e in ev if "artifactUpdate" in e]
+    assert chunks[-1]["lastChunk"] is True and chunks[0]["append"] is False
+    assert all(c["append"] for c in chunks[1:]) and {c["contextId"] for c in chunks} == {"ctx-s"}
+    assert "".join(c["artifact"]["parts"][0]["text"] for c in chunks) == f"{MOCK_LABEL}streamed"
+    task_id = ev[0]["task"]["id"]
+    # terminal task: nothing to subscribe to (UnsupportedOperationError), answered as plain JSON
+    assert rpc(client, a, token, "SubscribeToTask", {"id": task_id})["error"]["code"] == -32004
+
+
+def test_subscribe_to_running_task_streams_until_final(client, exposed, db, monkeypatch):
+    from app.config import get_settings
+    from app.models import Execution, ExecutionEvent, OutboxMessage
+    a, token, _ = exposed
+    monkeypatch.setenv("EXECUTION_DISPATCH", "bus")  # no worker here: the task waits until we move it
+    get_settings.cache_clear()
+    try:
+        p = msg("later")
+        p["configuration"] = {"returnImmediately": True}
+        t = rpc(client, a, token, "SendMessage", p)["result"]["task"]
+        assert t["status"]["state"] == "TASK_STATE_SUBMITTED"
+
+        def finish():  # what the worker would record
+            time.sleep(0.8)
+            from app.db import session_factory
+            with session_factory()() as s:
+                s.add(ExecutionEvent(execution_id=t["id"], seq=900, type="output_delta", payload={"text": "done"}))
+                ex = s.get(Execution, t["id"])
+                ex.status, ex.output = "COMPLETED", {"text": "done"}
+                s.commit()
+        th = threading.Thread(target=finish)
+        th.start()
+        ev = sse(client, a, token, "SubscribeToTask", {"id": t["id"]})
+        th.join()
+        assert _kinds(ev)[0] == "task" and ev[0]["task"]["status"]["state"] == "TASK_STATE_SUBMITTED"
+        assert [e["artifactUpdate"]["artifact"]["parts"][0]["text"] for e in ev if "artifactUpdate" in e] == ["done", ""]
+        assert ev[-1]["statusUpdate"]["status"]["state"] == "TASK_STATE_COMPLETED"
+    finally:
+        get_settings.cache_clear()
+        db.query(OutboxMessage).filter(OutboxMessage.published_at.is_(None)).update(
+            {"published_at": OutboxMessage.created_at})
+        db.commit()
 
 
 def test_malformed_jsonrpc(client, exposed):
@@ -308,3 +380,70 @@ def test_a2a_engine_unreachable_service_fails_cleanly(admin_client, db):
     assert asyncio.run(service.run_execution(ex.id)) == "FAILED"
     db.expire_all()
     assert db.get(Execution, ex.id).error
+
+
+def test_client_streams_from_local_server(live_server, exposed):
+    a, token, _ = exposed
+    base = f"{live_server}/api/a2a/agents/{a.identifier}"
+
+    async def go():
+        async with A2AClient(base, token=token) as c:
+            msg_ = {"messageId": str(uuid.uuid4()), "role": "ROLE_USER", "parts": [{"text": "live"}]}
+            evs = [e async for e in c.stream("SendStreamingMessage", {"message": msg_})]
+            assert next(iter(evs[0])) == "task" and evs[-1]["statusUpdate"]["status"]["state"] == "TASK_STATE_COMPLETED"
+            text = "".join(e["artifactUpdate"]["artifact"]["parts"][0]["text"] for e in evs if "artifactUpdate" in e)
+            assert text == f"{MOCK_LABEL}live"
+            with pytest.raises(A2AError) as err:  # refused before streaming → plain JSON-RPC error
+                [e async for e in c.stream("SubscribeToTask", {"id": evs[0]["task"]["id"]})]
+            assert err.value.code == -32004
+    asyncio.run(go())
+
+
+def _events_of(db, ex_id, type_):
+    from app.models import ExecutionEvent
+    return db.scalars(select(ExecutionEvent).where(ExecutionEvent.execution_id == ex_id, ExecutionEvent.type == type_)
+                      .order_by(ExecutionEvent.seq)).all()
+
+
+def test_a2a_engine_streams_when_card_allows_and_polls_otherwise(admin_client, db, live_server, exposed, monkeypatch):
+    from app.connectivity.a2a import server as a2a_server
+    from app.models import Checkpoint, Execution
+    from app.runtime import service
+
+    remote, token, _ = exposed
+    delegate, _ = _delegate(admin_client, db, f"{live_server}/api/a2a/agents/{remote.identifier}", token, "stream")
+    want = f"{MOCK_LABEL}research Y"
+
+    def run(prompt="research Y"):
+        ex = service.create_execution(db, organization_id=1, agent=delegate, input={"prompt": prompt}, actor="test")
+        db.commit()
+        assert asyncio.run(service.run_execution(ex.id)) == "COMPLETED"
+        db.expire_all()
+        return db.get(Execution, ex.id)
+
+    streamed = run()
+    assert streamed.output["text"] == want
+    logs = [e.payload.get("message") for e in _events_of(db, streamed.id, "log")]
+    assert "submitted to external A2A agent (streaming)" in logs
+    # resume after a crash mid-stream: 5 characters were already emitted → only the rest is added
+    remote_id = db.scalars(select(Checkpoint).where(Checkpoint.execution_id == streamed.id)
+                           .order_by(Checkpoint.seq)).first().state["remote_task_id"]
+    ex2 = service.create_execution(db, organization_id=1, agent=delegate, input={"prompt": "research Y"}, actor="test")
+    db.flush()
+    db.add(Checkpoint(execution_id=ex2.id, seq=1, verified=True,
+                      state={"remote_task_id": remote_id, "streamed": 5, "parts": [want[:5]]}))
+    ex2.latest_checkpoint_seq = 1
+    for to in ("INITIALIZING", "READY", "RUNNING", "TERMINATED"):
+        service.set_status(db, ex2, service.X(to))
+    db.commit()
+    assert asyncio.run(service.run_execution(ex2.id)) == "COMPLETED"
+    db.expire_all()
+    assert db.get(Execution, ex2.id).output["text"] == want  # never duplicated
+
+    # an agent without streaming is polled
+    orig = a2a_server.agent_card
+    monkeypatch.setattr(a2a_server, "agent_card", lambda ag, base: {
+        **orig(ag, base), "capabilities": {"streaming": False, "pushNotifications": False, "extendedAgentCard": False}})
+    polled = run()
+    assert polled.output["text"] == want
+    assert "submitted to external A2A agent" in [e.payload.get("message") for e in _events_of(db, polled.id, "log")]

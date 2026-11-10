@@ -19,7 +19,7 @@ How the platform reaches AI models, what is supported, and — just as important
 | `openai` | `OpenAIAdapter` | official `openai` SDK | yes | yes | |
 | `openai_compatible` | `OpenAICompatibleAdapter` | `openai` SDK with `base_url` | yes | when the server supports it | local servers (Ollama, LM Studio, vLLM…) and other vendors with an OpenAI-compatible API; key optional |
 | `google` | `GoogleAdapter` | Gemini REST API over httpx2 (ADR-013) | yes | yes | |
-| `a2a` | A2A engine | A2A v1.0 JSON-RPC | polling | agent card | remote agents, see A2A_INTEGRATION.md |
+| `a2a` | A2A engine | A2A v1.0 JSON-RPC | SSE when the card offers it, else polling | agent card | remote agents, see A2A_INTEGRATION.md |
 | `mock` | `MockAdapter` | none | yes | fixed list | output prefixed `[MOCK — not real AI]`; tests and demos only |
 
 Errors are classified: 429, 5xx and network errors → `ProviderUnavailable` (retried, counts for the provider's
@@ -55,7 +55,7 @@ Tested with a fake runner (argv, environment, parsing, failures) and a real Dock
 | LiteLLM proxy | Not used | Own adapters cover the providers in scope (ADR-004); an OpenAI-compatible LiteLLM endpoint works as `openai_compatible`. |
 | Embedding models for memory | Not used | Local hashed embedding (ADR-024); swappable later. |
 | Image / audio generation endpoints | Not implemented | Text chat with tools only. |
-| A2A streaming, push notifications, extended card | Not implemented | Answered with the spec's errors; polling is used. |
+| A2A push notifications, extended card | Not implemented | Answered with the spec's errors; streaming or polling is used. |
 | CLI interactive modes, `--yolo`/`--dangerously-skip-permissions` | Not used | Non-interactive only; no approval bypass. |
 | Cursor, Windsurf, Aider and other IDE agents | Not integrated | No documented, stable non-interactive contract verified. |
 

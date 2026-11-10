@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-10 12:32",
+  "date": "2026-11-10 12:42",
   "spec_version": "4.0",
   "current_phase": "Phases 16, 17, 22",
   "current_milestone": {
@@ -246,15 +246,15 @@
     "SEC-08"
   ],
   "files_changed": [
-    "backend/app/bus/consumer.py",
-    "backend/app/bus/outbox.py",
-    "backend/app/models/bus.py",
-    "backend/tests/test_bus.py",
+    "backend/app/connectivity/a2a/client.py",
+    "backend/app/connectivity/a2a/engine.py",
+    "backend/app/connectivity/a2a/server.py",
+    "backend/tests/test_a2a.py",
+    "docs/A2A_INTEGRATION.md",
     "docs/ARCHITECTURE_DECISIONS.md",
     "docs/CHANGELOG.md",
-    "docs/DATABASE_SCHEMA.md",
-    "docs/RELEASE_READINESS.md",
-    "backend/alembic/versions/a0586b140d83_outbox_trace_context.py"
+    "docs/PROVIDER_INTEGRATION.md",
+    "docs/RELEASE_READINESS.md"
   ],
   "tests": {
     "passed": [

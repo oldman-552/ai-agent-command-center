@@ -13,19 +13,30 @@ POST /api/a2a/agents/{identifier}                                   JSON-RPC 2.0
   keys are created by a person with `security.manage` under **MCP & A2A → A2A access keys** and can be revoked.
   Unknown or unlisted agents answer 404 so their existence is not revealed.
 - An A2A task **is** a platform execution: the state machine, tool permissions, budgets, approvals and audit apply.
-- Supported methods: `SendMessage` (blocking or `returnImmediately`), `GetTask`, `ListTasks`, `CancelTask`.
-  Not supported yet (answered with the spec's errors and advertised as `false` in the card): streaming, push
-  notifications, the extended agent card, multi-turn follow-ups.
+- Supported methods: `SendMessage` (blocking or `returnImmediately`), `GetTask`, `ListTasks`, `CancelTask`,
+  `SendStreamingMessage` and `SubscribeToTask` (card `capabilities.streaming: true`).
+- **Streaming** answers `text/event-stream`. Every `data:` line is a JSON-RPC response with the request's `id` whose
+  `result` is a StreamResponse: first the `task`, then `artifactUpdate` chunks of the output (`append` after the first
+  chunk, `lastChunk: true` at the end) and `statusUpdate`s; the stream closes when the task is completed, failed,
+  cancelled or needs input. `SubscribeToTask` replays the output produced so far after the Task, then continues; on a
+  task that is already final it answers `UnsupportedOperationError` (-32004) as plain JSON. Validation errors are
+  plain JSON-RPC errors too, never a stream.
+- Not supported yet (answered with the spec's errors and advertised as `false` in the card): push notifications, the
+  extended agent card, multi-turn follow-ups.
 
 ## Using remote agents (client + `a2a` engine)
 
 Register a provider of kind `a2a` whose base URL is the remote agent (where its agent card lives) and whose encrypted
 credential is the bearer token; give an agent `execution_engine = "a2a"`. The engine submits the task, checkpoints the
 remote task id immediately and derives the message id from the execution id, so a resumed execution re-attaches to
-the same remote task instead of submitting a second one. Remote output is untrusted data: recorded as output, never
+the same remote task instead of submitting a second one. When the remote card advertises streaming, the engine uses
+`SendStreamingMessage` and records the output live as it arrives (cancellation is still checked every second while
+the stream is idle); the number of characters already emitted is checkpointed, so a resumed run (which re-attaches by
+polling) adds only the rest. Agents without streaming are polled. Remote output is untrusted data: recorded as output, never
 executed. URLs must be http(s); deadlines, cancellation and retries are the runtime's.
 
 ## Verification
 
-`backend/tests/test_a2a.py`: card, auth (missing/wrong/revoked keys, unlisted agent 404), all four methods, the client
-against the platform's own server, crash-safe re-attachment.
+`backend/tests/test_a2a.py`: card, auth (missing/wrong/revoked keys, unlisted agent 404), all four methods, streaming
+(event order, chunks, subscribe to a running task, errors), the client against the platform's own server (plain and
+streaming), the engine streaming and polling, crash-safe re-attachment without duplicated output.

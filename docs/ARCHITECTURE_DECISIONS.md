@@ -116,7 +116,11 @@ internal bus. A2A v1.0 (JSON-RPC binding: `SendMessage`/`GetTask`/`ListTasks`/`C
 - An A2A Task *is* an Execution (same runtime, tool gate, budgets, audit; dispatched over the bus). `messageId` is the
   idempotency key. Blocking `SendMessage` waits up to min(agent timeout, 120 s). Only v1.0 is accepted; a request
   without `A2A-Version` (= 0.3 per spec) gets `VersionNotSupportedError` (-32009).
-- Not yet: streaming, push notifications, extended card, multi-turn follow-ups — advertised `false` and answered with
+- Streaming (added 2026-11-10): `SendStreamingMessage` / `SubscribeToTask` over SSE, one JSON-RPC response per
+  `data:` line (the JSON-RPC SSE framing of earlier A2A versions; the v1.0 page fetched for this did not show the
+  binding section), StreamResponse objects per spec §4.2 (`task` first; no `final` field in v1.0 — the stream closes).
+  The server polls the execution's events every 0.25 s; the `a2a` engine streams when the card allows it.
+- Not yet: push notifications, extended card, multi-turn follow-ups — advertised `false` and answered with
   the spec's error codes.
 - Client (`client.py`): the RPC URL must come from the card's JSONRPC interface **on the same host** as the card, so a
   hostile card cannot redirect the bearer token; only http(s); size-capped, validated responses; transport errors →

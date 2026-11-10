@@ -74,6 +74,9 @@ def _client_for(execution_id: str) -> A2AClient:
 
 
 class A2AEngine:
+    """Delegates the execution to an external A2A agent. With a streaming agent (card `capabilities.streaming`)
+    the answer arrives as live output chunks over SSE; otherwise — and after a resume — the task is polled.
+    State `streamed` counts characters already emitted, so a resumed run never repeats output."""
     kind, is_mock = "a2a", False
 
     async def run(self, ctx: EngineContext) -> AsyncIterator[EngineEvent]:
@@ -82,12 +85,23 @@ class A2AEngine:
         try:
             if not state.get("remote_task_id"):
                 prompt = str(ctx.input.get("prompt", ""))
-                task = await client.send_message(prompt, blocking=False, message_id=f"acc-{ctx.execution_id}",
-                                                 context_id=state.get("context_id"))
-                state.update(remote_task_id=task.get("id"), context_id=task.get("contextId"))
-                await ctx.checkpoint(state)
-                yield EngineEvent("log", {"message": "submitted to external A2A agent",
-                                          "remote_task_id": task.get("id"), "agent": (client.card or {}).get("name")})
+                card = await client.get_card()
+                if (card.get("capabilities") or {}).get("streaming"):
+                    task = None
+                    async for ev in self._streamed(ctx, client, prompt, state):
+                        if isinstance(ev, dict):
+                            task = ev
+                        else:
+                            yield ev
+                    if task is None:  # cancelled, or the agent answered with a direct message
+                        return
+                else:
+                    task = await client.send_message(prompt, blocking=False, message_id=f"acc-{ctx.execution_id}",
+                                                     context_id=state.get("context_id"))
+                    state.update(remote_task_id=task.get("id"), context_id=task.get("contextId"))
+                    await ctx.checkpoint(state)
+                    yield EngineEvent("log", {"message": "submitted to external A2A agent",
+                                              "remote_task_id": task.get("id"), "agent": card.get("name")})
             else:
                 task = await client.get_task(state["remote_task_id"])
                 yield EngineEvent("log", {"message": "re-attached to external A2A task",
@@ -99,7 +113,9 @@ class A2AEngine:
                     yield EngineEvent("message", {"remote_state": st})
                     last = st
                 if st == "TASK_STATE_COMPLETED":
-                    yield EngineEvent("output_delta", {"text": task_text(task)})
+                    rest = task_text(task)[int(state.get("streamed", 0)):]
+                    if rest:
+                        yield EngineEvent("output_delta", {"text": rest})
                     return
                 if st in TERMINAL_STATES:
                     raise ProviderError(f"external agent ended the task as {st}")
@@ -109,10 +125,7 @@ class A2AEngine:
                 if task.get("id") is None:  # the agent answered with a direct message
                     return
                 if await ctx.is_cancelled():
-                    try:
-                        await client.cancel_task(task["id"])
-                    except A2AError:
-                        pass  # best effort; the platform side is cancelled regardless
+                    await _cancel_remote(client, task["id"])
                     yield EngineEvent("log", {"message": "cancelled external A2A task"})  # runtime sees the flag
                     return
                 await asyncio.sleep(POLL_SECONDS)
@@ -125,6 +138,81 @@ class A2AEngine:
             raise RetryableError(f"external agent unreachable: {type(e).__name__}") from e
         finally:
             await client.aclose()
+
+    @staticmethod
+    async def _streamed(ctx: EngineContext, client: A2AClient, prompt: str, state: dict[str, Any]):
+        """SendStreamingMessage. Yields EngineEvents, and finally the remote Task as last seen (a dict) for the
+        common completion logic. The stream is read by a separate task so cancellation is noticed while it is idle."""
+        msg: dict[str, Any] = {"messageId": f"acc-{ctx.execution_id}", "role": "ROLE_USER", "parts": [{"text": prompt}]}
+        if state.get("context_id"):
+            msg["contextId"] = state["context_id"]
+        queue: asyncio.Queue = asyncio.Queue(maxsize=64)
+        done = object()
+
+        async def reader():
+            try:
+                async for res in client.stream("SendStreamingMessage", {"message": msg}):
+                    await queue.put(res)
+            except BaseException as e:  # noqa: BLE001 — handed to the consumer
+                await queue.put(e)
+                return
+            await queue.put(done)
+        rd = asyncio.create_task(reader())
+        task: dict[str, Any] | None = None
+        try:
+            while True:
+                try:
+                    item = await asyncio.wait_for(queue.get(), POLL_SECONDS)
+                except TimeoutError:
+                    if await ctx.is_cancelled():
+                        if task and task.get("id"):
+                            await _cancel_remote(client, task["id"])
+                        yield EngineEvent("log", {"message": "cancelled external A2A task"})
+                        return
+                    continue
+                if item is done:
+                    break
+                if isinstance(item, BaseException):
+                    raise item
+                if not isinstance(item, dict):
+                    continue
+                if isinstance(item.get("message"), dict):  # a direct answer instead of a task
+                    text = "".join(p.get("text", "") for p in item["message"].get("parts") or [] if isinstance(p, dict))
+                    if text:
+                        yield EngineEvent("output_delta", {"text": text})
+                    return
+                if isinstance(item.get("task"), dict):
+                    first = task is None
+                    task = item["task"]
+                    if first:
+                        state.update(remote_task_id=task.get("id"), context_id=task.get("contextId"))
+                        await ctx.checkpoint(state)
+                        yield EngineEvent("log", {"message": "submitted to external A2A agent (streaming)",
+                                                  "remote_task_id": task.get("id"),
+                                                  "agent": (client.card or {}).get("name")})
+                elif isinstance(item.get("artifactUpdate"), dict) and task is not None:
+                    parts = (item["artifactUpdate"].get("artifact") or {}).get("parts") or []
+                    text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
+                    if text:
+                        yield EngineEvent("output_delta", {"text": text})
+                        state["streamed"] = int(state.get("streamed", 0)) + len(text)
+                        await ctx.checkpoint(state)
+                elif isinstance(item.get("statusUpdate"), dict) and task is not None:
+                    task = {**task, "status": item["statusUpdate"].get("status") or task.get("status")}
+        finally:
+            rd.cancel()
+        if task is not None:
+            st = (task.get("status") or {}).get("state")
+            if st == "TASK_STATE_COMPLETED" and task.get("id"):
+                task = await client.get_task(task["id"])  # authoritative artifacts; only the unstreamed rest is used
+            yield task
+
+
+async def _cancel_remote(client: A2AClient, task_id: str) -> None:
+    try:
+        await client.cancel_task(task_id)
+    except A2AError:
+        pass  # best effort; the platform side is cancelled regardless
 
 
 register_engine("a2a", A2AEngine)

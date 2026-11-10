@@ -8,27 +8,32 @@ Security: nothing is exposed by default. A caller needs a bearer A2A access key 
 `security.manage`) that names the agent. Unknown/unlisted agents answer 404 so their existence is not revealed.
 An A2A Task *is* a platform Execution: the full runtime (state machine, tool gate, budgets, audit) applies.
 
-Supported: SendMessage (blocking or returnImmediately), GetTask, ListTasks, CancelTask.
-Not yet: streaming, push notifications, extended card, multi-turn follow-ups — answered with the spec's errors and
-advertised as false in the card.
+Supported: SendMessage (blocking or returnImmediately), GetTask, ListTasks, CancelTask, and streaming —
+SendStreamingMessage / SubscribeToTask answer `text/event-stream`; every `data:` line is a JSON-RPC response with
+the request's id whose result is a StreamResponse (`task` first, then `statusUpdate` / `artifactUpdate` with
+`append`/`lastChunk` chunks of the output); the stream closes when the task is terminal or needs input.
+Not yet: push notifications, extended card, multi-turn follow-ups — answered with the spec's errors and advertised
+as false in the card.
 """
 from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import logging
 import uuid
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import session_factory
-from app.models import A2AAccessKey, Agent, Execution
+from app.models import A2AAccessKey, Agent, Execution, ExecutionEvent
 from app.models import ExecutionStatus as X
 from app.runtime import service
 from app.runtime.contract import TERMINAL
@@ -40,6 +45,9 @@ router = APIRouter(prefix="/api/a2a", tags=["a2a"])
 
 PROTOCOL_VERSION = "1.0"
 BLOCKING_WAIT_MAX_S = 120.0
+STREAM_MAX_S = 3600.0
+STREAM_POLL_S = 0.25
+STREAMING = {"SendStreamingMessage", "SubscribeToTask"}
 
 # ---- JSON-RPC / A2A error codes (spec §5.4) ----
 PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL_ERROR = -32700, -32600, -32601, -32602, -32603
@@ -136,7 +144,7 @@ def agent_card(agent: Agent, base_url: str) -> dict[str, Any]:
         "version": str(agent.config_version),
         "supportedInterfaces": [{"url": url, "protocolBinding": "JSONRPC", "protocolVersion": PROTOCOL_VERSION}],
         "provider": {"organization": "AI Agent Command Center", "url": base_url.rstrip("/")},
-        "capabilities": {"streaming": False, "pushNotifications": False, "extendedAgentCard": False},
+        "capabilities": {"streaming": True, "pushNotifications": False, "extendedAgentCard": False},
         "securitySchemes": {"bearer": {"httpAuthSecurityScheme": {"scheme": "Bearer",
                                                                   "description": "A2A access key"}}},
         "securityRequirements": [{"schemes": {"bearer": {"list": []}}}],
@@ -165,7 +173,8 @@ def task_json(ex: Execution) -> dict[str, Any]:
 
 
 # ---- methods ----
-async def _send(db: Session, key: A2AAccessKey, agent: Agent, params: SendParams, bg: BackgroundTasks) -> dict:
+def _start(db: Session, key: A2AAccessKey, agent: Agent, params: SendParams, run_inline) -> Execution:
+    """Create (or, for a retried messageId, find) the platform execution behind an A2A task and dispatch it."""
     msg = params.message
     if msg.role not in ("ROLE_USER", "user"):
         raise RpcError(INVALID_PARAMS, "message.role must be ROLE_USER")
@@ -187,8 +196,13 @@ async def _send(db: Session, key: A2AAccessKey, agent: Agent, params: SendParams
     if ex.status == X.CREATED.value:
         log_activity(db, "a2a.task_received", category="a2a", organization_id=key.organization_id,
                      actor=f"a2a:key:{key.id}", agent_id=agent.id, execution_id=ex.id)
-        dispatch(db, ex, f"a2a:key:{key.id}", "create", run_inline=bg.add_task)
+        dispatch(db, ex, f"a2a:key:{key.id}", "create", run_inline=run_inline)
     db.commit()
+    return ex
+
+
+async def _send(db: Session, key: A2AAccessKey, agent: Agent, params: SendParams, bg: BackgroundTasks) -> dict:
+    ex = _start(db, key, agent, params, bg.add_task)
     if not params.configuration.returnImmediately:
         deadline = asyncio.get_running_loop().time() + min(float(agent.timeout_seconds), BLOCKING_WAIT_MAX_S)
         while X(ex.status) not in FINAL and asyncio.get_running_loop().time() < deadline:
@@ -240,7 +254,7 @@ def _cancel(db: Session, key: A2AAccessKey, agent: Agent, p: TaskIdParams) -> di
     return task_json(ex)
 
 
-UNSUPPORTED = {"SendStreamingMessage", "SubscribeToTask", "CreateTaskPushNotificationConfig",
+UNSUPPORTED = {"CreateTaskPushNotificationConfig",
                "GetTaskPushNotificationConfig", "ListTaskPushNotificationConfigs", "DeleteTaskPushNotificationConfig"}
 
 
@@ -262,6 +276,74 @@ async def _call(db: Session, key: A2AAccessKey, agent: Agent, method: str, param
         code = PUSH_NOT_SUPPORTED if "PushNotification" in method else UNSUPPORTED_OPERATION
         raise RpcError(code, f"{method} is not supported by this agent")
     raise RpcError(METHOD_NOT_FOUND, f"method not found: {method}")
+
+
+# ---- streaming ----
+def _open_stream(db: Session, key: A2AAccessKey, agent: Agent, method: str, params: Any) -> tuple[str, list]:
+    """Validate and start; errors are raised here so they are answered as plain JSON-RPC errors, not a stream."""
+    inline: list = []
+    try:
+        if method == "SendStreamingMessage":
+            ex = _start(db, key, agent, SendParams.model_validate(params or {}),
+                        lambda fn, *a: inline.append((fn, a)))
+            return ex.id, inline
+        ex = _own_task(db, key, agent, TaskIdParams.model_validate(params or {}).id)
+    except ValidationError as e:
+        raise RpcError(INVALID_PARAMS, "invalid params", e.errors(include_url=False, include_input=False)) from e
+    if X(ex.status) in FINAL:
+        raise RpcError(UNSUPPORTED_OPERATION, f"task is {STATE[X(ex.status)]}; nothing to subscribe to")
+    return ex.id, inline
+
+
+async def _events(request: Request, id_: Any, task_id: str, inline: list) -> AsyncIterator[str]:
+    """StreamResponse events for one task until it is final. Output deltas become artifact chunks."""
+    def frame(result: dict) -> str:
+        return f"data: {json.dumps({'jsonrpc': '2.0', 'id': id_, 'result': result}, default=str)}\n\n"
+
+    runners = [asyncio.create_task(fn(*a)) for fn, a in inline]  # inline mode (tests): run it alongside the stream
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + STREAM_MAX_S
+    last_seq, chunks, last_state = 0, 0, None
+    try:
+        while True:
+            with session_factory()() as db:
+                ex = db.get(Execution, task_id)
+                if ex is None:
+                    return
+                task = task_json(ex)
+                ctx_id = task["contextId"]
+                if last_state is None:
+                    yield frame({"task": task})
+                    last_state = task["status"]["state"]
+                deltas = db.scalars(select(ExecutionEvent).where(
+                    ExecutionEvent.execution_id == task_id, ExecutionEvent.type == "output_delta",
+                    ExecutionEvent.seq > last_seq).order_by(ExecutionEvent.seq)).all()
+                for ev in deltas:
+                    last_seq = ev.seq
+                    yield frame({"artifactUpdate": {
+                        "taskId": task_id, "contextId": ctx_id, "append": chunks > 0, "lastChunk": False,
+                        "artifact": {"artifactId": f"{task_id}-output", "name": "output",
+                                     "parts": [{"text": str((ev.payload or {}).get("text", ""))}]}}})
+                    chunks += 1
+                st = X(ex.status)
+                if st == X.COMPLETED:
+                    yield frame({"artifactUpdate": {
+                        "taskId": task_id, "contextId": ctx_id, "append": chunks > 0, "lastChunk": True,
+                        "artifact": {"artifactId": f"{task_id}-output", "name": "output",
+                                     "parts": [{"text": "" if chunks else str((ex.output or {}).get("text") or "")}]}}})
+                if task["status"]["state"] != last_state or st in FINAL:
+                    last_state = task["status"]["state"]
+                    yield frame({"statusUpdate": {"taskId": task_id, "contextId": ctx_id, "status": task["status"],
+                                                  "metadata": task["metadata"]}})
+                if st in FINAL:
+                    return
+            if await request.is_disconnected() or loop.time() > deadline:
+                return
+            await asyncio.sleep(STREAM_POLL_S)
+    finally:
+        for r in runners:  # inline mode only; in bus mode the worker owns the execution
+            if not r.done():
+                await r
 
 
 def _err(id_: Any, code: int, message: str, data: Any = None) -> JSONResponse:
@@ -297,6 +379,15 @@ async def rpc(identifier: str, request: Request, bg: BackgroundTasks) -> JSONRes
         if version not in ("1.0", "1"):
             return _err(id_, VERSION_NOT_SUPPORTED, f"A2A version {version} not supported",
                         {"supportedVersions": [PROTOCOL_VERSION]})
+        if body["method"] in STREAMING:
+            try:
+                task_id, inline = _open_stream(db, key, agent, body["method"], body.get("params"))
+            except RpcError as e:
+                db.rollback()
+                return _err(id_, e.code, e.message, e.data)
+            return StreamingResponse(_events(request, id_, task_id, inline), media_type="text/event-stream",
+                                     headers={"A2A-Version": PROTOCOL_VERSION, "Cache-Control": "no-store",
+                                              "X-Accel-Buffering": "no"})
         try:
             result = await _call(db, key, agent, body["method"], body.get("params"), bg)
         except RpcError as e:
