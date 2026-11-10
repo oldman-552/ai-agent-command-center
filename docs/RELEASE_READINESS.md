@@ -13,11 +13,11 @@ below with exactly what is missing; none of them is hidden behind a mock.
 
 | Suite | Result | Command |
 |---|---|---|
-| Backend (pytest, real PostgreSQL, RabbitMQ, Redis, Docker sandbox, headless Chromium) | **321 / 321 passed** | `cd backend && uv run pytest -q` |
+| Backend (pytest, real PostgreSQL, RabbitMQ, Redis, Docker sandbox, headless Chromium) | **323 / 323 passed** | `cd backend && uv run pytest -q` |
 | Lint | clean | `uv run ruff check app tests` |
 | Frontend type check + i18n guard (1 081 keys, ar = en) | clean | `npm run check` |
 | Design-token contrast (WCAG) | all pass | `node scripts/check-contrast.mjs` |
-| E2E (Playwright, real Chrome, Arabic + English, axe WCAG 2.2 AA) | **64 / 64 passed** | `npx playwright test` |
+| E2E (Playwright, real Chrome, Arabic + English, axe WCAG 2.2 AA) | **65 / 65 passed** | `npx playwright test` |
 | Docker Compose stack (official compose file + offline image equivalents) | all services healthy; migrations; Definition-of-Done, 20-page navigation, live WebSocket and memory E2E passed against it; data kept across stop/start | see DEPLOYMENT.md |
 | Dependency scan | pip-audit: no known vulnerabilities; npm audit (prod): 0 | `scripts/security-scan.sh` |
 | OS security updates in images | all 7 locally built images: 0 pending (was 72 before the base fix) | `scripts/check-image-updates.sh` |

@@ -6,6 +6,8 @@ to `docs/requirements.json`.
 ## Unreleased — 2026-11-10
 
 ### Added
+- **Browser Bridge: arena.ai adapter** (experimental, owner request; terms clauses acknowledged explicitly) and
+  **selector overrides** per provider for the Super Admin, so a changed page can be fixed without a code change.
 - The Browser Bridge service is optional in the default compose file (`COMPOSE_PROFILES=browser-bridge`), so a first
   install no longer downloads the ~1.5 GB Playwright image.
 - **Agents can ask a person** (`ask.human`): the execution waits in `WAITING_FOR_INPUT`, the question appears in the

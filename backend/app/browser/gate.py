@@ -35,12 +35,44 @@ def _save(org: Organization, cfg: dict[str, Any]) -> None:
 
 def state(db: Session, organization_id: int) -> dict[str, Any]:
     cfg = _cfg(db.get(Organization, organization_id))
-    return {"enabled": bool(cfg.get("enabled")), "acks": cfg.get("acks", {})}
+    return {"enabled": bool(cfg.get("enabled")), "acks": cfg.get("acks", {}), "selectors": cfg.get("selectors", {})}
+
+
+def overrides(db: Session, organization_id: int, provider: str) -> dict[str, str]:
+    return dict(_cfg(db.get(Organization, organization_id)).get("selectors", {}).get(provider) or {})
+
+
+def set_selectors(db: Session, organization_id: int, user_id: int, provider: str, sel: dict[str, str]) -> dict:
+    """Super Admin only (API). Empty values fall back to the built-in selector; audited with the new values."""
+    from app.browser.adapters import SELECTOR_FIELDS
+    if provider not in ADAPTERS:
+        raise GateClosed("unknown_provider")
+    clean: dict[str, str] = {}
+    for k, v in sel.items():
+        if k not in SELECTOR_FIELDS:
+            raise GateClosed(f"unknown_selector:{k}")
+        if not isinstance(v, str) or len(v) > 500 or "\n" in v:
+            raise GateClosed(f"invalid_selector:{k}")
+        if v.strip():
+            clean[k] = v.strip()
+    org = db.get(Organization, organization_id)
+    cfg = _cfg(org)
+    all_sel = dict(cfg.get("selectors", {}))
+    if clean:
+        all_sel[provider] = clean
+    else:
+        all_sel.pop(provider, None)
+    cfg["selectors"] = all_sel
+    _save(org, cfg)
+    log_activity(db, "browser_bridge.selectors_changed", category="security", level="warning",
+                 organization_id=organization_id, actor=f"user:{user_id}",
+                 details={"provider": provider, "selectors": clean})
+    return state(db, organization_id)
 
 
 def statement(provider: str) -> str:
     a = ADAPTERS[provider]
-    return TERMS_STATEMENT.format(name=a.name, url=a.terms_url)
+    return TERMS_STATEMENT.format(name=a.name, url=a.terms_url) + (f" {a.terms_warning}" if a.terms_warning else "")
 
 
 def set_enabled(db: Session, organization_id: int, user_id: int, enabled: bool) -> dict[str, Any]:

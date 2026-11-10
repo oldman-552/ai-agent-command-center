@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from app.browser import client, gate
-from app.browser.adapters import ADAPTERS, public
+from app.browser.adapters import ADAPTERS, effective, public
 from app.browser.bridge import ACTIVE, BridgeError, profile_dir
 from app.models import Agent, BrowserSession, User
 from app.security.audit import log_activity
@@ -55,7 +55,9 @@ async def overview(db: DB, user: User = Depends(require("providers.read"))) -> d
         health = {"reachable": False, "error": e.code}
     else:
         health = {"reachable": True, **health}
-    providers = [{**public(a), "unlocked": not a.requires_terms or a.key in st["acks"],
+    providers = [{**public(effective(a, st["selectors"].get(a.key))), "default_selectors": public(a)["selectors"],
+                  "overridden": bool(st["selectors"].get(a.key)),
+                  "unlocked": not a.requires_terms or a.key in st["acks"],
                   "acknowledgement": st["acks"].get(a.key),
                   "statement": gate.statement(a.key) if a.requires_terms else None} for a in ADAPTERS.values()]
     return {"enabled": st["enabled"], "experimental": True, "providers": providers, "health": health}
@@ -90,6 +92,23 @@ class AckIn(BaseModel):
 def acknowledge(provider: str, body: AckIn, db: DB, user: User = Depends(require("browser_bridge.manage"))) -> dict:
     try:
         st = gate.acknowledge(db, user.organization_id, user.id, provider, body.statement)
+    except gate.GateClosed as e:
+        raise HTTPException(422, e.code) from e
+    db.commit()
+    return st
+
+
+class SelectorsIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    selectors: dict[str, str] = Field(default_factory=dict)  # empty → back to the built-in selectors
+
+
+@router.put("/providers/{provider}/selectors")
+def set_selectors(provider: str, body: SelectorsIn, db: DB,
+                  user: User = Depends(require("browser_bridge.manage"))) -> dict:
+    """Adjust a provider's selectors when its page changed (Super Admin; audited). Applies from the next start."""
+    try:
+        st = gate.set_selectors(db, user.organization_id, user.id, provider, body.selectors)
     except gate.GateClosed as e:
         raise HTTPException(422, e.code) from e
     db.commit()

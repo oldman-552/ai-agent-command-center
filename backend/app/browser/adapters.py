@@ -10,7 +10,7 @@ automated tests use.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 
 @dataclass(frozen=True)
@@ -30,6 +30,7 @@ class Adapter:
     verified: bool = False  # selectors confirmed against the live site by a human
     requires_terms: bool = True
     notes: str = ""
+    terms_warning: str = ""  # provider-specific clauses the Super Admin acknowledges explicitly
     captcha: tuple[str, ...] = field(default=(
         "iframe[src*='recaptcha']", "iframe[src*='hcaptcha']", "iframe[src*='challenges.cloudflare.com']",
         "#challenge-form", "[data-captcha]"))
@@ -58,9 +59,29 @@ ADAPTERS: dict[str, Adapter] = {a.key: a for a in (
             response="message-content", generating="button[aria-label*='Stop']",
             stop="button[aria-label*='Stop']", login="a[href*='accounts.google.com']",
             notes="Unverified selectors. Prefer the official API or Gemini CLI."),
+    Adapter(key="arena", name="Arena agent (arena.ai)", url="https://arena.ai/agent",
+            terms_url="https://help.arena.ai/articles/5629909088-terms-of-use",
+            input="textarea", send="button[type='submit'], button[aria-label*='Send' i]",
+            response="[data-message-role='assistant'], [data-role='assistant'], .prose",
+            generating="button[aria-label*='Stop' i]", stop="button[aria-label*='Stop' i]",
+            login="a[href*='login'], a[href*='signin'], button[aria-label*='Sign in' i]",
+            notes="Guessed selectors, never checked against the live page: adjust them under Selectors. Arena's terms "
+                  "prohibit automated access and its bot checks will stop the session for a person to solve.",
+            terms_warning="Arena's terms explicitly prohibit accessing the service by automated means (section 5(vi)), "
+                          "and inputs are shared with third-party model providers that may not keep them "
+                          "confidential (section 3.4); I will not send confidential code or personal data."),
 )}
+
+SELECTOR_FIELDS = ("input", "send", "response", "generating", "stop", "login", "new_chat")
+
+
+def effective(a: Adapter, overrides: dict[str, str] | None) -> Adapter:
+    """The adapter with the organization's selector overrides; an overridden adapter is never 'verified'."""
+    o = {k: v for k, v in (overrides or {}).items() if k in SELECTOR_FIELDS and isinstance(v, str) and v.strip()}
+    return replace(a, **o, verified=False) if o else a
 
 
 def public(a: Adapter) -> dict:
     return {"key": a.key, "name": a.name, "url": a.url, "terms_url": a.terms_url, "verified": a.verified,
+            "selectors": {k: getattr(a, k) for k in SELECTOR_FIELDS},
             "requires_terms": a.requires_terms, "models": list(a.models), "notes": a.notes, "experimental": True}

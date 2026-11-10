@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 export type BridgeProvider = {
   key: string; name: string; url: string; terms_url: string; verified: boolean; requires_terms: boolean; models: string[];
   notes: string; experimental: true; unlocked: boolean; acknowledgement: { by: string; at: string } | null; statement: string | null;
+  selectors: Record<string, string | null>; default_selectors: Record<string, string | null>; overridden: boolean;
 };
 export type BridgeOverview = {
   enabled: boolean; experimental: true; providers: BridgeProvider[];
@@ -39,6 +40,8 @@ export function useBridgeActions() {
     setEnabled: m((enabled: boolean) => send<BridgeOverview>("/api/browser-bridge/enabled", { enabled }, "PUT")),
     acknowledge: m(({ provider, statement }: { provider: string; statement: string }) => send(`/api/browser-bridge/providers/${provider}/acknowledge`, { statement })),
     revoke: m((provider: string) => send(`/api/browser-bridge/providers/${provider}/acknowledge`, undefined, "DELETE")),
+    selectors: m(({ provider, selectors }: { provider: string; selectors: Record<string, string> }) =>
+      send(`/api/browser-bridge/providers/${provider}/selectors`, { selectors }, "PUT")),
     create: m((b: { provider: string; profile: string }) => send<BridgeStatus>("/api/browser-bridge/sessions", b)),
     op: m(({ id, op }: { id: number; op: "start" | "stop" | "recheck" | "cancel" | "conversation" }) => send<BridgeStatus>(`/api/browser-bridge/sessions/${id}/${op}`)),
     prompt: m(({ id, prompt }: { id: number; prompt: string }) => send<BridgeStatus>(`/api/browser-bridge/sessions/${id}/prompt`, { prompt })),

@@ -316,3 +316,45 @@ def test_browser_engine_runs_an_agent_turn(db, page_server):
     ex = db.get(Execution, ex_id)
     assert ex.status == "COMPLETED", ex.error
     assert ex.output["text"] == "Echo: via engine" and ex.provider == "browser:test" and ex.is_mock is False
+
+
+async def test_selector_overrides_apply_from_the_next_start_and_are_audited(db, page_server, admin_client):
+    """A provider's page changed: the Super Admin adjusts its selectors; the next session uses them."""
+    from app.models import AuditLog
+    _enable(db)
+    gate.set_selectors(db, 1, 1, "test", {"input": "#no-such-box"})  # what a changed page looks like to the bridge
+    db.commit()
+    bridge = B.Bridge(base_url=page_server, poll=0.05)
+    s = _session(db)
+    try:
+        snap = await bridge.start(s.id)
+        assert (snap["state"], snap["error"]) == ("FAILED", "interface_changed")
+        await bridge.stop(s.id)
+        gate.set_selectors(db, 1, 1, "test", {"input": "textarea#prompt, #prompt"})  # the corrected selector
+        db.commit()
+        assert (await bridge.start(s.id))["state"] == "READY"
+        snap = await bridge.send(s.id, "hello")
+        assert snap["state"] in ("READY", "GENERATING")
+    finally:
+        await bridge.shutdown()
+    ov = admin_client.get("/api/browser-bridge").json()
+    t = next(p for p in ov["providers"] if p["key"] == "test")
+    assert t["overridden"] and t["verified"] is False and t["selectors"]["input"] == "textarea#prompt, #prompt"
+    assert t["default_selectors"]["input"] == "#prompt"
+    audit = db.query(AuditLog).filter(AuditLog.action == "browser_bridge.selectors_changed").order_by(
+        AuditLog.id.desc()).first()
+    assert audit.details["selectors"] == {"input": "textarea#prompt, #prompt"}
+    r = admin_client.put("/api/browser-bridge/providers/test/selectors", json={"selectors": {}})
+    assert r.status_code == 200 and "test" not in r.json()["selectors"]  # reset to the built-in selectors
+    assert admin_client.put("/api/browser-bridge/providers/test/selectors",
+                            json={"selectors": {"cookie": "x"}}).status_code == 422
+
+
+def test_arena_needs_its_own_explicit_acknowledgement(admin_client):
+    ov = admin_client.get("/api/browser-bridge").json()
+    arena = next(p for p in ov["providers"] if p["key"] == "arena")
+    assert arena["requires_terms"] and not arena["unlocked"] and not arena["verified"]
+    assert "section 5(vi)" in arena["statement"] and "section 3.4" in arena["statement"]
+    generic = gate.statement("claude")
+    r = admin_client.post("/api/browser-bridge/providers/arena/acknowledge", json={"statement": generic})
+    assert r.status_code == 422  # the generic statement does not unlock it: the specific clauses must be accepted

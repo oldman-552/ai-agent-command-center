@@ -24,7 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.browser import gate
-from app.browser.adapters import ADAPTERS, Adapter
+from app.browser.adapters import ADAPTERS, Adapter, effective
 from app.config import get_settings
 from app.db import session_factory
 from app.models import BrowserSession
@@ -155,7 +155,7 @@ class Bridge:
                 return self.snapshot(session_id)
             if len(self._rt) >= settings.browser_max_sessions:
                 raise BridgeError("too_many_sessions", 429)
-            a = ADAPTERS[s.provider_key]
+            a = effective(ADAPTERS[s.provider_key], gate.overrides(db, s.organization_id, s.provider_key))
             pdir = profile_dir(s.organization_id, s.provider_key, s.profile_name)
             transition(db, s, S.STARTING.value)
             db.commit()

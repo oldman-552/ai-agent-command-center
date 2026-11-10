@@ -48,6 +48,7 @@ export default function BrowserBridgePage() {
   const bridge = useBridge();
   const a = useBridgeActions();
   const fail = useFail();
+  const [sel, setSel] = useState<BridgeProvider>();
   const [ack, setAck] = useState<BridgeProvider>();
   const [open, setOpen] = useState<number>();
   const d = bridge.data;
@@ -99,10 +100,12 @@ export default function BrowserBridgePage() {
                       {p.unlocked ? t("unlocked") : t("locked")}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground">{p.verified ? t("verified") : t("unverified")}</p>
+                  <p className="text-xs text-muted-foreground">{p.verified ? t("verified") : t("unverified")}{p.overridden ? ` · ${t("selectors.overridden")}` : ""}</p>
+                  {p.notes && <p className="text-xs text-muted-foreground" lang="en" dir="ltr">{p.notes}</p>}
                   {p.acknowledgement && <p className="text-xs text-muted-foreground">{t("ackedBy", { by: p.acknowledgement.by })}</p>}
-                  {manage && p.requires_terms && (
-                    <div className="mt-auto flex gap-2">
+                  {manage && (p.requires_terms || p.overridden) && (
+                    <div className="mt-auto flex flex-wrap gap-2">
+                      {p.requires_terms && <Button size="sm" variant="ghost" onClick={() => setSel(p)} aria-label={`${t("selectors.edit")}: ${p.name}`} data-testid={`bb-sel-${p.key}`}>{t("selectors.edit")}</Button>}
                       {p.unlocked
                         ? <Button size="sm" variant="outline" onClick={() => a.revoke.mutate(p.key, { onError: fail })} aria-label={`${t("revoke")}: ${p.name}`}>{t("revoke")}</Button>
                         : <Button size="sm" variant="outline" onClick={() => setAck(p)} aria-label={`${t("acknowledge")}: ${p.name}`}>{t("acknowledge")}</Button>}
@@ -117,6 +120,7 @@ export default function BrowserBridgePage() {
 
       {d && <Sessions providers={d.providers.filter((p) => p.unlocked)} enabled={d.enabled} manage={manage} onOpen={setOpen} />}
       {ack && <AckDialog p={ack} onClose={() => setAck(undefined)} />}
+      {sel && <SelectorsDialog p={sel} onClose={() => setSel(undefined)} />}
       {open && <SessionDialog id={open} manage={manage} onClose={() => setOpen(undefined)} />}
     </div>
   );
@@ -257,6 +261,44 @@ function SessionDialog({ id, manage, onClose }: { id: number; manage: boolean; o
             </div>
           </>
         )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const SELECTOR_FIELDS = ["input", "send", "response", "generating", "stop", "login", "new_chat"] as const;
+
+/** When a provider's page changes, the Super Admin adjusts the CSS selectors the bridge looks for (audited). */
+function SelectorsDialog({ p, onClose }: { p: BridgeProvider; onClose: () => void }) {
+  const t = useTranslations("bridge.selectors");
+  const tc = useTranslations("common");
+  const a = useBridgeActions();
+  const fail = useFail();
+  const toast = useToasts((s) => s.push);
+  const [v, setV] = useState<Record<string, string>>(() =>
+    Object.fromEntries(SELECTOR_FIELDS.map((k) => [k, p.overridden && p.selectors[k] !== p.default_selectors[k] ? p.selectors[k] ?? "" : ""])));
+  const save = (selectors: Record<string, string>) => a.selectors.mutate({ provider: p.key, selectors }, {
+    onSuccess: () => { toast("success", t("saved")); onClose(); }, onError: fail });
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent closeLabel={tc("close")} className="max-h-[90vh] max-w-xl overflow-y-auto" data-testid="bb-sel-dialog">
+        <DialogTitle>{t("title", { name: p.name })}</DialogTitle>
+        <DialogDescription>{t("help")}</DialogDescription>
+        <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); save(Object.fromEntries(Object.entries(v).filter(([, x]) => x.trim()))); }}>
+          {SELECTOR_FIELDS.map((k) => (
+            <div key={k} className="flex flex-col gap-1">
+              <Label htmlFor={`sel-${k}`}>{t(`fields.${k}`)}</Label>
+              <Input id={`sel-${k}`} dir="ltr" className="font-mono text-xs" maxLength={500} value={v[k]}
+                placeholder={p.default_selectors[k] ?? ""} onChange={(e) => setV({ ...v, [k]: e.target.value })} />
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground">{t("note")}</p>
+          <div className="flex flex-wrap justify-end gap-2">
+            {p.overridden && <Button type="button" variant="ghost" onClick={() => save({})} data-testid="bb-sel-reset">{t("reset")}</Button>}
+            <Button type="button" variant="outline" onClick={onClose}>{t("cancel")}</Button>
+            <Button type="submit" disabled={a.selectors.isPending} data-testid="bb-sel-save">{t("save")}</Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

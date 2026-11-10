@@ -26,14 +26,14 @@ for (const lang of ["ar", "en"] as const) {
     await axe(page);
 
     // the terms gate: the confirm button stays disabled until the box is ticked
-    await page.getByTestId("bb-provider-claude").getByRole("button").click();
+    await page.getByTestId("bb-provider-claude").getByRole("button", { name: en ? /^Acknowledge/ : /إقرار|أقر/ }).click();
     const confirm = page.getByTestId("bb-ack-confirm");
     await expect(confirm).toBeDisabled();
     await page.getByTestId("bb-ack-check").check();
     await axe(page);
     await confirm.click();
     await expect(page.getByTestId("bb-provider-claude")).toContainText(en ? "Unlocked" : "مفتوح");
-    await page.getByTestId("bb-provider-claude").getByRole("button").click(); // revoke again
+    await page.getByTestId("bb-provider-claude").getByRole("button", { name: en ? /^Revoke/ : /سحب|إلغاء/ }).click(); // revoke again
     await expect(page.getByTestId("bb-provider-claude")).toContainText(en ? "Locked" : "مقفل");
 
     // enable and drive the local test page through a real headless browser
@@ -62,3 +62,28 @@ for (const lang of ["ar", "en"] as const) {
     await setEnabled(page, false); // leave the bridge disabled, as it ships
   });
 }
+
+test("arena.ai: its own terms clauses, and the Super Admin can adjust selectors (English)", async ({ page }) => {
+  await login(page, "en");
+  await page.goto("/browser-bridge");
+  const card = page.getByTestId("bb-provider-arena");
+  await expect(card).toContainText("Arena agent");
+  await card.getByRole("button", { name: /Acknowledge/ }).click();
+  const dlg = page.getByRole("dialog");
+  await expect(dlg).toContainText("section 5(vi)");
+  await expect(dlg).toContainText("section 3.4");
+  await page.keyboard.press("Escape");
+  await card.getByTestId("bb-sel-arena").click();
+  const sel = page.getByTestId("bb-sel-dialog");
+  await expect(sel.locator("#sel-input")).toHaveAttribute("placeholder", "textarea");
+  const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  expect(axe.violations.map((v) => v.id)).toEqual([]);
+  await sel.locator("#sel-input").fill("div[contenteditable='true']");
+  await sel.getByTestId("bb-sel-save").click();
+  await expect(card).toContainText("custom selectors");
+  const ov = await (await page.request.get("/api/browser-bridge")).json();
+  expect(ov.providers.find((p: { key: string }) => p.key === "arena").selectors.input).toBe("div[contenteditable='true']");
+  await card.getByTestId("bb-sel-arena").click();
+  await page.getByTestId("bb-sel-reset").click();
+  await expect(card).not.toContainText("custom selectors");
+});

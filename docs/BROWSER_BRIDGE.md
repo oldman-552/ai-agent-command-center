@@ -32,7 +32,16 @@ Evaluated 2026-11-10 from the public GitHub page (the code was **not** copied or
   prompt submission, streaming of the visible answer, generation monitoring, cancellation, timeouts, reconnection,
   error reporting, health.
 - Adapters (`app/browser/adapters.py`): `test` (the platform's own fake chat page at
-  `/api/browser-bridge/test-page`, used by the automated tests), `claude`, `chatgpt`, `gemini` (unverified selectors).
+  `/api/browser-bridge/test-page`, used by the automated tests), `claude`, `chatgpt`, `gemini`, `arena` (unverified
+  selectors).
+- **arena.ai (`arena`, added at the owner's request):** its terms of use prohibit accessing the service by automated
+  means (§5(vi)) and share inputs with third-party model providers that may not keep them confidential (§3.4); they
+  also forbid personal or sensitive data (§3.5(F)). Its acknowledgement statement therefore names those clauses, and
+  the generic statement does not unlock it. Its selectors are guesses that were never checked against the live page,
+  and its bot checks stop a session in `AUTH_REQUIRED` for a person to solve — the bridge never touches a challenge.
+- **Selectors** (Super Admin, audited, `PUT /api/browser-bridge/providers/{key}/selectors`; *Selectors* on the
+  provider card): when a provider's page changes, its CSS selectors can be overridden per organization without a
+  code change; they apply from the next start of a session, and an overridden provider is always *unverified*.
 - Execution engine `browser`: an agent whose `execution_engine` is `browser` and whose
   `context_policy.browser_session_id` names a session runs its turns through the bridge.
 - MCP tools (on the platform MCP server, key-scoped): `list_providers`, `get_provider_status`,

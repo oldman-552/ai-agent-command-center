@@ -1047,6 +1047,26 @@
       "profile_in_use": "This profile is already in use by a live session.",
       "too_many_sessions": "The maximum number of live sessions is reached.",
       "invalid_profile_name": "Invalid profile name."
+    },
+    "selectors": {
+      "edit": "Selectors",
+      "overridden": "custom selectors",
+      "title": "Selectors for {name}",
+      "help": "CSS selectors the bridge uses to find the page elements. Leave a field empty to use the built-in one (shown greyed out). Find the right ones with your browser's developer tools on the provider's page.",
+      "fields": {
+        "input": "Prompt box",
+        "send": "Send button",
+        "response": "Assistant messages (the last one is the answer)",
+        "generating": "Present while generating",
+        "stop": "Stop button",
+        "login": "Present when signed out",
+        "new_chat": "New chat button"
+      },
+      "note": "Changes are audited and apply from the next start of a session. A provider with custom selectors counts as unverified.",
+      "reset": "Use built-in selectors",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saved": "Selectors saved; restart the session to use them."
     }
   },
   "projects": {
