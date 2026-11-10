@@ -64,6 +64,12 @@ function Ensure-Env {
   $example = Join-Path $Root ".env.example"
   if (-not (Test-Path -LiteralPath $example)) { Fail ".env.example is missing — is this the project folder?" }
   if (-not (Test-Path -LiteralPath $EnvFile)) { Copy-Item -LiteralPath $example -Destination $EnvFile; Say "Created .env from .env.example" }
+  $have = @(Get-Content -LiteralPath $EnvFile -Encoding UTF8)
+  $missing = @(Get-Content -LiteralPath $example -Encoding UTF8 | Where-Object { $_ -match '^([A-Z][A-Z0-9_]*)=' -and -not ($have -like "$($Matches[1])=*") })
+  if ($missing.Count -gt 0) {  # a hand-made or partial .env: add what it lacks (existing values are kept)
+    [System.IO.File]::WriteAllLines($EnvFile, @($have + $missing), (New-Object System.Text.UTF8Encoding($false)))
+    Say "Added $($missing.Count) missing settings to .env from .env.example"
+  }
   if (Set-IfEmpty "JWT_SECRET" (New-Secret 48)) { Say "Generated JWT_SECRET" }
   if (Set-IfEmpty "APP_ENCRYPTION_KEY" (New-FernetKey)) { Say "Generated APP_ENCRYPTION_KEY (back up .env: losing it makes stored credentials unreadable)" }
   if (Set-IfEmpty "POSTGRES_PASSWORD" (New-Secret 24)) { Say "Generated POSTGRES_PASSWORD" }

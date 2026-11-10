@@ -53,6 +53,17 @@ ensure_env() {
   if [ ! -f "$ROOT/.env" ]; then
     cp "$ROOT/.env.example" "$ROOT/.env"; chmod 600 "$ROOT/.env"; say "Created .env from .env.example"
   fi
+  # a hand-made or partial .env: add every setting it lacks from .env.example (existing values are kept)
+  local line key added=0
+  while IFS= read -r line || [ -n "$line" ]; do
+    [[ "$line" =~ ^([A-Z][A-Z0-9_]*)= ]] || continue
+    key="${BASH_REMATCH[1]}"
+    if ! grep -qE "^$key=" "$ROOT/.env"; then
+      [ -s "$ROOT/.env" ] && [ -n "$(tail -c1 "$ROOT/.env")" ] && echo >> "$ROOT/.env"
+      echo "$line" >> "$ROOT/.env"; added=$((added + 1))
+    fi
+  done < "$ROOT/.env.example"
+  [ "$added" -gt 0 ] && say "Added $added missing settings to .env from .env.example"
   set_if_empty JWT_SECRET "$(rand 48)" && say "Generated JWT_SECRET"
   set_if_empty APP_ENCRYPTION_KEY "$(fernet)" && say "Generated APP_ENCRYPTION_KEY (back it up: losing it makes stored credentials unreadable)"
   set_if_empty POSTGRES_PASSWORD "$(rand 24)" && say "Generated POSTGRES_PASSWORD"
