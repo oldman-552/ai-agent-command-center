@@ -18,6 +18,7 @@ from app.connectivity.gateway import adapters as _adapters  # noqa: F401  (regis
 from app.connectivity.gateway.base import ChatRequest, ProviderError, ProviderUnavailable, adapter_for
 from app.db import session_factory
 from app.models import Agent, CostRecord, Execution, ModelInfo, Provider, UsageRecord
+from app.runtime import circuit
 from app.runtime.contract import EngineContext, EngineEvent, RetryableError, register_engine
 from app.security.audit import log_activity
 from app.security.crypto import decrypt_secret
@@ -87,6 +88,13 @@ class ApiEngine:
             messages = ctx.input.get("messages") or [{"role": "user", "content": str(ctx.input.get("prompt", ""))}]
             last_error: Exception | None = None
             for i, (provider, model) in enumerate(routes):
+                if not circuit.allows(db, "provider", provider.id):  # EV-03: skip a provider whose circuit is open
+                    log_activity(db, "gateway.circuit_skip", category="runtime", level="warning",
+                                 organization_id=provider.organization_id, agent_id=agent.id, execution_id=ex.id,
+                                 details={"provider": provider.name})
+                    db.commit()
+                    last_error = ProviderUnavailable(f"provider {provider.name} circuit open")
+                    continue
                 if i > 0:
                     log_activity(db, "gateway.fallback", category="runtime", level="warning",
                                  organization_id=provider.organization_id, agent_id=agent.id, execution_id=ex.id,
@@ -108,11 +116,15 @@ class ApiEngine:
                             usage = ev.usage
                 except (ProviderUnavailable, ProviderError) as e:
                     last_error = e
+                    if isinstance(e, ProviderUnavailable):
+                        circuit.record_failure(db, "provider", provider.id, provider.organization_id, str(e))
+                        db.commit()
                     if produced:  # partial output already streamed — don't splice another model's answer in
                         if isinstance(e, ProviderUnavailable):
                             raise RetryableError(str(e)) from e
                         raise
                     continue
+                circuit.record_success(db, "provider", provider.id, provider.organization_id)
                 cost = record_usage(db, provider=provider, model=model, usage=usage,
                                     duration_ms=int((time.monotonic() - started) * 1000), agent_id=agent.id,
                                     project_id=ex.project_id, task_id=ex.task_id, execution_id=ex.id,

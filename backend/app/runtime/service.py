@@ -25,6 +25,7 @@ from app.control.lifecycle import transition as agent_transition
 from app.db import session_factory
 from app.models import Agent, AgentState, Checkpoint, Execution, ExecutionEvent
 from app.models import ExecutionStatus as X
+from app.runtime import circuit
 from app.runtime.contract import (
     TERMINAL,
     TRANSITIONS,
@@ -40,6 +41,7 @@ from app.security.crypto import redact, redact_obj
 log = logging.getLogger("runtime")
 RUNTIME_ID = f"{socket.gethostname()}:{os.getpid()}"
 MAX_BACKOFF_SECONDS = 300
+SHUTDOWN = asyncio.Event()  # set by the worker when its grace period is over (EV-04)
 
 # Tool implementations: name -> async fn(execution, args) -> result. Real tools (files, git, sandbox shell)
 # are registered by their planes (M8, M13). A permitted but unregistered tool returns tool_not_available.
@@ -69,6 +71,8 @@ def create_execution(db: Session, *, organization_id: int, agent: Agent, input: 
         Execution.agent_id == agent.id, Execution.status.not_in([s.value for s in TERMINAL | {X.FAILED}])))
     if active >= agent.concurrency_limit:
         raise HTTPException(status.HTTP_409_CONFLICT, "agent_concurrency_limit")
+    if not circuit.allows(db, "agent", agent.id):  # EV-03: repeated failures open the agent's circuit
+        raise HTTPException(status.HTTP_409_CONFLICT, "agent_circuit_open")
     engine = get_engine(agent.execution_engine)
     ex = Execution(organization_id=organization_id, agent_id=agent.id, task_id=task_id, project_id=project_id,
                    provider=None, model=agent.model, engine=agent.execution_engine,
@@ -223,19 +227,33 @@ async def _run(db: Session, execution_id: str) -> str:
             _apply_usage(ex, usage)
             set_status(db, ex, X.COMPLETED, "engine finished")
             ex.ended_at = datetime.now(UTC)
+            if agent:
+                circuit.record_success(db, "agent", agent.id, ex.organization_id)
             _agent_to(db, agent, AgentState.COMPLETED, AgentState.IDLE, reason=f"execution {ex.id} completed")
             db.commit()
             return ex.status
-        except (asyncio.CancelledError, ToolDenied, RetryableError, TimeoutError, Exception) as e:  # noqa: BLE001
+        except (asyncio.CancelledError, ToolDenied, RetryableError, TimeoutError, Exception) as e:
             _apply_usage(ex, usage)
+            if isinstance(e, asyncio.CancelledError) and SHUTDOWN.is_set():
+                # EV-04 graceful shutdown: not the user's cancel. Keep the partial output and the checkpoint, mark the
+                # execution TERMINATED (resumable) and let the un-acked message move it to another worker.
+                if output_parts:
+                    ex.output = {"parts": output_parts, "text": "".join(output_parts), "partial": True}
+                if X(ex.status) == X.WAITING_FOR_TOOL:
+                    set_status(db, ex, X.RUNNING, "tool step interrupted by shutdown")
+                set_status(db, ex, X.TERMINATED, f"worker {RUNTIME_ID} shutting down")
+                _event(db, ex, "shutdown", {"runtime": RUNTIME_ID, "checkpoint_seq": ex.latest_checkpoint_seq,
+                                            "partial_chars": sum(len(p) for p in output_parts)})
+                _agent_to(db, agent, AgentState.IDLE, reason="worker shutdown; execution handed off")
+                db.commit()
+                raise
             if isinstance(e, asyncio.CancelledError):
                 set_status(db, ex, X.CANCELLED, "cancel requested")
                 ex.ended_at = datetime.now(UTC)
                 _agent_to(db, agent, AgentState.CANCELLED, AgentState.IDLE, reason="execution cancelled")
                 db.commit()
                 return ex.status
-            category = ("policy" if isinstance(e, ToolDenied) else "timeout" if isinstance(e, TimeoutError)
-                        else "transient" if isinstance(e, RetryableError) else "error")
+            category = categorize(e)
             ex.error, ex.error_category = redact(f"{type(e).__name__}: {e}")[:2000], category
             if X(ex.status) == X.WAITING_FOR_TOOL:
                 set_status(db, ex, X.RUNNING, "tool step aborted")
@@ -251,14 +269,55 @@ async def _run(db: Session, execution_id: str) -> str:
                 set_status(db, ex, X.RECOVERING, "retrying after transient failure")
                 continue
             ex.ended_at = datetime.now(UTC)
+            if output_parts:  # EV-04: keep whatever was produced; it is evidence even when the run failed
+                ex.output = {"parts": output_parts, "text": "".join(output_parts), "partial": True}
             if agent:
                 agent.last_error = ex.error
             _agent_to(db, agent, AgentState.FAILED, AgentState.IDLE, reason=f"execution {ex.id} failed: {category}")
+            breaker = None
+            if agent and category in COUNTS_AGAINST_HEALTH:
+                breaker = circuit.record_failure(db, "agent", agent.id, ex.organization_id, f"{category}: {ex.error}")
+            _recovery_report(db, ex, category, max_attempts, breaker)
             log_activity(db, "executions.failed", category="runtime", level="error",
                          organization_id=ex.organization_id, agent_id=ex.agent_id, execution_id=ex.id,
                          details={"category": category, "attempts": ex.attempt})
             db.commit()
             return ex.status
+
+
+# ---------------- failure handling (EV-03, spec Phase 15 "Recovery Workflow") ----------------
+RETRY_SAFE = {"transient": True, "timeout": False, "provider": False, "policy": False, "error": False}
+COUNTS_AGAINST_HEALTH = {"transient", "timeout", "provider", "error"}  # not policy denials or cancellations
+
+
+def categorize(e: BaseException) -> str:
+    from app.connectivity.gateway.base import ProviderError
+
+    if isinstance(e, ToolDenied):
+        return "policy"
+    if isinstance(e, TimeoutError):
+        return "timeout"
+    if isinstance(e, RetryableError):
+        return "transient"
+    if isinstance(e, ProviderError):
+        return "provider"  # configuration/auth/model problem: retrying the same way will not help
+    return "error"
+
+
+def _recovery_report(db: Session, ex: Execution, category: str, max_attempts: int, breaker: str | None) -> None:
+    """Record the recovery workflow's steps and outcome on the execution (and escalate when nothing is left)."""
+    events = db.scalar(select(func.count()).select_from(ExecutionEvent).where(ExecutionEvent.execution_id == ex.id))
+    fallbacks = db.scalar(select(func.count()).select_from(ExecutionEvent).where(
+        ExecutionEvent.execution_id == ex.id, ExecutionEvent.type == "log",
+        ExecutionEvent.payload["message"].astext.like("fallback to %")))
+    report = {"category": category, "evidence_events": events, "last_checkpoint_seq": ex.latest_checkpoint_seq,
+              "retry_safe": RETRY_SAFE.get(category, False), "attempts": ex.attempt, "retry_budget": max_attempts,
+              "fallback_used": bool(fallbacks), "agent_circuit": breaker or "closed",
+              "outcome": "escalated", "next": ("resume from the last checkpoint once the cause is fixed"
+                                              if ex.latest_checkpoint_seq else "fix the cause and run again")}
+    _event(db, ex, "recovery", report)
+    log_activity(db, "recovery.escalated", category="runtime", level="error", organization_id=ex.organization_id,
+                 agent_id=ex.agent_id, task_id=ex.task_id, execution_id=ex.id, details=report)
 
 
 def _apply_usage(ex: Execution, usage: dict[str, int]) -> None:

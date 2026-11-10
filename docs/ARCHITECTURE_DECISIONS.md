@@ -196,3 +196,21 @@ The evaluator now uses the last `shell.test`/`shell.build` results as determinis
 **Deployment note (open):** the worker needs a Docker daemon. Mounting the host's docker.sock into the worker container
 would give it root-equivalent power over the host; the compose stack therefore does not wire it yet. Options for the
 owner's machine: run the worker on the host, or a rootless Docker / dedicated sandbox daemon. Tracked as a known issue.
+
+## ADR-020 — Recovery workflow, circuit breakers and graceful shutdown (2026-11-10)
+**Context:** Phase 15 — identify failure category, preserve evidence, retry only when safe, avoid infinite retries,
+circuit breakers, graceful shutdown with partial-result preservation.
+**Decision:**
+- `service.categorize()`: policy (tool denied) · timeout · transient (RetryableError) · provider (configuration/auth —
+  retrying the same way will not help) · error. Only *transient* is retried, within the agent's retry budget.
+- On final failure the runtime keeps any partial output (`output.partial = true`) and writes a `recovery` event:
+  category, evidence count, last checkpoint, retry-safe, attempts vs budget, fallback used, circuit state, outcome
+  `escalated` and the next step; `recovery.escalated` is audited.
+- `circuit_breakers` table, scopes `agent` and `provider`: N consecutive health failures (default 5; policy denials and
+  cancellations don't count) open the circuit; after the cool-down (default 300 s) exactly one trial passes
+  (half-open); success closes it, failure re-opens it. Open agents cannot get executions (409 `agent_circuit_open`)
+  and are skipped by assignment; open providers are skipped by the gateway, which goes straight to the fallback.
+- Graceful shutdown (worker SIGTERM): stop consuming, give in-flight work `SHUTDOWN_GRACE_SECONDS` (default 30) to
+  finish, then interrupt the rest: they keep partial output and their checkpoint, become TERMINATED, and their
+  un-acked messages are redelivered to another worker which resumes them. A retry interrupted during its back-off is
+  continued too.

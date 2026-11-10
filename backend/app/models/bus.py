@@ -40,3 +40,21 @@ class ProcessedMessage(Base):
     message_id: Mapped[str] = mapped_column(String(36))
     outcome: Mapped[str] = mapped_column(String(16))  # done | dead_lettered
     processed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CircuitBreaker(Base):
+    """Circuit breakers for agents and providers (EV-03). closed → open after N consecutive failures; after the
+    cool-down one trial is let through (half_open); its success closes the circuit, its failure re-opens it."""
+
+    __tablename__ = "circuit_breakers"
+    __table_args__ = (UniqueConstraint("scope", "ref_id"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(Integer, index=True)
+    scope: Mapped[str] = mapped_column(String(16))  # agent | provider
+    ref_id: Mapped[int] = mapped_column(Integer)
+    state: Mapped[str] = mapped_column(String(16), default="closed")  # closed | open | half_open
+    consecutive_failures: Mapped[int] = mapped_column(Integer, default=0)
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_failure: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

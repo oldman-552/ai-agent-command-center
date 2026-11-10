@@ -17,6 +17,7 @@ from app.evaluation.profiles import agent_quality
 from app.models import Agent, Execution, Project, Task
 from app.models import ExecutionStatus as X
 from app.models.agents import project_agents
+from app.runtime import circuit
 from app.runtime.contract import TERMINAL, registered_engines
 
 UNAVAILABLE_STATES = {"DISABLED", "FAILED", "BLOCKED"}
@@ -78,7 +79,7 @@ def select_agent(db: Session, task: Task) -> Selection:
             stmt = stmt.where(Agent.id.in_(roster))
     pool = list(db.scalars(stmt.order_by(Agent.id)))
     need = {s.lower() for s in (task.required_skills or [])}
-    skilled = [a for a in pool if need <= capabilities(a)]
+    skilled = [a for a in pool if need <= capabilities(a) and circuit.available(db, "agent", a.id)]
     if not skilled:
         return Selection(None, "no_agent_with_required_skills" if pool else "no_eligible_agent")
     ids = [a.id for a in skilled]

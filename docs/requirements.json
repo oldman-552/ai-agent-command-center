@@ -1174,8 +1174,8 @@
             "RT-06",
             "RT-08"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_recovery.py (5): categories, recovery report with evidence/budget/escalation + audit and partial output kept, agent circuit open → 409 + unassignable → half-open trial → closed (all audited), policy denials don't open circuits, provider circuit skips the failing provider and uses only the fallback"
         },
         {
           "id": "EV-04",
@@ -1186,8 +1186,8 @@
           "depends": [
             "RT-06"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_bus.py::test_sigterm_lets_short_work_finish_and_hands_off_long_work: real worker SIGTERM with 3 s grace → exits 0, short execution COMPLETED inside grace, long one TERMINATED with partial output 'one two ' and a shutdown event, new worker resumes from checkpoint → exactly 'one two three'"
         },
         {
           "id": "EV-05",
@@ -1470,11 +1470,11 @@
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
   "in_progress": [],
-  "next_step": "EV-03 failure categorization + recovery workflow + circuit breaker, EV-04 graceful shutdown; SEC-08 scanning; then M7 context, M8 GitHub/worktrees (files.write/git tools inside the sandbox)",
+  "next_step": "SEC-08 dependency/container scanning scripts; then M7 context engineering, M8 GitHub + worktrees (files.write/git tools inside the sandbox), M11 memory, M9 browser bridge, M5 CLI engines, M14 automation, M15 docs",
   "tests": {
     "passed": [
-      "backend: 147/147 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox containers — full suite twice — 2026-11-10",
-      "migrations: 5 revisions (43 tables + langgraph schema); base → head → -1 → head; alembic check clean",
+      "backend: 153/153 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox containers — full suite twice and every module in isolation — 2026-11-10",
+      "migrations: 7 revisions (44 tables + langgraph schema); base → head → -1 → head; alembic check clean",
       "frontend: i18n guard (496 keys), contrast, tsc, next build",
       "ruff: clean",
       "frontend: 44/44 Playwright in real Chrome against API + worker in bus mode — tasks, approvals, audit, evaluations, axe WCAG 2.2 AA × ar/en incl. dialogs"

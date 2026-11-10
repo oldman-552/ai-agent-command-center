@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     sandbox_cpu_limit: float = 1.0
     sandbox_memory_limit: str = "1g"
     sandbox_timeout_seconds: int = 900
+    circuit_failure_threshold: int = 5      # consecutive failures that open an agent/provider circuit
+    circuit_cooldown_seconds: int = 300     # open → one trial request (half-open) after this long
+    shutdown_grace_seconds: int = 30        # worker: let in-flight work finish before checkpoint-and-handoff
     sandbox_image: str = "acc/sandbox:python"  # built from docker/sandbox/Dockerfile
 
     cookie_secure: bool = False  # set True behind HTTPS

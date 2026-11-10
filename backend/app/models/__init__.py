@@ -10,7 +10,7 @@ from app.models.agents import (
                                SecurityProfile,
                                project_agents,
 )
-from app.models.bus import OutboxMessage, ProcessedMessage
+from app.models.bus import CircuitBreaker, OutboxMessage, ProcessedMessage
 from app.models.connectivity import (
                                A2AAccessKey,
                                ApiCredential,

@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 53.8%**
+**Overall verified completion: 56.2%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -148,14 +148,14 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | MEM-03 | P0 | Project isolation of memory | Cross-project retrieval denied | pytest | MEM-01 | pending | — |
 | MEM-04 | P0 | Context & Memory UI with human correction/deletion | E2E | Playwright | MEM-01 | pending | — |
 
-## M12 — Evaluation and Recovery (weight 6%, 60%) — spec Phases 14, 15
+## M12 — Evaluation and Recovery (weight 6%, 100%) — spec Phases 14, 15
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
 | EV-01 | P0 | Evaluation engine: deterministic checks (tests, lint, diff, acceptance criteria) + optional LLM review | Evidence-based result | pytest | RT-02 | done | test_evaluator_is_deterministic_and_reports_each_criterion, test_reviewer_model_can_withhold_but_never_grant_approval; every task execution in test_orchestration/test_bus/e2e passes through evaluate_and_record (idempotent per execution) |
 | EV-02 | P0 | Performance profiles by agent/role/provider/model/task type; feed assignment | Profiles update; used by OR-02 | pytest | EV-01 | done | tests/test_orchestration.py::test_profiles_update_from_evaluations_and_steer_assignment (profiles by agent/role/provider/model/task_type/project from evaluation_results; neutral prior below 3 samples; selection prefers the agent with the better evaluated record for that task type; audited quality factor) |
-| EV-03 | P0 | Failure categorization + recovery workflow + circuit breaker | Recovery tests | pytest | RT-06, RT-08 | pending | — |
-| EV-04 | P0 | Graceful shutdown preserving partial results | Shutdown test | pytest | RT-06 | pending | — |
+| EV-03 | P0 | Failure categorization + recovery workflow + circuit breaker | Recovery tests | pytest | RT-06, RT-08 | done | tests/test_recovery.py (5): categories, recovery report with evidence/budget/escalation + audit and partial output kept, agent circuit open → 409 + unassignable → half-open trial → closed (all audited), policy denials don't open circuits, provider circuit skips the failing provider and uses only the fallback |
+| EV-04 | P0 | Graceful shutdown preserving partial results | Shutdown test | pytest | RT-06 | done | tests/test_bus.py::test_sigterm_lets_short_work_finish_and_hands_off_long_work: real worker SIGTERM with 3 s grace → exits 0, short execution COMPLETED inside grace, long one TERMINATED with partial output 'one two ' and a shutdown event, new worker resumes from checkpoint → exactly 'one two three' |
 | EV-05 | P0 | Evaluation UI | E2E | Playwright | EV-01 | done | frontend/e2e/evaluations.spec.ts: /evaluations performance profiles grouped (URL state), recent verdicts linked to tasks, no page overflow 375/1440, axe WCAG 2.2 AA ar/en; per-task evaluation (checks, criteria coverage, notes) in task details covered by tasks/approvals specs |
 
 ## M13 — Enterprise Security (weight 7%, 88%) — spec Phases 16, 17, 22

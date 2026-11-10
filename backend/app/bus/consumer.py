@@ -56,6 +56,9 @@ class Consumer:
     prefetch: int = 4
     stats: dict[str, int] = field(default_factory=lambda: {"done": 0, "duplicate": 0, "retried": 0,
                                                            "deferred": 0, "dead_lettered": 0})
+    inflight: set[asyncio.Task] = field(default_factory=set)
+    _queue: AbstractQueue | None = None
+    _tag: str | None = None
 
     # -------- ledger --------
     def _already_processed(self, key: str) -> bool:
@@ -149,10 +152,22 @@ class Consumer:
         queue = await channel.get_queue(self.queue, ensure=True)
 
         async def cb(msg: AbstractIncomingMessage) -> None:
-            await self.on_message(msg, channel)
-        await queue.consume(cb)
+            task = asyncio.current_task()
+            self.inflight.add(task)
+            try:
+                await self.on_message(msg, channel)
+            finally:
+                self.inflight.discard(task)
+        self._queue, self._tag = queue, await queue.consume(cb)
         log.info("consumer %s listening on %s", self.name, self.queue)
         return queue
+
+
+    async def stop_consuming(self) -> None:
+        """Graceful shutdown step 1: take no new deliveries (in-flight ones continue)."""
+        if self._queue is not None and self._tag is not None:
+            await self._queue.cancel(self._tag)
+            self._tag = None
 
 
 async def connect(url: str) -> aio_pika.abc.AbstractRobustConnection:

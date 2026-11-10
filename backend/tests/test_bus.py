@@ -253,8 +253,8 @@ WORKER = (
 )
 
 
-def start_worker() -> subprocess.Popen:
-    env = {**os.environ, "EXECUTION_DISPATCH": "bus", "RABBITMQ_URL": TEST_AMQP, "PYTHONUNBUFFERED": "1"}
+def start_worker(**extra_env: str) -> subprocess.Popen:
+    env = {**os.environ, "EXECUTION_DISPATCH": "bus", "RABBITMQ_URL": TEST_AMQP, "PYTHONUNBUFFERED": "1", **extra_env}
     p = subprocess.Popen([sys.executable, "-c", WORKER], cwd=BACKEND, env=env, stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT, text=True)
     deadline = time.monotonic() + 30
@@ -442,3 +442,38 @@ async def test_workflow_runs_end_to_end_over_bus_and_survives_worker_kill(admin_
         stop_worker(w2)
     done = admin_client.get(f"/api/workflows/{wf['id']}").json()
     assert all(t["status"] == "COMPLETED" and t["attempts"] == 1 for t in done["tasks"])  # nothing ran twice
+
+
+
+# ---------------- EV-04: graceful shutdown ----------------
+async def test_sigterm_lets_short_work_finish_and_hands_off_long_work(admin_client, db, bus_mode, mock_api_engine):
+    import signal
+
+    a = _agent(db, "shutdown", concurrency_limit=5)
+    short = [{"say": "quick"}, {"sleep": 1.0}, {"say": " done"}]
+    long = [{"say": "one "}, {"sleep": 1.0}, {"say": "two "}, {"sleep": 6}, {"say": "three"}]
+    w = start_worker(SHUTDOWN_GRACE_SECONDS="3")
+    try:
+        ids = [admin_client.post("/api/executions", json={"agent_id": a.id, "input": {"mock_script": s}}).json()["id"]
+               for s in (short, long)]
+        assert await wait_for(lambda: all(_status(db, i) == "RUNNING" for i in ids))
+        await asyncio.sleep(1.3)  # the long one has checkpointed "one two "
+        w.send_signal(signal.SIGTERM)
+        out, _ = w.communicate(timeout=30)
+    finally:
+        if w.poll() is None:
+            w.kill()
+    assert w.returncode == 0 and "worker stopped cleanly" in out and "handing off 1" in out
+    assert _status(db, ids[0]) == "COMPLETED"  # finished inside the grace period
+    db.expire_all()
+    handed = db.get(Execution, ids[1])
+    assert handed.status == "TERMINATED" and handed.output["partial"] and handed.output["text"] == "one two "
+    assert db.scalar(select(ExecutionEvent).where(ExecutionEvent.execution_id == ids[1],
+                                                  ExecutionEvent.type == "shutdown"))
+    w2 = start_worker()  # the un-acked message is redelivered; the new worker resumes from the checkpoint
+    try:
+        assert await wait_for(lambda: _status(db, ids[1]) == "COMPLETED", timeout=30)
+    finally:
+        stop_worker(w2)
+    db.expire_all()
+    assert db.get(Execution, ids[1]).output["text"] == "one two three"  # nothing lost, nothing repeated

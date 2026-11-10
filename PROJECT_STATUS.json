@@ -1,12 +1,12 @@
 {
-  "date": "2026-11-10 06:41",
+  "date": "2026-11-10 06:53",
   "spec_version": "4.0",
   "current_phase": "Phases 1, 19, 23, 25",
   "current_milestone": {
     "id": 1,
     "name": "Foundation"
   },
-  "overall_percent": 53.8,
+  "overall_percent": 56.2,
   "milestones": [
     {
       "id": 1,
@@ -100,8 +100,8 @@
       "id": 12,
       "name": "Evaluation and Recovery",
       "weight": 6,
-      "percent": 60.0,
-      "done": 3,
+      "percent": 100.0,
+      "done": 5,
       "total": 5
     },
     {
@@ -184,6 +184,8 @@
     "A2A-02",
     "EV-01",
     "EV-02",
+    "EV-03",
+    "EV-04",
     "EV-05",
     "SEC-01",
     "SEC-02",
@@ -195,12 +197,29 @@
   ],
   "in_progress": [],
   "files_changed": [
-    "backend/tests/conftest.py"
+    "PROJECT_STATUS.json",
+    "backend/app/bus/consumer.py",
+    "backend/app/bus/handlers.py",
+    "backend/app/config.py",
+    "backend/app/connectivity/gateway/service.py",
+    "backend/app/models/__init__.py",
+    "backend/app/models/bus.py",
+    "backend/app/orchestration/selection.py",
+    "backend/app/runtime/service.py",
+    "backend/app/worker.py",
+    "backend/tests/test_bus.py",
+    "docs/ARCHITECTURE_DECISIONS.md",
+    "docs/REQUIREMENTS.md",
+    "docs/requirements.json",
+    "progress.txt",
+    "backend/alembic/versions/6c5b77e23dd0_circuit_breakers.py",
+    "backend/app/runtime/circuit.py",
+    "backend/tests/test_recovery.py"
   ],
   "tests": {
     "passed": [
-      "backend: 147/147 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox containers — full suite twice — 2026-11-10",
-      "migrations: 5 revisions (43 tables + langgraph schema); base → head → -1 → head; alembic check clean",
+      "backend: 153/153 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox containers — full suite twice and every module in isolation — 2026-11-10",
+      "migrations: 7 revisions (44 tables + langgraph schema); base → head → -1 → head; alembic check clean",
       "frontend: i18n guard (496 keys), contrast, tsc, next build",
       "ruff: clean",
       "frontend: 44/44 Playwright in real Chrome against API + worker in bus mode — tasks, approvals, audit, evaluations, axe WCAG 2.2 AA × ar/en incl. dialogs"
@@ -222,5 +241,5 @@
   "requires_owner_approval": [
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
-  "next_action": "EV-03 failure categorization + recovery workflow + circuit breaker, EV-04 graceful shutdown; SEC-08 scanning; then M7 context, M8 GitHub/worktrees (files.write/git tools inside the sandbox)"
+  "next_action": "SEC-08 dependency/container scanning scripts; then M7 context engineering, M8 GitHub + worktrees (files.write/git tools inside the sandbox), M11 memory, M9 browser bridge, M5 CLI engines, M14 automation, M15 docs"
 }

@@ -72,9 +72,25 @@ async def main() -> int:
     print("WORKER_READY", flush=True)
 
     await stop.wait()
-    log.info("worker stopping")
+    # EV-04 graceful shutdown: 1) stop taking work, 2) let in-flight work finish within the grace period,
+    # 3) interrupt what is left: it checkpoints, keeps partial output, becomes TERMINATED and — because its message
+    #    was never acked — is redelivered to another worker that resumes it.
+    grace = get_settings().shutdown_grace_seconds
+    log.info("worker stopping: no new work; up to %ss for in-flight work", grace)
+    for c in consumers:
+        await c.stop_consuming()
+    inflight = {t for c in consumers for t in c.inflight}
+    if inflight:
+        _, pending = await asyncio.wait(inflight, timeout=grace)
+        if pending:
+            log.warning("grace period over: handing off %d in-flight item(s)", len(pending))
+            service.SHUTDOWN.set()
+            for t in pending:
+                t.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
     await relay
     await conn.close()
+    log.info("worker stopped cleanly")
     return 0
 
 

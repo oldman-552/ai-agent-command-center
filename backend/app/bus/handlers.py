@@ -10,7 +10,7 @@ from app.bus.consumer import Consumer, Fatal
 from app.bus.contract import Envelope, MessageType
 from app.bus.outbox import enqueue
 from app.db import session_factory
-from app.models import Execution, Task
+from app.models import Execution, ExecutionEvent, Task
 from app.models import ExecutionStatus as X
 from app.runtime import service
 from app.runtime.contract import TERMINAL
@@ -44,7 +44,10 @@ async def handle_execution_run(env: Envelope) -> None:
         if st in TERMINAL or st in _PARKED:
             return
         if st == X.FAILED and not str(env.payload.get("reason", "")).startswith("resume"):
-            return  # the runtime already gave up (its retry budget is spent); only an explicit resume reruns it
+            last = db.scalar(select(ExecutionEvent.type).where(ExecutionEvent.execution_id == ex.id)
+                             .order_by(ExecutionEvent.seq.desc()).limit(1))
+            if last != "retry":  # a retry was scheduled but its worker stopped during the back-off: continue it
+                return  # otherwise the runtime already gave up (budget spent); only an explicit resume reruns it
         if st in _LOST_TO_TERMINATED | _LOST_TO_FAILED:
             to = X.TERMINATED if st in _LOST_TO_TERMINATED else X.FAILED
             service.set_status(db, ex, to, f"runtime {ex.runtime_id} lost; recovered by {service.RUNTIME_ID}")
