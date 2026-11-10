@@ -16,7 +16,8 @@
     "approvals": "Approvals",
     "pendingApprovals": "{n} pending approvals",
     "audit": "Audit log",
-    "evaluations": "Evaluations"
+    "evaluations": "Evaluations",
+    "github": "GitHub"
   },
   "language": {
     "label": "Language",
@@ -641,6 +642,63 @@
       "approve": "Passed",
       "revise": "Needs revision",
       "reject": "Rejected"
+    }
+  },
+  "github": {
+    "title": "GitHub",
+    "subtitle": "Connected repositories, agent branches and pull requests. Agents never write to protected branches; merges need an approval.",
+    "connect": "Connect repository",
+    "connectSubmit": "Verify and connect",
+    "connectHelp": "The token is checked against GitHub, then stored encrypted. Only its last 4 characters are ever shown.",
+    "repositories": "Repositories",
+    "noRepos": "No repository connected yet.",
+    "defaultBranch": "Default branch",
+    "token": "Token",
+    "webhookOn": "Webhook signed",
+    "webhookOff": "No webhook",
+    "protected": "Protected",
+    "pullRequests": "Pull requests",
+    "noPulls": "No pull requests yet.",
+    "opensNewTab": "opens in a new tab",
+    "columns": {
+      "pr": "Pull request",
+      "branch": "Branches",
+      "state": "State",
+      "checks": "Checks"
+    },
+    "pullState": {
+      "open": "Open",
+      "closed": "Closed",
+      "merged": "Merged"
+    },
+    "worktrees": "Agent worktrees",
+    "worktreesHelp": "Every task gets its own branch and working copy; overlapping files and conflicts with the base branch are tracked.",
+    "noWorktrees": "No agent worktrees yet.",
+    "task": "Task #{id}",
+    "files": "{n} files changed",
+    "conflicts": "Overlaps / conflicts",
+    "wtStatus": {
+      "active": "Active",
+      "committed": "Committed",
+      "merged": "Merged",
+      "abandoned": "Abandoned"
+    },
+    "fields": {
+      "fullName": "Repository",
+      "fullNameHelp": "owner/repository, for example acme/backend",
+      "token": "Access token",
+      "tokenHelp": "A fine-grained token with Contents and Pull requests read/write on this repository.",
+      "protected": "Protected branches (comma separated)",
+      "webhook": "Webhook secret",
+      "webhookHelp": "At least 16 characters; use the same secret in the repository's webhook settings.",
+      "fullNamePlaceholder": "owner/repository",
+      "protectedPlaceholder": "main, release"
+    },
+    "errors": {
+      "badToken": "GitHub rejected the token for this repository.",
+      "notFound": "Repository not found or not visible to this token.",
+      "unreachable": "GitHub could not be reached. Try again later.",
+      "exists": "This repository is already connected."
     }
   }
 }

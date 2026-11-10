@@ -30,12 +30,24 @@ def _tool(name: str):
                 elif name == "files.write":
                     result = w.write_file(wt, str(args.get("path", "")),
                                           None if args.get("delete") else str(args.get("content", "")))
+                elif name == "pr.create":
+                    from app.devplane.github import GitHubError
+                    from app.devplane.service import open_pull_request
+                    from app.models import Task
+                    if wt.head_commit is None:
+                        return {"error": "refused", "reason": "commit your changes before opening a pull request"}
+                    try:
+                        pr = await open_pull_request(db, db.get(Task, ex.task_id), wt)
+                    except GitHubError as e:
+                        db.rollback()
+                        return {"error": "github", "reason": e.message, "retryable": e.retryable}
+                    result = {"number": pr.number, "url": pr.url, "head": pr.head_branch, "base": pr.base_branch}
                 elif name == "git.commit":
                     project = db.get(Project, wt.project_id)
                     result = w.commit(db, wt, agent, str(args.get("message", "")), w.protected_branches(project))
                 else:
                     return {"error": "unknown_tool"}
-                if name in ("files.write", "git.commit"):
+                if name in ("files.write", "git.commit", "pr.create"):
                     w.refresh(db, wt)
                     log_activity(db, f"devplane.{name.replace('.', '_')}", category="devplane",
                                  organization_id=ex.organization_id, agent_id=ex.agent_id, project_id=wt.project_id,
@@ -55,5 +67,5 @@ def _tool(name: str):
     return run
 
 
-for _name in ("repo.read", "files.write", "git.branch", "git.commit"):
+for _name in ("repo.read", "files.write", "git.branch", "git.commit", "pr.create"):
     register_tool(_name, _tool(_name))

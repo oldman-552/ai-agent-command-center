@@ -45,6 +45,9 @@ class Repository(TimestampMixin, Base):
     is_private: Mapped[bool] = mapped_column(Boolean, default=True)
     credential_id: Mapped[int | None] = mapped_column(ForeignKey("api_credentials.id", ondelete="SET NULL"))
     analysis: Mapped[dict | None] = mapped_column(JSONB)  # tech detection / codebase map (existing-project mode)
+    api_base: Mapped[str] = mapped_column(String(255), default="https://api.github.com",
+                                          server_default="https://api.github.com")  # GitHub Enterprise
+    webhook_credential_id: Mapped[int | None] = mapped_column(ForeignKey("api_credentials.id", ondelete="SET NULL"))
 
 
 class Project(TimestampMixin, Base):

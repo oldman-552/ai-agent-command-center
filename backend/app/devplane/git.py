@@ -95,3 +95,31 @@ def merge_conflicts(repo: Path, base_branch: str, branch: str) -> list[str]:
     if r.returncode == 1:  # conflicts: first line is the tree id, then the conflicted paths
         return sorted({ln for ln in r.stdout.splitlines()[1:] if ln.strip()})
     raise GitError(f"merge-tree failed: {r.stderr.strip()[:500]}")
+
+
+def _askpass() -> str:
+    """A helper that answers git's credential prompt from the environment, so the token is never in argv/URLs."""
+    path = Path("/tmp/acc-git-home/askpass.sh")
+    if not path.exists():
+        path.parent.mkdir(exist_ok=True)
+        path.write_text('#!/bin/sh\ncase "$1" in Username*) echo x-access-token ;; *) echo "$ACC_GIT_TOKEN" ;; esac\n')
+        path.chmod(0o700)
+    return str(path)
+
+
+def push_branch(worktree: Path, remote_url: str, branch: str, token: str | None, protected: list[str]) -> None:
+    """Push an agent branch (never a protected one) to the remote. https only, except local paths in tests."""
+    assert_not_protected(branch, protected)
+    if not valid_branch(branch):
+        raise GitError("invalid branch")
+    if not remote_url.startswith(("https://", "/")):
+        raise GitError("remote must be https")
+    env = _env()
+    if token:
+        env.update(GIT_ASKPASS=_askpass(), ACC_GIT_TOKEN=token)
+    r = subprocess.run(["git", *SAFE_CONFIG, "-c", "protocol.https.allow=always", "-c", "credential.helper=",
+                        "push", "--porcelain", remote_url, f"refs/heads/{branch}:refs/heads/{branch}"],
+                       cwd=worktree, env=env, capture_output=True, text=True, timeout=300, check=False)
+    if r.returncode != 0:
+        msg = (r.stderr or r.stdout).replace(token or "\x00", "***")
+        raise GitError(f"push failed: {msg.strip()[:500]}")

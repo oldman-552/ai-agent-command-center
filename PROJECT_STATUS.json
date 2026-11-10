@@ -1,12 +1,12 @@
 {
-  "date": "2026-11-10 07:18",
+  "date": "2026-11-10 07:33",
   "spec_version": "4.0",
   "current_phase": "Phases 16, 17, 22",
   "current_milestone": {
     "id": 13,
     "name": "Enterprise Security"
   },
-  "overall_percent": 58.9,
+  "overall_percent": 63.2,
   "milestones": [
     {
       "id": 1,
@@ -68,8 +68,8 @@
       "id": 8,
       "name": "GitHub Development",
       "weight": 7,
-      "percent": 37.5,
-      "done": 3,
+      "percent": 100.0,
+      "done": 8,
       "total": 8
     },
     {
@@ -176,9 +176,14 @@
     "OR-06",
     "OR-07",
     "OR-08",
+    "GH-01",
+    "GH-02",
     "GH-03",
     "GH-04",
+    "GH-05",
     "GH-06",
+    "GH-07",
+    "GH-08",
     "MQ-01",
     "MQ-02",
     "MQ-03",
@@ -203,29 +208,34 @@
   ],
   "files_changed": [
     "PROJECT_STATUS.json",
+    "backend/app/devplane/git.py",
+    "backend/app/devplane/tools.py",
+    "backend/app/devplane/worktrees.py",
     "backend/app/main.py",
-    "backend/app/models/__init__.py",
     "backend/app/models/work.py",
     "backend/app/orchestration/scheduler.py",
-    "backend/app/sandbox/tools.py",
-    "backend/app/worker.py",
-    "backend/tests/test_orchestration.py",
-    "backend/tests/test_sandbox.py",
     "docs/ARCHITECTURE_DECISIONS.md",
     "docs/REQUIREMENTS.md",
     "docs/requirements.json",
+    "frontend/messages/ar.json",
+    "frontend/messages/en.json",
+    "frontend/src/components/app-shell.tsx",
     "progress.txt",
-    "backend/alembic/versions/86d8f269d4f0_worktrees.py",
-    "backend/app/devplane/",
-    "backend/tests/test_devplane.py"
+    "backend/alembic/versions/8cdeb60464e8_repository_api_base_and_webhook_secret.py",
+    "backend/app/devplane/api.py",
+    "backend/app/devplane/github.py",
+    "backend/app/devplane/service.py",
+    "backend/tests/test_github.py",
+    "frontend/e2e/github.spec.ts",
+    "frontend/src/app/(app)/github/"
   ],
   "tests": {
     "passed": [
-      "backend: 166/166 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox + real git — full suite twice and every module in isolation — 2026-11-10",
-      "migrations: 8 revisions (45 tables + langgraph schema); base → head → -1 → head; alembic check clean",
-      "frontend: i18n guard (496 keys), contrast, tsc, next build",
+      "backend: 172/172 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox + real git — full suite twice and every module in isolation — 2026-11-10",
+      "migrations: 9 revisions (45 tables + langgraph schema); base → head → -1 → head; alembic check clean",
+      "frontend: i18n guard (542 keys), contrast, tsc, next build",
       "ruff: clean",
-      "frontend: 44/44 Playwright in real Chrome against API + worker in bus mode — tasks, approvals, audit, evaluations, axe WCAG 2.2 AA × ar/en incl. dialogs",
+      "frontend: 47/47 Playwright in real Chrome against API + worker in bus mode — tasks, approvals, audit, evaluations, GitHub, axe WCAG 2.2 AA × ar/en incl. dialogs",
       "security: scripts/security-scan.sh — pip-audit on backend lock (no known vulnerabilities), npm audit --omit=dev (0 vulnerabilities); --strict exits 2 when a scanner is missing (verified)"
     ],
     "failed": []
@@ -237,7 +247,8 @@
     "ui-ux-pro-max search database (data/*.csv) is not in the repo checkout; UI work used the skill's bundled references + design-system/MASTER.md",
     "Sandbox in Docker deployments: the worker container has no Docker daemon access yet (docker.sock would be root-equivalent); see ADR-019 deployment note",
     "Sandbox image here was built offline (debootstrap + docker import); docker/sandbox/Dockerfile (ubuntu:24.04 base) must be built and verified on the owner's machine",
-    "SEC-08: container image scanning (Trivy) is scripted but has never run — Trivy and vulnerability feeds are unreachable here; run scripts/security-scan.sh --strict on the owner's machine/CI"
+    "SEC-08: container image scanning (Trivy) is scripted but has never run — Trivy and vulnerability feeds are unreachable here; run scripts/security-scan.sh --strict on the owner's machine/CI",
+    "GitHub integration verified against an in-memory HTTP fake + local bare remote only (github.com unreachable here); verify against a real repository on the owner's machine"
   ],
   "blockers": [
     "Dev environment blocks all container registries: official images cannot be pulled here; verified instead with locally-built equivalent images (docker/offline). Official images must be verified on the owner's machine",
@@ -246,5 +257,5 @@
   "requires_owner_approval": [
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
-  "next_action": "M8 rest: GH-01 GitHub auth (encrypted token/App), GH-02 API client (HTTP mocks), GH-05 PR with description + test results, GH-07 webhooks + checks, GH-08 GitHub UI; then M7 supervisor, M11 context & memory"
+  "next_action": "M7 Agent Supervisor (SV-01..06), then M11 context & memory, M9 browser bridge, M5 CLI engines, M14 automation, M15 docs/launchers"
 }

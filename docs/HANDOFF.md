@@ -62,8 +62,8 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - The dev DB is disposable; the super admin password in the dev container is `dev-only-password-123` (backend/.env, not committed).
 
 ### Next steps (in order)
-1. M8 rest (GitHub auth/API/PR/webhooks/UI) — local worktrees, protected branches and approved merges are done
-   (`app/devplane/`, ADR-021); then M7 supervisor, M11 context & memory. SEC-08: image scan still never run here.
+1. M7 Agent Supervisor, then M11 context & memory. M8 is complete (`app/devplane/`, `/github`, ADR-021/022);
+   GitHub was only verified against an HTTP fake. SEC-08: image scan still never run here.
    M12 (evaluation, profiles, recovery, circuit breakers, graceful shutdown — ADR-018/020) is complete. Sandbox (`app/sandbox/`, ADR-019), audit (`/audit`), approvals (ADR-017) and the
    evaluation gate (ADR-018) are done.
    Dev sandbox image: `dockerd &` then the image `acc/sandbox:python` must exist (built offline here with

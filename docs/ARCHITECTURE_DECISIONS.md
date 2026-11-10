@@ -235,3 +235,24 @@ agents never modify protected branches, merge after human approval. Repository c
   still equals the approved commit; otherwise (or on conflicts) the approval stays un-executed and the task returns to
   READY with the reason.
 **Not yet:** GitHub remote (auth, push, PRs, webhooks, CI) — GH-01/02/05/07/08.
+
+## ADR-022 — GitHub: encrypted tokens, push via askpass, PRs with evidence, merges pinned to the approved SHA (2026-11-10)
+**Context:** Phase 12 GitHub integration on top of ADR-021's local worktrees.
+**Decision:**
+- Connecting a repository requires `credentials.manage` (human-only); the token is verified against GitHub
+  (`GET /repos/{owner}/{name}`), stored encrypted as an ApiCredential, and only a 4-character hint is ever returned.
+  `api_base` supports GitHub Enterprise (https only).
+- `app/devplane/github.py`: REST client (repo, branches, commits, compare, pulls, check runs, create/merge PR) with
+  GitHub's versioned headers; network errors, 5xx and rate limits are retryable, everything else is not.
+- Push (`pr.create` tool): only agent branches (protected names refused), only https remotes; the token reaches git
+  through a GIT_ASKPASS helper reading an environment variable — never argv, URL or logs; credential helpers off.
+- The PR description is generated from evidence: acceptance criteria ticked by the evaluator, last sandbox test run,
+  evaluation decision/score, changed files, overlaps/conflicts, and a mock warning when relevant.
+- Merge: when the task has an open PR the `git.merge_protected` executor calls GitHub's merge API with
+  `sha = approved head commit`, so GitHub itself refuses (409) if the branch moved; failure returns the task to READY.
+- Webhooks `POST /api/github/webhook/{repository_id}`: HMAC-SHA256 (`X-Hub-Signature-256`, constant-time compare)
+  with a per-repository encrypted secret; unknown repository and bad signature answer the same 401; each
+  `X-GitHub-Delivery` is applied once; `check_run`/`status` update PR checks, `pull_request` updates state.
+**Verification limits:** github.com is unreachable from the development environment; the client is tested against an
+in-memory fake implementing the same endpoints and pushes go to a real local bare repository. A live check against a
+real repository must be done on the owner's machine.

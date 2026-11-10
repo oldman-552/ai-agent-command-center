@@ -170,7 +170,13 @@ def _register() -> None:
     from app.governance.approvals import register_executor
 
     def executor(db: Session, a: Approval) -> dict[str, Any]:
+        from app.devplane.service import merge_pull_approved
         try:
+            if a.payload.get("pull_request_id"):  # the project has a GitHub remote: merge the PR there
+                result = merge_pull_approved(db, a)
+                wt = db.get(Worktree, int(a.payload["worktree_id"]))
+                wt.status, wt.merged_at = "merged", datetime.now(UTC)
+                return result
             return merge_approved(db, a)
         except g.GitError as e:  # surfaced by the Approval Center as execution_failed evidence
             raise HTTPException(409, str(e)) from e

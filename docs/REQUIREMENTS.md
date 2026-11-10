@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 58.9%**
+**Overall verified completion: 63.2%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -99,18 +99,18 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | SV-05 | P0 | Supervisor never overrides security/approval policies | Test: approval-gated op not executed by supervisor | pytest | SEC-03 | pending | — |
 | SV-06 | P0 | Supervisor UI: health, findings, actions log | E2E | Playwright | SV-01 | pending | — |
 
-## M8 — GitHub Development (weight 7%, 38%) — spec Phase 12
+## M8 — GitHub Development (weight 7%, 100%) — spec Phase 12
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| GH-01 | P0 | GitHub auth (fine-grained token or GitHub App) stored encrypted | Credential tests | pytest | GW-03 | pending | — |
-| GH-02 | P0 | Repos, branches, commits, PRs, diffs via API | Tests with HTTP mocks | pytest | GH-01 | pending | — |
+| GH-01 | P0 | GitHub auth (fine-grained token or GitHub App) stored encrypted | Credential tests | pytest | GW-03 | done | tests/test_github.py::test_token_is_verified_stored_encrypted_and_never_returned (bad token 400, ciphertext only, hint only in API, human-only credentials.manage, duplicate 409) |
+| GH-02 | P0 | Repos, branches, commits, PRs, diffs via API | Tests with HTTP mocks | pytest | GH-01 | done | tests/test_github.py::test_client_reads_and_maps_errors against an HTTP fake (branches, commits, compare, check runs, 401 non-retryable, rate limit/5xx/transport retryable, https only) |
 | GH-03 | P0 | Per-agent git worktree + feature branch; track files/ownership/conflicts | Real git worktree tests | pytest | — | done | tests/test_devplane.py on real git 2.43: per-task worktrees on agent branches, isolation between tasks, modified files + overlap tracking, author/committer, hooks never execute (even when the repo re-enables them), path/symlink escapes refused, sandbox pytest runs inside the task worktree |
 | GH-04 | P0 | Protected branches cannot be modified by agents | Push to main rejected by policy | pytest | GH-03, SEC-01 | done | test_protected_branches_cannot_be_written_by_agents: protected branch target refused + audited; detached worktree commit refused; base repo stays on main and untouched by agent work |
-| GH-05 | P0 | PR creation with description + test results | PR payload test | pytest | GH-02 | pending | — |
+| GH-05 | P0 | PR creation with description + test results | PR payload test | pytest | GH-02 | done | test_pr_is_pushed_described_and_merged_only_after_approval: branch pushed to a real bare remote (main untouched), PR body contains criteria, changed files, mock warning and the approval notice |
 | GH-06 | P0 | Merge only via approved approval request | Unapproved merge blocked | pytest | SEC-03 | done | test_merge_happens_only_through_an_approved_request (nothing merged while pending; direct execute refused; approve → --no-ff merge of the frozen commit → task COMPLETED), test_branch_moved_after_approval_request_is_not_merged, test_textual_conflict_with_base_blocks_review_approval |
-| GH-07 | P1 | Webhooks + CI check status | Webhook signature verified | pytest | GH-02 | pending | — |
-| GH-08 | P0 | GitHub UI page | E2E | Playwright | GH-02 | pending | — |
+| GH-07 | P1 | Webhooks + CI check status | Webhook signature verified | pytest | GH-02 | done | test_webhooks_are_signed_deduplicated_and_update_checks: bad/missing signature and unknown repo 401, replayed delivery ignored, check_run updates PR checks, pull_request merged updates state |
+| GH-08 | P0 | GitHub UI page | E2E | Playwright | GH-02 | done | frontend/e2e/github.spec.ts: connect dialog validation + honest failure when GitHub unreachable (nothing stored), repositories with protected branches, PR/worktree sections, axe WCAG 2.2 AA ar/en with dialog open, no overflow 375/1440 |
 
 ## M9 — Browser Bridge and MCP (weight 7%, 0%) — spec Phases 11, 18
 

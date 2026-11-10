@@ -16,7 +16,8 @@
     "approvals": "الموافقات",
     "pendingApprovals": "{n} موافقات بانتظار القرار",
     "audit": "سجل التدقيق",
-    "evaluations": "التقييمات"
+    "evaluations": "التقييمات",
+    "github": "GitHub"
   },
   "language": {
     "label": "اللغة",
@@ -641,6 +642,63 @@
       "approve": "اجتاز",
       "revise": "يحتاج تعديلاً",
       "reject": "مرفوض"
+    }
+  },
+  "github": {
+    "title": "GitHub",
+    "subtitle": "المستودعات المربوطة وفروع الوكلاء وطلبات الدمج. الوكلاء لا يكتبون أبداً في الفروع المحمية، والدمج يحتاج موافقة.",
+    "connect": "ربط مستودع",
+    "connectSubmit": "تحقّق واربط",
+    "connectHelp": "يُتحقق من الرمز لدى GitHub ثم يُخزَّن مشفّراً، ولا يُعرض منه إلا آخر 4 أحرف.",
+    "repositories": "المستودعات",
+    "noRepos": "لا يوجد مستودع مربوط بعد.",
+    "defaultBranch": "الفرع الافتراضي",
+    "token": "الرمز",
+    "webhookOn": "Webhook موقّع",
+    "webhookOff": "بدون Webhook",
+    "protected": "محمية",
+    "pullRequests": "طلبات الدمج",
+    "noPulls": "لا توجد طلبات دمج بعد.",
+    "opensNewTab": "يفتح في تبويب جديد",
+    "columns": {
+      "pr": "طلب الدمج",
+      "branch": "الفروع",
+      "state": "الحالة",
+      "checks": "الفحوص"
+    },
+    "pullState": {
+      "open": "مفتوح",
+      "closed": "مغلق",
+      "merged": "مدموج"
+    },
+    "worktrees": "مساحات عمل الوكلاء",
+    "worktreesHelp": "لكل مهمة فرعها ونسختها الخاصة، ويُتتبّع تداخل الملفات والتعارض مع الفرع الأساسي.",
+    "noWorktrees": "لا توجد مساحات عمل للوكلاء بعد.",
+    "task": "المهمة #{id}",
+    "files": "{n} ملفات متغيّرة",
+    "conflicts": "تداخلات / تعارضات",
+    "wtStatus": {
+      "active": "نشطة",
+      "committed": "مُثبّتة",
+      "merged": "مدموجة",
+      "abandoned": "متروكة"
+    },
+    "fields": {
+      "fullName": "المستودع",
+      "fullNameHelp": "المالك/المستودع، مثل acme/backend",
+      "token": "رمز الوصول",
+      "tokenHelp": "رمز محدود الصلاحيات بقراءة وكتابة المحتوى وطلبات الدمج لهذا المستودع.",
+      "protected": "الفروع المحمية (مفصولة بفواصل)",
+      "webhook": "سرّ الـ Webhook",
+      "webhookHelp": "16 حرفاً على الأقل؛ استخدم السرّ نفسه في إعدادات Webhook للمستودع.",
+      "fullNamePlaceholder": "المالك/المستودع",
+      "protectedPlaceholder": "main, release"
+    },
+    "errors": {
+      "badToken": "رفض GitHub الرمز لهذا المستودع.",
+      "notFound": "المستودع غير موجود أو غير مرئي لهذا الرمز.",
+      "unreachable": "تعذّر الوصول إلى GitHub. حاول لاحقاً.",
+      "exists": "هذا المستودع مربوط مسبقاً."
     }
   }
 }

@@ -28,7 +28,7 @@ from app.bus.contract import Envelope, MessageType, workflow_command
 from app.bus.outbox import enqueue
 from app.evaluation.engine import evaluate_and_record, notes_of
 from app.governance.approvals import on_decision, request_approval
-from app.models import EvaluationResult, Execution, Task, TaskDependency, Workflow, Worktree
+from app.models import EvaluationResult, Execution, PullRequest, Task, TaskDependency, Workflow, Worktree
 from app.models import ExecutionStatus as X
 from app.models import TaskStatus as T
 from app.orchestration.selection import select_agent
@@ -228,7 +228,9 @@ def review(db: Session, task: Task, decision: str, note: str, actor: str) -> Tas
                 title=f"Merge {wt.branch} into {wt.base_branch} (task #{task.id})", requested_by="orchestrator",
                 summary=f"{len(wt.modified_files)} file(s) changed; approved head {wt.head_commit[:12]}",
                 payload={"task_id": task.id, "worktree_id": wt.id, "branch": wt.branch, "base_branch": wt.base_branch,
-                         "head_commit": wt.head_commit, "evaluation_id": ev.id},
+                         "head_commit": wt.head_commit, "evaluation_id": ev.id,
+                         "pull_request_id": db.scalar(select(PullRequest.id).where(
+                             PullRequest.task_id == task.id, PullRequest.state == "open"))},
                 evidence=[{"kind": "evaluation", "evaluation_id": ev.id, "overall": ev.overall},
                           {"kind": "review", "by": actor, "note": note[:2000]},
                           {"kind": "changes", "files": wt.modified_files[:200], "commits": wt.commits[-20:],
