@@ -396,6 +396,14 @@ API). The API key comes from a platform credential and is passed with `docker ru
 environment, never in argv) and masked in output; consumer subscriptions are never used. Only documented flags are
 used; how each was verified is recorded in PROVIDER_INTEGRATION.md. CLI-reported costs are not recorded as platform
 cost. Approval-bypass flags (`--yolo`, `--dangerously-skip-permissions`) are never used.
+Workspace trust (2026-11-10): Gemini CLI's headless mode refuses an untrusted folder, so it runs with `--skip-trust`.
+Trust makes a CLI load project configuration from the repository, which can widen approvals while the key is in the
+environment, so the engine refuses any workspace that contains the CLI's project configuration (`.gemini/`, `.codex/`,
+`opencode.json(c)`, `.opencode/`) unless the agent's policy sets `cli_allow_project_config`. Claude Code's `--bare`
+already skips project configuration.
+**Image hygiene (SEC-08, 2026-11-10):** every Dockerfile applies pending OS security updates at build time;
+`scripts/check-image-updates.sh` (run by `security-scan.sh`) reports published-but-missing security updates per
+image without a vulnerability database, because Trivy's database is unreachable in the development environment.
 **Launchers (FI-01/02):** thin `.bat` wrappers call one PowerShell script (`scripts/windows/acc.ps1`, UTF-8 BOM,
 CRLF); Linux/macOS scripts share `scripts/lib/acc.sh`. Both only drive Docker Compose: check Docker, create `.env`
 with generated secrets (asking for the Super Admin password; never a fake credential), build, start, wait for health,

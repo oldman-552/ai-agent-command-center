@@ -69,9 +69,16 @@ DENY`, `nosniff`, `Referrer-Policy`), no CORS (same-origin only through the web 
 ## Supply chain
 
 `scripts/security-scan.sh` runs pip-audit (backend lockfile), npm audit (production dependencies) and Trivy for
-images when installed; HIGH/CRITICAL fail the run (`--strict` also fails when a scanner is missing). Last run in the
-development container (2026-11-10): Python and npm dependencies clean; **images not scanned there (Trivy not
-installable in that environment)** — run it on your machine before production.
+images when installed; HIGH/CRITICAL fail the run (`--strict` also fails when a scanner is missing). It also runs
+`scripts/check-image-updates.sh`, which needs no vulnerability database: it asks each image's own package manager
+(with the distribution's security suite added in a throwaway container) for security updates that are published but
+not installed. Every Dockerfile applies pending updates at build time (`apt-get upgrade` / `apk upgrade`).
+
+Last run in the development container (2026-11-10): Python and npm dependencies clean; the locally built images
+(Ubuntu 24.04 base, sandbox, backend, frontend, PostgreSQL, RabbitMQ, Redis equivalents) have **no pending security
+updates** — before the fix they had 72, because the debootstrapped base listed no security suite. **Trivy has not
+run** (its database and every OSV/distribution tracker are unreachable there), and the official Docker Hub images
+were not built — run `scripts/security-scan.sh --strict` on your machine before production.
 
 ## Reporting
 

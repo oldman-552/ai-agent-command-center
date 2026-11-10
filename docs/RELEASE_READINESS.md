@@ -20,6 +20,7 @@ below with exactly what is missing; none of them is hidden behind a mock.
 | E2E (Playwright, real Chrome, Arabic + English, axe WCAG 2.2 AA) | **61 / 61 passed** | `npx playwright test` |
 | Docker Compose stack (official compose file + offline image equivalents) | all services healthy; migrations; Definition-of-Done, 20-page navigation, live WebSocket and memory E2E passed against it; data kept across stop/start | see DEPLOYMENT.md |
 | Dependency scan | pip-audit: no known vulnerabilities; npm audit (prod): 0 | `scripts/security-scan.sh` |
+| OS security updates in images | all 7 locally built images: 0 pending (was 72 before the base fix) | `scripts/check-image-updates.sh` |
 
 ## Definition of Done (spec §5)
 
@@ -29,7 +30,7 @@ below with exactly what is missing; none of them is hidden behind a mock.
 | Agent runtime (create, configure, execute, persist, observable errors, recovery) | ✅ | runtime/recovery tests, execution timeline E2E |
 | Orchestration (decompose, assign, dependencies, parallel, consolidate, failures) | ✅ | orchestration tests, `definition-of-done.spec.ts` |
 | One official API integration works | ⚠️ simulated only | adapters tested against simulated HTTP APIs; **live call with your key pending (GW-10)** |
-| One CLI integration works where feasible | ⚠️ partial | CLI engine tested with a fake runner + real sandbox; the CLIs are not installed here (EE-02 verified flags) |
+| One CLI integration works where feasible | ⚠️ up to the provider call | all four CLIs installed and started in the real sandbox with the engine's argv and key passing; a real task needs your API key |
 | Browser Bridge for one verified provider | ⚠️ local test provider only | real providers' selectors unverified by design (ADR-005/025) |
 | MCP integration | ✅ | MCP client ↔ local stdio server, platform MCP server over HTTP |
 | Unsupported integrations documented | ✅ | PROVIDER_INTEGRATION.md |
@@ -45,15 +46,16 @@ below with exactly what is missing; none of them is hidden behind a mock.
 |---|---|---|
 | GW-10 | A live call with a real API key | Providers & Models → add your Anthropic/OpenAI/Gemini key → *Test connection*, run an agent |
 | FI-06 | End-to-end with a real provider and a real GitHub repository | Connect a test repository with a fine-grained token, run an objective, approve the merge |
-| SEC-08 | Container image scan (Trivy could not be installed in the development environment) | `scripts/security-scan.sh --strict` on your machine with Trivy installed |
+| SEC-08 | Container image scan with Trivy (its vulnerability database is unreachable from the development environment; OS-update check done, see above) | `scripts/security-scan.sh --strict` on your machine with Trivy installed |
 | FI-01 | A real Windows run of the launchers | Double-click `START.bat` on Windows 10/11 with Docker Desktop |
 
 ## Known limitations
 
 - **Browser Bridge** is experimental: only the platform's local test page is verified; Claude/ChatGPT/Gemini selectors
   are best effort and their consumer terms may prohibit automation. Disabled by default.
-- **CLI engine**: Codex flags were confirmed from a documentation mirror only; Gemini `--model`/`GEMINI_API_KEY` and
-  Claude `--model` come from CLI references not re-fetched for this review; the `acc/cli` image is not built here.
+- **CLI engine**: flags checked against each CLI's `--help`; all four start in the real sandbox with the engine's argv
+  (offline image equivalent), but none completed a task here (no keys, provider APIs blocked). The official
+  `docker/cli/Dockerfile` (node base image) was not built here.
 - **Sandbox access to Docker**: compose does not mount the Docker socket by default (root-equivalent); without a
   daemon the shell tools and CLI engine report "sandbox unavailable".
 - **Prompt-injection defences** are mitigations; enforcement lives in permissions and approvals.

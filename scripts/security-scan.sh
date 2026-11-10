@@ -51,6 +51,13 @@ else
   echo "SKIPPED: trivy (https://github.blesdmm.dns-dynamic.net/aquasecurity/trivy) or docker not installed"; missing=1
 fi
 
+section "Container images (pending OS security updates)"
+if command -v docker >/dev/null && docker info >/dev/null 2>&1; then
+  "$ROOT/scripts/check-image-updates.sh" || status=1
+else
+  echo "SKIPPED: docker not running"; missing=1
+fi
+
 if [ "$status" -ne 0 ]; then echo; echo "RESULT: vulnerabilities found"; exit 1; fi
 if [ "$missing" -ne 0 ] && [ "$STRICT" -eq 1 ]; then echo; echo "RESULT: a scanner was unavailable (--strict)"; exit 2; fi
 echo; echo "RESULT: clean$([ "$missing" -ne 0 ] && echo ' (some scanners skipped — see above)')"

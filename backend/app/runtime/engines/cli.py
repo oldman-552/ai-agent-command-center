@@ -20,7 +20,7 @@ from typing import Any
 
 from app.config import get_settings
 from app.db import session_factory
-from app.models import Agent, ApiCredential, Execution
+from app.models import Agent, ApiCredential, Execution, Provider
 from app.runtime.contract import EngineContext, EngineEvent, RetryableError, register_engine
 from app.sandbox import runner
 from app.security.crypto import decrypt_secret
@@ -37,6 +37,11 @@ class CliSpec:
     docs: str
     verified: tuple[str, ...] = field(default=())   # flags confirmed in the official docs
     caveats: str = ""
+    key_aliases: tuple[str, ...] = ()        # the same key also passed under these names
+    # project-level configuration the CLI would load from the workspace (it can widen tool approvals or add
+    # commands/MCP servers and so reach the API key); refused unless context_policy.cli_allow_project_config
+    project_config: tuple[str, ...] = ()
+    provider_kinds: tuple[str, ...] = ()     # provider kinds whose API key this CLI accepts (empty = any)
 
 
 def _plain(stdout: str) -> tuple[str, dict[str, Any]]:
@@ -65,31 +70,42 @@ SPECS: dict[str, CliSpec] = {s.key: s for s in (
             lambda p, m: ["claude", "--bare", "-p", p, "--output-format", "json",
                           "--permission-mode", "acceptEdits", *(["--model", m] if m else [])],
             _claude, "https://code.claude.com/docs/en/headless",
-            verified=("--bare", "-p", "--output-format json", "--permission-mode acceptEdits", "ANTHROPIC_API_KEY")),
+            verified=("--bare", "-p", "--output-format json", "--permission-mode acceptEdits", "--model",
+                      "ANTHROPIC_API_KEY"),
+            caveats="Flags checked against `claude --help` of 2.1.322 and the CLI reference (2026-11-10).",
+            provider_kinds=("anthropic",)),
     CliSpec("codex", "OpenAI Codex CLI", "codex", "OPENAI_API_KEY",
             lambda p, m: ["codex", "exec", "--sandbox", "workspace-write", "--cd", "/workspace",
-                          *(["--model", m] if m else []), p],
+                          "--skip-git-repo-check", *(["--model", m] if m else []), p],
             _plain, "https://developers.openai.com/codex/noninteractive",
-            verified=("exec", "--sandbox workspace-write", "--cd", "--model"),
-            caveats="Flags confirmed from a documentation mirror only (the official page redirected and could not be "
-                    "fetched); the final message is read from stdout."),
+            verified=("exec", "--sandbox workspace-write", "--cd", "--skip-git-repo-check", "--model"),
+            caveats="Flags checked against `codex exec --help` of codex-cli 0.167.0 (2026-11-10). The binary reads "
+                    "both OPENAI_API_KEY and CODEX_API_KEY, so the key is passed under both names; the final "
+                    "message is read from stdout.",
+            key_aliases=("CODEX_API_KEY",), project_config=(".codex",), provider_kinds=("openai",)),
     CliSpec("gemini", "Gemini CLI", "gemini", "GEMINI_API_KEY",
-            lambda p, m: ["gemini", "-p", p, "--output-format", "json", *(["--model", m] if m else [])],
+            lambda p, m: ["gemini", "-p", p, "--output-format", "json", "--skip-trust",
+                          *(["--model", m] if m else [])],
             _gemini, "https://www.geminicli.com/docs/cli/headless",
-            verified=("-p", "--output-format json"),
-            caveats="--model and GEMINI_API_KEY are from the CLI reference, which could not be fetched for this "
-                    "review; tool approvals are left at the CLI default (no --yolo)."),
+            verified=("-p", "--output-format json", "--skip-trust", "--model", "GEMINI_API_KEY"),
+            caveats="Flags checked against `gemini --help` of 0.67.0 and GEMINI_API_KEY in its package (2026-11-10). "
+                    "Headless runs refuse an untrusted folder, so the workspace is trusted with --skip-trust; the "
+                    "engine refuses workspaces with .gemini/ configuration instead. Tool approvals stay at the "
+                    "default (no --yolo).",
+            project_config=(".gemini",), provider_kinds=("google",)),
     CliSpec("opencode", "OpenCode", "opencode", None,
             lambda p, m: ["opencode", "run", *(["--model", m] if m else []), p],
             _plain, "https://opencode.ai/docs/cli",
-            verified=("run", "--model provider/model"),
+            verified=("run", "--model provider/model"),  # `opencode run --help`, 1.19.5
             caveats="The API key variable depends on the provider (set context_policy.cli_key_env); the default "
-                    "formatted output is used because the JSON event schema is not documented."),
+                    "formatted output is used because the JSON event schema is not documented.",
+            project_config=("opencode.json", "opencode.jsonc", ".opencode")),
 )}
 
 
 def public() -> list[dict[str, Any]]:
     return [{"key": s.key, "name": s.name, "binary": s.binary, "key_env": s.key_env, "docs": s.docs,
+             "provider_kinds": list(s.provider_kinds), "project_config": list(s.project_config),
              "verified_flags": list(s.verified), "caveats": s.caveats} for s in SPECS.values()]
 
 
@@ -113,26 +129,39 @@ class CliEngine:
             ex = db.get(Execution, ctx.execution_id)
             agent = db.get(Agent, ex.agent_id)
             cred = db.get(ApiCredential, int(pol["cli_credential_id"])) if pol.get("cli_credential_id") else None
+            if cred is None and agent.provider_id:  # the usual case: the API key of the agent's own provider
+                prov = db.get(Provider, agent.provider_id)
+                if prov is not None and prov.organization_id == agent.organization_id:
+                    if spec.provider_kinds and prov.kind not in spec.provider_kinds:
+                        raise RuntimeError(f"{spec.name} needs a {' or '.join(spec.provider_kinds)} API key; the agent's "
+                                           f"provider {prov.name!r} is {prov.kind}")
+                    cred = prov.credential
             if cred is None or cred.organization_id != agent.organization_id:
-                raise RuntimeError("the agent has no API key credential for its CLI (context_policy.cli_credential_id)"
+                raise RuntimeError("the agent has no API key for its CLI (give the agent a provider with an API key)"
                                    " — CLIs run with API keys, never with consumer subscriptions")
             secret = decrypt_secret(cred.encrypted_value)
             if ex.project_id is None:
                 raise RuntimeError("CLI executions need a project workspace")
-            ex.provider, ex.model = f"cli:{spec.key}", pol.get("cli_model") or "default"
+            model = pol.get("cli_model") or agent.model
+            ex.provider, ex.model = f"cli:{spec.key}", model or "default"
             db.commit()
             snapshot = Execution(id=ex.id, organization_id=ex.organization_id, project_id=ex.project_id,
                                  task_id=ex.task_id, agent_id=ex.agent_id)
             timeout = float(agent.timeout_seconds or get_settings().sandbox_timeout_seconds)
         workspace = Path(_workspace_for(snapshot))
+        found = [c for c in spec.project_config if (workspace / c).exists()]
+        if found and not pol.get("cli_allow_project_config"):
+            raise RuntimeError(f"the workspace contains {spec.name} project configuration ({', '.join(found)}), which "
+                               "could change the CLI's tool approvals; remove it or allow it explicitly with "
+                               "context_policy.cli_allow_project_config")
         prompt = str(ctx.input.get("prompt", ""))
-        argv = spec.build(prompt, pol.get("cli_model"))
+        argv = spec.build(prompt, model)
         limits = runner.default_limits()
         limits.network, limits.timeout_s = True, timeout
         yield EngineEvent("log", {"message": f"{spec.name} in the sandbox", "argv": argv[:2] + ["…"]})
         try:
             result = await RUNNER(workspace, argv, limits=limits, image=get_settings().cli_sandbox_image,
-                                  secret_env={key_env: secret})
+                                  secret_env={key_env: secret, **{a: secret for a in spec.key_aliases}})
         except runner.SandboxError as e:
             raise RetryableError(f"sandbox unavailable: {e}") from e
         if result.timed_out:

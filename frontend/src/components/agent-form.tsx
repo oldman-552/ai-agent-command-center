@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { type Agent, useAgents, useProvidersLite, useToolCatalog } from "@/lib/agents";
+import { type Agent, useAgents, useCliSpecs, useProvidersLite, useToolCatalog } from "@/lib/agents";
 import { api, ApiError } from "@/lib/api";
 import { useToasts } from "@/lib/toast";
 
@@ -43,6 +43,14 @@ const schema = z.object({
   priority: z.coerce.number().int().min(1).max(10),
   supervisor_agent_id: z.string(),
   task_types: z.string(),
+  cli: z.string(),
+  cli_key_env: z.string().max(64),
+  cli_allow_project_config: z.boolean(),
+}).superRefine((v, ctx) => {
+  if (v.execution_engine !== "cli") return;
+  if (!v.cli) ctx.addIssue({ code: "custom", path: ["cli"], message: "required" });
+  if (v.cli === "opencode" && !/^[A-Z][A-Z0-9_]*_(API_KEY|KEY|TOKEN)$/.test(v.cli_key_env))
+    ctx.addIssue({ code: "custom", path: ["cli_key_env"], message: "invalid" });
 });
 type FormValues = z.input<typeof schema>;
 
@@ -59,6 +67,8 @@ function toForm(a?: Agent): FormValues {
     concurrency_limit: a?.concurrency_limit ?? 1, priority: a?.priority ?? 5,
     supervisor_agent_id: a?.supervisor_agent_id ? String(a.supervisor_agent_id) : "",
     task_types: (a?.context_policy?.task_types ?? []).join(", "),
+    cli: String(a?.context_policy?.cli ?? ""), cli_key_env: String(a?.context_policy?.cli_key_env ?? ""),
+    cli_allow_project_config: a?.context_policy?.cli_allow_project_config === true,
   };
 }
 
@@ -92,6 +102,16 @@ export function AgentForm({ agent }: { agent?: Agent }) {
   const selected = watch("tool_permissions");
   const providerId = watch("provider_id");
   const fbProviderId = watch("fallback_provider_id");
+  const engine = watch("execution_engine");
+  const cliKey = watch("cli");
+  const clis = useCliSpecs(engine === "cli");
+  const cliSpec = clis.data?.find((c) => c.key === cliKey);
+  const providerKind = providers.data?.find((p) => String(p.id) === providerId)?.kind;
+  const kindMismatch = !!cliSpec?.provider_kinds.length && !!providerKind && !cliSpec.provider_kinds.includes(providerKind);
+  // the saved tool can only be selected once its <option> exists (the list loads after the form mounts)
+  useEffect(() => {
+    if (clis.data && agent?.context_policy?.cli) setValue("cli", String(agent.context_policy.cli));
+  }, [clis.data, agent, setValue]);
   const ceiling = new Set(catalog.data?.profile_ceiling[profile] ?? []);
 
   // drop tools that the newly selected profile no longer allows
@@ -119,7 +139,13 @@ export function AgentForm({ agent }: { agent?: Agent }) {
       retry_policy: { ...(agent?.retry_policy ?? { backoff_seconds: 5, backoff_multiplier: 2 }), max_attempts: v.max_attempts },
       concurrency_limit: v.concurrency_limit, priority: v.priority,
       supervisor_agent_id: v.supervisor_agent_id ? Number(v.supervisor_agent_id) : null,
-      context_policy: { ...(agent?.context_policy ?? {}), task_types: csv(v.task_types) },
+      context_policy: {
+        ...(agent?.context_policy ?? {}), task_types: csv(v.task_types),
+        ...(v.execution_engine === "cli"
+          ? { cli: v.cli, cli_key_env: v.cli === "opencode" ? v.cli_key_env : undefined,
+              cli_allow_project_config: v.cli_allow_project_config }
+          : {}),
+      },
     };
     if (!agent && v.identifier) body.identifier = v.identifier;
     try {
@@ -206,6 +232,48 @@ export function AgentForm({ agent }: { agent?: Agent }) {
               {(["api", "cli", "browser", "a2a"] as const).map((e) => <option key={e} value={e}>{t(`engines.${e}`)}</option>)}
             </NativeSelect>
           </Field>
+          {engine === "cli" && (
+            <div className="flex flex-col gap-4 rounded-md border border-dashed p-3 md:col-span-2" data-testid="cli-settings">
+              <p className="text-xs text-muted-foreground">{t("cli.help")}</p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field id="cli" label={t("cli.tool")} error={errors.cli && t("required")}>
+                  <NativeSelect id="cli" aria-invalid={!!errors.cli || undefined} {...register("cli")}>
+                    <option value="">—</option>
+                    {clis.data?.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+                  </NativeSelect>
+                </Field>
+                {cliKey === "opencode" && (
+                  <Field id="cli_key_env" label={t("cli.keyEnv")} help={t("cli.keyEnvHelp")} error={err("cli_key_env")}>
+                    <Input id="cli_key_env" dir="ltr" aria-describedby="cli_key_env-help"
+                      aria-invalid={!!errors.cli_key_env || undefined} {...register("cli_key_env")} />
+                  </Field>
+                )}
+              </div>
+              {cliSpec && (
+                <p className="text-xs text-muted-foreground" data-testid="cli-key-source">
+                  {cliSpec.provider_kinds.length
+                    ? t("cli.keyFrom", { kinds: cliSpec.provider_kinds.join(" / ") })
+                    : t("cli.keyFromAny")}
+                </p>
+              )}
+              {kindMismatch && (
+                <p role="alert" className="flex items-start gap-2 text-xs text-destructive" data-testid="cli-kind-mismatch">
+                  <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                  {t("cli.kindMismatch", { tool: cliSpec!.name, kinds: cliSpec!.provider_kinds.join(" / ") })}
+                </p>
+              )}
+              <label className="flex min-h-10 items-start gap-2 text-sm">
+                <input type="checkbox" className="mt-1 size-4 accent-[var(--primary)]" aria-describedby="cli-project-config-help"
+                  {...register("cli_allow_project_config")} />
+                <span>
+                  {t("cli.allowProjectConfig")}
+                  <span id="cli-project-config-help" className="block text-xs text-muted-foreground">
+                    {t("cli.allowProjectConfigHelp", { files: (cliSpec?.project_config ?? [".gemini", ".codex", "opencode.json"]).join(", ") })}
+                  </span>
+                </span>
+              </label>
+            </div>
+          )}
           <Field id="supervisor_agent_id" label={t("supervisor")}>
             <NativeSelect id="supervisor_agent_id" {...register("supervisor_agent_id")}>
               <option value="">—</option>

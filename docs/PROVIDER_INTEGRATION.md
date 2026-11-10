@@ -33,17 +33,34 @@ explains a decision. LiteLLM is not used (ADR-004).
 
 Run non-interactively in a fresh sandbox container (image `acc/cli:latest` from `docker/cli/Dockerfile`, which you
 build; network enabled because the CLI must reach its API). The key is passed as an environment variable by name and
-masked in output. Only flags confirmed in documentation are used:
+masked in output. Flags were checked against each CLI's own `--help` (versions below, 2026-11-10) and its docs:
 
-| CLI | Command the platform runs | Key variable | Flags verified (source, 2026-11-10) | Caveats |
-|---|---|---|---|---|
-| Claude Code | `claude --bare -p <prompt> --output-format json --permission-mode acceptEdits [--model M]` | `ANTHROPIC_API_KEY` | `--bare`, `-p`, `--output-format json`, `--permission-mode acceptEdits`, `ANTHROPIC_API_KEY` in bare mode — [code.claude.com/docs/en/headless](https://code.claude.com/docs/en/headless) | `--model` from the CLI reference (not re-fetched). Result JSON fields used: `result`, `is_error`, `usage`; `total_cost_usd` is the CLI's own estimate and is **not** recorded as cost |
-| OpenAI Codex CLI | `codex exec --sandbox workspace-write --cd /workspace [--model M] <prompt>` | `OPENAI_API_KEY` | `exec`, `--sandbox workspace-write`, `--cd`, `--model` — from a mirror of the official docs ([mintlify.com/openai/codex](https://www.mintlify.com/openai/codex/concepts/non-interactive-mode)); the official page redirected and could not be fetched | final message read from stdout; `--yolo` / `--full-auto` deliberately not used |
-| Gemini CLI | `gemini -p <prompt> --output-format json [--model M]` | `GEMINI_API_KEY` | `-p`, `--output-format json` (`response`, `stats`, `error`) — [geminicli.com/docs/cli/headless](https://www.geminicli.com/docs/cli/headless) | `--model` and `GEMINI_API_KEY` from the CLI reference (not fetched); approvals left at the default (no `--yolo`) |
-| OpenCode | `opencode run [--model provider/model] <prompt>` | per provider — set `context_policy.cli_key_env` | `run`, `--model provider/model` — [opencode.ai/docs/cli](https://opencode.ai/docs/cli) | default text output (JSON event schema undocumented) |
+| CLI (version checked) | Command the platform runs | Key variable | Notes |
+|---|---|---|---|
+| Claude Code (2.1.322) | `claude --bare -p <prompt> --output-format json --permission-mode acceptEdits [--model M]` | `ANTHROPIC_API_KEY` | [headless](https://code.claude.com/docs/en/headless), [CLI reference](https://code.claude.com/docs/en/cli-reference). `--bare` skips project hooks, CLAUDE.md, plugins and MCP servers. Result JSON fields used: `result`, `is_error`, `usage`; `total_cost_usd` is the CLI's own estimate and is **not** recorded as cost |
+| OpenAI Codex CLI (0.167.0) | `codex exec --sandbox workspace-write --cd /workspace --skip-git-repo-check [--model M] <prompt>` | `OPENAI_API_KEY` and `CODEX_API_KEY` (the binary reads both) | final message read from stdout; `--yolo` / `--full-auto` deliberately not used; refuses a workspace with `.codex/` |
+| Gemini CLI (0.67.0) | `gemini -p <prompt> --output-format json --skip-trust [--model M]` | `GEMINI_API_KEY` | [headless](https://www.geminicli.com/docs/cli/headless) (`response`, `stats`, `error`). Headless runs exit with code 55 in an untrusted folder, so the workspace is trusted for the session (`--skip-trust`) — and the engine refuses workspaces containing `.gemini/` configuration, which trust would load. Approvals stay at the default (no `--yolo`) |
+| OpenCode (1.19.5) | `opencode run [--model provider/model] <prompt>` | per provider — set `context_policy.cli_key_env` | [CLI docs](https://opencode.ai/docs/cli); default text output (JSON event schema undocumented); refuses a workspace with `opencode.json(c)` or `.opencode/` |
 
-Tested with a fake runner (argv, environment, parsing, failures) and a real Docker sandbox for the secret-passing path.
-**None of the four CLIs has been run for real here** (not installed in the development container, and no API keys).
+**Setting one up.** In the agent form choose *Execution engine → Command-line tool*, pick the tool and select a
+provider with an API key of the matching kind (Anthropic for Claude Code, OpenAI for Codex, Google for Gemini; any
+for OpenCode, which also needs the name of the key variable). The CLI uses that provider's key and the agent's model;
+the form warns when the provider kind does not fit. (`context_policy.cli_credential_id` can still point at another
+stored credential.)
+
+**Project configuration.** A repository can carry configuration for these CLIs that widens tool approvals or adds
+commands and MCP servers — and the API key is in the container's environment. The engine therefore refuses to start
+a CLI when its project configuration exists in the workspace, unless the agent's `context_policy.cli_allow_project_config`
+is `true` (a deliberate choice for repositories you control).
+
+**Verification.** Unit tests with a fake runner (argv, environment, parsing, failures, the project-configuration
+guard) and a real Docker sandbox for the secret-passing path. In addition, all four CLIs were installed in an offline
+equivalent of the CLI image (`docker/offline/cli.Dockerfile`) and run inside the real sandbox (read-only root
+filesystem, uid 10001, `HOME=/tmp`) with the engine's exact argv and a dummy key: each starts, accepts its flags and
+key, and stops only at the network (Claude Code returned its JSON result with `is_error`; Codex and Gemini retried the
+blocked provider API; OpenCode failed on the development proxy's certificate); the key never appeared in output.
+That run found and fixed the Gemini trust problem above. **No CLI has completed a real task here** (provider APIs are
+blocked and there are no keys).
 
 ## Not supported — by design or not yet
 

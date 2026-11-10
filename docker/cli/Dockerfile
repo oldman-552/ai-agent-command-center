@@ -2,7 +2,7 @@
 # development container (no npm registry access for image builds there). Pin versions you have reviewed.
 #   docker build -t acc/cli:latest docker/cli
 FROM node:22-bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates python3 \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends git ca-certificates python3 \
  && rm -rf /var/lib/apt/lists/*
 # Official packages (npm): Claude Code, OpenAI Codex CLI, Gemini CLI, OpenCode
 ARG CLAUDE_CODE_VERSION=latest

@@ -7,7 +7,7 @@ export type Agent = {
   template_id: number | null; system_instructions: string; provider_id: number | null; model: string | null;
   fallback_provider_id: number | null; fallback_model: string | null; execution_engine: "api" | "cli" | "browser" | "a2a";
   tool_permissions: string[]; skills: string[]; mcp_server_ids: number[]; memory_profile: { scopes?: string[] };
-  context_policy: { task_types?: string[] }; security_profile: "read_only" | "reviewer" | "developer" | "manager";
+  context_policy: { task_types?: string[]; cli?: string; cli_key_env?: string; cli_allow_project_config?: boolean; [k: string]: unknown }; security_profile: "read_only" | "reviewer" | "developer" | "manager";
   project_ids: number[]; token_budget: number | null; cost_budget_usd: string | null; timeout_seconds: number;
   retry_policy: { max_attempts: number; backoff_seconds: number; backoff_multiplier: number };
   concurrency_limit: number; priority: number; supervisor_agent_id: number | null; state: string; is_enabled: boolean;
@@ -36,6 +36,11 @@ export const useAgent = (id: number) => useQuery({ queryKey: ["agent", id], quer
 export const useTemplates = () => useQuery({ queryKey: ["templates"], queryFn: () => api<Template[]>("/api/agent-templates") });
 export const useProvidersLite = () => useQuery({ queryKey: ["providers-lite"], queryFn: () => api<ProviderLite[]>("/api/providers") });
 export const useToolCatalog = () => useQuery({ queryKey: ["tools"], queryFn: () => api<ToolCatalog>("/api/tools"), staleTime: Infinity });
+
+export type CliSpec = { key: string; name: string; binary: string; key_env: string | null; provider_kinds: string[];
+  project_config: string[]; docs: string; verified_flags: string[]; caveats: string };
+export const useCliSpecs = (enabled = true) =>
+  useQuery({ queryKey: ["clis"], queryFn: () => api<CliSpec[]>("/api/runtime/clis"), staleTime: Infinity, enabled });
 
 export function useAgentAction() {
   const qc = useQueryClient();

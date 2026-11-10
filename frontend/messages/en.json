@@ -263,7 +263,18 @@
       "memoryScopes": "Memory scopes",
       "noProvider": "No provider",
       "invalid": "Invalid value.",
-      "required": "This field is required."
+      "required": "This field is required.",
+      "cli": {
+        "help": "The tool runs non-interactively in the sandbox with the API key and model of the provider selected above. Subscriptions (Claude Pro, ChatGPT Plus…) cannot be used.",
+        "tool": "Command-line tool",
+        "keyEnv": "API key variable",
+        "keyEnvHelp": "The variable OpenCode reads for this provider's key, e.g. ANTHROPIC_API_KEY.",
+        "keyFrom": "Uses the API key of the selected provider (must be {kinds}).",
+        "keyFromAny": "Uses the API key of the selected provider.",
+        "kindMismatch": "{tool} needs a {kinds} provider; choose a matching provider above.",
+        "allowProjectConfig": "Allow the repository's own configuration for this tool",
+        "allowProjectConfigHelp": "Off by default: if the workspace contains {files}, the run is refused, because such files can loosen the tool's approvals while the API key is available. Enable only for repositories you control."
+      }
     },
     "details": {
       "overview": "Overview",

@@ -6,6 +6,13 @@ to `docs/requirements.json`.
 ## Unreleased — 2026-11-10
 
 ### Added
+- **Agent form: command-line tool settings** — tool, key source (the agent's provider), provider-kind check, OpenCode key
+  variable and the project-configuration opt-in; previously a CLI agent could not be configured from the UI.
+- **CLI engine hardening**: Gemini headless runs need `--skip-trust` (found by running the CLIs in the sandbox); the engine
+  refuses workspaces with CLI project configuration (`.gemini/`, `.codex/`, `opencode.json`) unless allowed; Codex gets
+  `--skip-git-repo-check` and the key as `CODEX_API_KEY` too.
+- **Image hygiene** (SEC-08): every Dockerfile applies pending OS security updates; `scripts/check-image-updates.sh`
+  (part of `security-scan.sh`) reports published-but-missing security updates without a vulnerability database.
 - **Scaling out**: sign-in throttling shared across API replicas through Redis; two-replica test (sessions, throttling,
   live updates).
 - **A2A streaming**: `SendStreamingMessage` and `SubscribeToTask` over SSE on the server; the `a2a` engine streams

@@ -30,6 +30,10 @@ if ! pgrep -f "app.browser.server" >/dev/null; then
 fi
 if [ "${1:-}" != "--api-only" ] && ! curl -sf -o /dev/null localhost:3000/login; then
   fuser -k 3000/tcp 2>/dev/null
+  # a standalone build does not contain its static assets; copy them next to server.js (as the Dockerfile does)
+  rm -rf "$ROOT/frontend/.next/standalone/.next/static"
+  cp -r "$ROOT/frontend/.next/static" "$ROOT/frontend/.next/standalone/.next/static"
+  [ -d "$ROOT/frontend/public" ] && cp -r "$ROOT/frontend/public" "$ROOT/frontend/.next/standalone/"
   (cd "$ROOT/frontend/.next/standalone" && PORT=3000 setsid -f node server.js </dev/null >/tmp/acc-web.log 2>&1)
 fi
 for i in $(seq 1 30); do curl -sf localhost:8000/api/health >/dev/null && break; sleep 1; done

@@ -41,6 +41,47 @@ test("create, view, edit, start, archive and delete an agent (Arabic)", async ({
   await expect(page.getByRole("row", { name: new RegExp(name) })).toHaveCount(0);
 });
 
+test("command-line tool agent: tool, key source, provider check, project-config opt-in (English)", async ({ page }) => {
+  const s = Date.now();
+  await login(page, "en");
+  const csrf = (await page.context().cookies()).find((c) => c.name === "acc_csrf")?.value ?? "";
+  const r = await page.request.post("/api/providers", { headers: { "X-CSRF-Token": csrf },
+    data: { name: `E2E Anthropic ${s}`, kind: "anthropic", api_key: "sk-ant-e2e-not-a-real-key-0000" } });
+  expect(r.status(), await r.text()).toBe(201);
+  const anthropic = await r.json();
+  const mock = (await (await page.request.get("/api/providers")).json()).find((p: { kind: string }) => p.kind === "mock");
+
+  await page.goto("/agents/new");
+  await page.locator("#name").fill(`E2E CLI ${s}`);
+  await page.locator("#role").fill("backend");
+  await expect(page.getByTestId("cli-settings")).toHaveCount(0);
+  await page.locator("#execution_engine").selectOption("cli");
+  await expect(page.getByTestId("cli-settings")).toBeVisible();
+  await page.getByTestId("agent-submit").click();  // a tool must be chosen
+  await expect(page.locator("#cli-err")).toBeVisible();
+  await page.locator("#cli").selectOption("claude_code");
+  await expect(page.getByTestId("cli-key-source")).toContainText("anthropic");
+  await page.locator("#provider_id").selectOption(String(mock.id));
+  await expect(page.getByTestId("cli-kind-mismatch")).toBeVisible();
+  await page.locator("#provider_id").selectOption(String(anthropic.id));
+  await expect(page.getByTestId("cli-kind-mismatch")).toHaveCount(0);
+  await page.locator("#cli").selectOption("opencode");  // OpenCode needs the key variable
+  await expect(page.locator("#cli_key_env")).toBeVisible();
+  await page.locator("#cli").selectOption("claude_code");
+  await expect(page.locator("#cli_key_env")).toHaveCount(0);
+  const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  expect(axe.violations.map((v) => v.id)).toEqual([]);
+  await page.getByTestId("agent-submit").click();
+  await page.waitForURL(/\/agents\/\d+$/);
+  const id = page.url().split("/").pop();
+  const agent = await (await page.request.get(`/api/agents/${id}`)).json();
+  expect(agent.execution_engine).toBe("cli");
+  expect(agent.provider_id).toBe(anthropic.id);
+  expect(agent.context_policy).toMatchObject({ cli: "claude_code", cli_allow_project_config: false });
+  await page.goto(`/agents/${id}/edit`);  // the saved settings come back into the form
+  await expect(page.locator("#cli")).toHaveValue("claude_code");
+});
+
 test("instantiate an agent from a template (English)", async ({ page }) => {
   await login(page, "en");
   await page.goto("/templates");

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -80,7 +81,7 @@ def test_other_clis(db, monkeypatch, key, stdout, argv0, text):
     ex = _run(db, a, p)
     assert ex.status == "COMPLETED", ex.error
     assert ex.output["text"] == text and fake.calls[0]["argv"][:len(argv0)] == argv0
-    assert set(fake.calls[0]["env"]) == {cli.SPECS[key].key_env}
+    assert set(fake.calls[0]["env"]) == {cli.SPECS[key].key_env, *cli.SPECS[key].key_aliases}
 
 
 def test_opencode_needs_the_provider_key_variable(db, monkeypatch):
@@ -137,3 +138,51 @@ def test_secrets_reach_the_container_by_name_only(tmp_path):
     assert res.stdout.strip() == "s3c ***"  # reached the process; masked in what we record
     with pytest.raises(runner.SandboxError):
         asyncio.run(runner.run(ws, ["true"], secret_env={"PATH": "/evil"}))
+
+
+def test_project_configuration_in_the_workspace_is_refused_unless_allowed(db, monkeypatch):
+    """A repository's .gemini/ (or opencode.json, .codex/) could widen the CLI's tool approvals and reach the key."""
+    fake = FakeRunner(json.dumps({"response": "ok", "stats": {}}))
+    monkeypatch.setattr(cli, "RUNNER", fake)
+    a, p = _agent(db, "gemini")
+    assert _run(db, a, p).status == "COMPLETED"
+    assert "--skip-trust" in fake.calls[-1]["argv"]  # headless Gemini refuses untrusted folders otherwise
+    ws = Path(fake.calls[-1]["workspace"])
+    (ws / ".gemini").mkdir(exist_ok=True)
+    (ws / ".gemini" / "settings.json").write_text('{"tools": {"autoAccept": true}}')
+    calls = len(fake.calls)
+    ex = _run(db, a, p)
+    assert ex.status == "FAILED" and ".gemini" in (ex.error or "") and len(fake.calls) == calls  # never started
+    a.context_policy = {**a.context_policy, "cli_allow_project_config": True}
+    db.commit()
+    assert _run(db, a, p).status == "COMPLETED"
+
+
+def test_key_and_model_come_from_the_agents_provider(db, monkeypatch):
+    """No separate credential needed: Claude Code uses the agent's Anthropic provider key and its model."""
+    from app.models import Provider
+    fake = FakeRunner(json.dumps({"type": "result", "result": "ok", "is_error": False, "usage": {}}))
+    monkeypatch.setattr(cli, "RUNNER", fake)
+
+    def provider(kind):
+        c = ApiCredential(organization_id=1, name=f"p {uuid.uuid4().hex[:6]}", kind="api_key",
+                          encrypted_value=encrypt_secret(KEY), hint="cdef")
+        pr = Provider(organization_id=1, name=f"{kind} {uuid.uuid4().hex[:6]}", kind=kind, credential=c)
+        db.add(pr)
+        db.flush()
+        return pr
+    a, p = _agent(db, "claude_code")
+    a.context_policy = {"cli": "claude_code"}  # no cli_credential_id
+    a.provider_id, a.model = provider("anthropic").id, "claude-sonnet-4-5"
+    db.commit()
+    ex = _run(db, a, p)
+    assert ex.status == "COMPLETED", ex.error
+    assert fake.calls[-1]["env"] == {"ANTHROPIC_API_KEY": KEY}
+    assert fake.calls[-1]["argv"][-2:] == ["--model", "claude-sonnet-4-5"] and ex.model == "claude-sonnet-4-5"
+    a.provider_id = provider("openai").id  # an OpenAI key is no use to Claude Code
+    db.commit()
+    ex = _run(db, a, p)
+    assert ex.status == "FAILED" and "anthropic" in (ex.error or "")
+    a.provider_id = None
+    db.commit()
+    assert "API key" in (_run(db, a, p).error or "")
