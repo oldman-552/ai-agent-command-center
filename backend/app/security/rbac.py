@@ -41,7 +41,7 @@ _READ = [p for p in PERMISSIONS if p.endswith(".read")]
 ROLES: dict[str, tuple[str, str, list[str]]] = {
     "SUPER_ADMIN": ("مدير عام", "Super Admin", ["*"]),
     "ORGANIZATION_ADMIN": ("مدير المنظمة", "Organization Admin",
-                           [p for p in PERMISSIONS if p not in ("security.manage",)]),
+                           [p for p in PERMISSIONS if p not in ("security.manage", "browser_bridge.manage")]),
     "PROJECT_MANAGER": ("مدير مشروع", "Project Manager", _READ + [
         "projects.write", "agents.write", "agents.control", "agents.chat", "templates.write", "teams.write",
         "tasks.write", "tasks.control", "workflows.run", "executions.control", "memory.write", "automations.manage"]),

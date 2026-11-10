@@ -61,10 +61,15 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
   ApiEngine over the mock (this caused order-dependent failures).
 - Task prompts come from `app/context/service.for_task` (scheduler.build_prompt returns prompt + manifest); the
   engine's system message is always `context.assembler.system_message()` — never put retrieved text there.
+- Browser Bridge: `python -m app.browser.server` (dev-up starts it, log /tmp/acc-bridge.log). Tests drive a real headless
+  Chromium against the local test page; `app.browser.client.LOCAL = Bridge(...)` runs it in-process.
+- The platform MCP server is mounted at `/api/mcp/`; tests run `endpoint.running()` + httpx ASGITransport.
 - The dev DB is disposable; the super admin password in the dev container is `dev-only-password-123` (backend/.env, not committed).
 
 ### Next steps (in order)
-1. M9 browser bridge (ADR-005), then M5 CLI engines, M14 automation, M15 docs/launchers. M11 context & memory is
+1. Remaining: AG-07 teams, GW-07 routing, GW-08 budgets, OR-09 project modes, M5 CLI engines (EE-02/04),
+   FND-14 Redis, M14 UX items, M15 docs/launchers. M9 (browser bridge `app/browser/`, MCP+skills `app/integrations/`,
+   ADR-025/026, docs/BROWSER_BRIDGE.md, docs/MCP_AND_SKILLS.md) is complete. M11 context & memory is
    complete (`app/memory/`, `app/context/`, `/memory`, ADR-024). M7 supervisor (`app/supervisor/`, `/supervisor`, ADR-023) and M8 GitHub are complete;
    GitHub was only verified against an HTTP fake. SEC-08: image scan still never run here.
    Bus test workers run with WORKER_ROLES=executions,orchestrator so the supervisor doesn't act on shared test data.

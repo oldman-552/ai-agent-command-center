@@ -17,6 +17,7 @@ from app.models.connectivity import (
                                AuthType,
                                BrowserSession,
                                BrowserSessionState,
+                               McpAccessKey,
                                McpServer,
                                McpTool,
                                ModelInfo,

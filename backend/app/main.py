@@ -8,6 +8,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.bootstrap import run_bootstrap
+from app.browser import api as browser_api
+from app.browser import engine as _browser_engine  # noqa: F401  (registers the experimental browser engine)
 from app.connectivity import providers
 from app.connectivity.a2a import engine as _a2a_engine  # noqa: F401  (registers the a2a engine + adapter)
 from app.connectivity.a2a import keys as a2a_keys
@@ -19,6 +21,9 @@ from app.devplane import tools as _devplane_tools  # noqa: F401  (repo.read/file
 from app.evaluation import api as evaluation_api
 from app.governance import api as approvals_api
 from app.governance import audit_api
+from app.integrations import api as integrations_api
+from app.integrations import mcp_client as _mcp_client  # noqa: F401  (registers mcp:* tools)
+from app.integrations.mcp_server import endpoint as mcp_endpoint
 from app.memory import api as memory_api
 from app.memory import tools as _memory_tools  # noqa: F401  (memory.write)
 from app.observability import dashboard
@@ -36,7 +41,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 async def lifespan(_: FastAPI):
     with session_factory()() as db:
         run_bootstrap(db)
-    yield
+    async with mcp_endpoint.running():  # the platform's MCP server (MCP-02)
+        yield
 
 
 app = FastAPI(title="AI Agent Command Center API", version="0.2.0", lifespan=lifespan)
@@ -74,6 +80,9 @@ app.include_router(evaluation_api.router)
 app.include_router(devplane_api.router)
 app.include_router(supervisor_api.router)
 app.include_router(memory_api.router)
+app.include_router(browser_api.router)
+app.include_router(integrations_api.router)
+app.mount("/api/mcp", mcp_endpoint)
 app.include_router(memory_api.context_router)
 
 

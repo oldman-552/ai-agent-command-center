@@ -1,5 +1,5 @@
 "use client";
-import { Activity, Bot, Brain, Gauge, GitBranch, KanbanSquare, ScrollText, ShieldCheck, LayoutDashboard, LayoutTemplate, LogOut, Menu, Plug, X, type LucideIcon } from "lucide-react";
+import { Activity, Bot, Brain, Globe, Puzzle, Gauge, GitBranch, KanbanSquare, ScrollText, ShieldCheck, LayoutDashboard, LayoutTemplate, LogOut, Menu, Plug, X, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -14,7 +14,7 @@ import { useApprovals } from "@/lib/approvals";
 import { cn } from "@/lib/utils";
 
 // Only pages that actually exist are listed. New pages are added here as they are built.
-const NAV: { href: string; key: "dashboard" | "tasks" | "supervisor" | "evaluations" | "github" | "approvals" | "audit" | "memory" | "agents" | "templates" | "providers"; icon: LucideIcon; perm?: string }[] = [
+const NAV: { href: string; key: "dashboard" | "tasks" | "supervisor" | "evaluations" | "github" | "approvals" | "audit" | "memory" | "integrations" | "bridge" | "agents" | "templates" | "providers"; icon: LucideIcon; perm?: string }[] = [
   { href: "/", key: "dashboard", icon: LayoutDashboard },
   { href: "/tasks", key: "tasks", icon: KanbanSquare },
   { href: "/supervisor", key: "supervisor", icon: Activity, perm: "agents.read" },
@@ -26,6 +26,8 @@ const NAV: { href: string; key: "dashboard" | "tasks" | "supervisor" | "evaluati
   { href: "/agents", key: "agents", icon: Bot },
   { href: "/templates", key: "templates", icon: LayoutTemplate },
   { href: "/providers", key: "providers", icon: Plug },
+  { href: "/integrations", key: "integrations", icon: Puzzle, perm: "agents.read" },
+  { href: "/browser-bridge", key: "bridge", icon: Globe, perm: "providers.read" },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

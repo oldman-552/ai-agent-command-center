@@ -11,6 +11,8 @@ x-backend-env: &backend-env
   SANDBOX_CPU_LIMIT: ${SANDBOX_CPU_LIMIT:-1.0}
   SANDBOX_MEMORY_LIMIT: ${SANDBOX_MEMORY_LIMIT:-1g}
   SANDBOX_TIMEOUT_SECONDS: ${SANDBOX_TIMEOUT_SECONDS:-900}
+  BROWSER_BRIDGE_URL: http://browser-bridge:8100
+  SKILLS_DIR: /data/skills
 
 services:
   postgres:
@@ -88,6 +90,24 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  # Browser Bridge (EXPERIMENTAL, disabled in the UI by default — ADR-005/025). Owns the headless browsers; not
+  # published to the host. Real providers need a visible window for sign-in: run the bridge on the host instead.
+  browser-bridge:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.bridge
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+      BROWSER_PROFILES_DIR: /data/browser-profiles
+      PLATFORM_INTERNAL_URL: http://api:8000
+    shm_size: 1gb
+    volumes:
+      - browser-profiles:/data/browser-profiles
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   frontend:
     build:
       context: ./frontend
@@ -112,3 +132,4 @@ volumes:
   pgdata:
   rabbitdata:
   workspaces:
+  browser-profiles:

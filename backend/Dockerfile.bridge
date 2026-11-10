@@ -1,0 +1,15 @@
+# Browser Bridge service (EXPERIMENTAL, ADR-025). Playwright's official image already contains Chromium and its
+# system libraries; the Python package version must match the image tag (see pyproject: playwright==1.63.0).
+FROM mcr.microsoft.com/playwright/python:v1.63.0-noble
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /usr/local/bin/uv
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
+COPY . .
+ENV PATH="/app/.venv/bin:$PATH"
+RUN useradd --create-home --uid 10002 bridge && mkdir -p /data/browser-profiles && chown bridge /data/browser-profiles
+USER bridge
+EXPOSE 8100
+CMD ["uvicorn", "app.browser.server:app", "--host", "0.0.0.0", "--port", "8100"]

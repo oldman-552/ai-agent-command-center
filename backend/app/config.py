@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     supervisor_denials_threshold: int = 3
     # reversible actions the supervisor may take on its own (spec Phase 5); remove one to make it advisory only
     supervisor_actions: str = "stop_runaway,resume_stalled,isolate_agent,retry_task,reduce_concurrency"        # worker: let in-flight work finish before checkpoint-and-handoff
+    browser_bridge_url: str = "http://127.0.0.1:8100"   # the Browser Bridge service (python -m app.browser.server)
+    platform_internal_url: str = "http://127.0.0.1:8000"  # where the bridge finds the platform test page
+    browser_profiles_dir: str = "/data/browser-profiles"  # dedicated, platform-owned profiles only (ADR-025)
+    browser_headless: bool = True
+    browser_max_sessions: int = 4
+    browser_generation_timeout_seconds: int = 300
+    skills_dir: str = "/data/skills"  # local skill folders that can be inspected and installed (no remote fetch)
     sandbox_image: str = "acc/sandbox:python"  # built from docker/sandbox/Dockerfile
 
     cookie_secure: bool = False  # set True behind HTTPS

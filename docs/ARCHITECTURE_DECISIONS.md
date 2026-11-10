@@ -303,3 +303,38 @@ Retrieved text and tool output are attacker-controllable (prompt injection) and 
   reminder follows all untrusted data. This is a mitigation, not a guarantee — the real enforcement remains in the
   backend (permissions, approvals, protected branches) which no prompt can change.
 - UI `/memory`: browse/search per project, verify, correct (with history), delete, and a context preview per task.
+
+## ADR-025 — Browser Bridge: own Python/Playwright service, gate checked twice, no secrets path (2026-11-10)
+**Context:** Phase 11 asks for a browser bridge inspired by `YosefHayim/ai-browser-bridge`. That project is MIT but
+macOS-only, Node-based, uses one shared Chrome profile and publishes an MCP server through a public tunnel
+(evaluation in `docs/BROWSER_BRIDGE.md`). ADR-005 (owner-approved) requires disabled-by-default and per-provider terms.
+**Decision:**
+- Re-implement in Python with Playwright as a separate service (`python -m app.browser.server`, port 8100, localhost
+  or private network, internal HMAC token). It is the only process that owns browsers; the API, the `browser`
+  execution engine and the MCP tools call it through `app/browser/client.py`.
+- Sessions live in `browser_sessions` (state, history of visible text, error); live browser objects only in the
+  bridge process. On bridge start, sessions left active are marked DISCONNECTED.
+- One persistent Chromium context per session in `BROWSER_PROFILES_DIR/<org>/<provider>/<profile>`; no CDP port,
+  downloads disabled, profile names validated, one live session per profile, a global session limit.
+- Gate (`app/browser/gate.py`): organization setting `browser_bridge = {enabled, acks}`; changing it needs the
+  human-only `browser_bridge.manage` (Super Admin only — removed from Organization Admin); the exact terms statement
+  must be accepted; checked by the API and again by the bridge on each start/prompt.
+- Detection, not interaction: CAPTCHA/sign-in → AUTH_REQUIRED (a person acts in the bridge window and presses
+  "check again"); missing elements → FAILED `interface_changed`; the answer is read with `inner_text` only.
+- Adapters are data (selectors). Only the local test adapter is verified; real ones are labelled unverified.
+**Consequences:** fully testable offline against a local page; real-provider use stays an explicit, audited owner
+decision; compose runs the bridge headless, so real sign-in needs the bridge on the host with a visible window.
+
+## ADR-026 — MCP registry and platform MCP server; static skill assessment (2026-11-10)
+**Decision:**
+- MCP Python SDK pinned to 1.x (`mcp>=1.20,<2`, 1.30 verified): its client is used for stdio and streamable HTTP
+  servers; registration stores an assessment and leaves servers and tools disabled; agents reach tools through one
+  runtime handler for `mcp:<server>:<tool>` that enforces enabled server/tool, assignment and permission key.
+- The platform's own MCP server is a FastMCP instance served statelessly at `/api/mcp/` with a fresh
+  StreamableHTTPSessionManager per application lifespan (the SDK manager can only run once). Each tool call
+  re-authenticates the bearer key from the request (contextvars do not cross the manager's task group).
+- Skills come only from host folders (`SKILLS_DIR`) or uploads; a regex-based static scanner classifies findings into
+  the spec's categories; HIGH risk requires an audited acceptance to enable. Enabled + assigned skills feed the
+  agent's task context.
+**Limits:** the scanner is heuristic (false positives and negatives are possible) — it informs a human decision, it is
+not a sandbox; skills never execute code on the platform.

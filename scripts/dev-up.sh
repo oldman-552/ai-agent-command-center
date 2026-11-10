@@ -22,6 +22,11 @@ if ! pgrep -f "python -m app.worker" >/dev/null; then
   (cd "$ROOT/backend" && UV_SYSTEM_CERTS=1 setsid -f uv run python -m app.worker \
      </dev/null >/tmp/acc-worker.log 2>&1 3>&- 4>&- 5>&-)
 fi
+# Browser Bridge service (experimental; owns the browsers, localhost only)
+if ! pgrep -f "app.browser.server" >/dev/null; then
+  (cd "$ROOT/backend" && UV_SYSTEM_CERTS=1 setsid -f uv run python -m app.browser.server \
+     </dev/null >/tmp/acc-bridge.log 2>&1 3>&- 4>&- 5>&-)
+fi
 if [ "${1:-}" != "--api-only" ] && ! curl -sf -o /dev/null localhost:3000/login; then
   fuser -k 3000/tcp 2>/dev/null
   (cd "$ROOT/frontend/.next/standalone" && PORT=3000 setsid -f node server.js </dev/null >/tmp/acc-web.log 2>&1)

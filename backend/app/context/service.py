@@ -22,6 +22,16 @@ def task_items(db: Session, task: Task, deps: list[Task], agent: Agent | None) -
     req = [f"TASK: {task.title}", "", task.description or "", "", "ACCEPTANCE CRITERIA:",
            *[f"- {c}" for c in task.acceptance_criteria or []]]
     items = [Item("requirements", "task", "\n".join(req).strip(), score=10.0, source={"task_id": task.id})]
+    if agent is not None:  # skills a human reviewed, enabled and assigned to this agent (MCP-04)
+        from sqlalchemy import select
+
+        from app.models import Skill
+        for sk in db.scalars(select(Skill).where(Skill.organization_id == task.organization_id,
+                                                 Skill.enabled.is_(True)).order_by(Skill.id)):
+            if agent.id in (sk.agent_ids or []):
+                items.append(Item("requirements", f"skill: {sk.name}",
+                                  f"SKILL '{sk.name}' (enabled by a human after review):\n{sk.instructions}",
+                                  score=8.0, source={"skill_id": sk.id}))
     for note in (task.result or {}).get("review_notes", []):
         items.append(Item("user", "review note", f"REVIEWER REQUESTED CHANGES: {note}", score=9.0))
     for d in deps:

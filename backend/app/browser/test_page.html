@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Browser Bridge test chat (local, fake)</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; padding: 0 1rem; color: #111; background: #fff; }
+  .msg { padding: .5rem .75rem; border-radius: .5rem; margin: .5rem 0; white-space: pre-wrap; }
+  .user { background: #eef; } .assistant { background: #efe; }
+  textarea { width: 100%; min-height: 4rem; font: inherit; }
+  button { font: inherit; padding: .4rem .8rem; margin-top: .5rem; }
+</style>
+</head>
+<body>
+<h1>Test chat <small>(local fake used by the Browser Bridge tests — not an AI)</small></h1>
+<main id="app"></main>
+<script>
+/* Modes (query ?mode=): login → signed-out page; captcha → a challenge iframe; broken → changed interface;
+   slow → slower streaming; mute → never answers. The "model" just echoes the prompt, streamed character by character. */
+document.cookie = "acc_test_session=TOPSECRET-cookie-value; path=/";  // must never leave the browser
+const mode = new URLSearchParams(location.search).get("mode") || "";
+const app = document.getElementById("app");
+if (mode === "login") {
+  app.innerHTML = '<p id="login-required">Please sign in to continue.</p><button id="sign-in">Sign in</button>';
+  document.getElementById("sign-in").onclick = () => { location.search = ""; };
+} else if (mode === "captcha") {
+  app.innerHTML = '<p>Verify you are human.</p><iframe title="challenge" src="about:blank#recaptcha" data-captcha></iframe>';
+} else if (mode === "broken") {
+  app.innerHTML = '<p>We redesigned everything.</p>';
+} else {
+  app.innerHTML = '<div id="log" aria-live="polite"></div>' +
+    '<label for="prompt">Message</label><textarea id="prompt"></textarea>' +
+    '<button id="send">Send</button> <button id="stop" hidden>Stop</button> <button id="new-chat">New chat</button>';
+  const log = document.getElementById("log"), box = document.getElementById("prompt");
+  const send = document.getElementById("send"), stop = document.getElementById("stop");
+  let timer = null;
+  const speed = mode === "slow" ? 120 : 15;
+  document.getElementById("new-chat").onclick = () => { log.innerHTML = ""; };
+  stop.onclick = () => { clearInterval(timer); timer = null; stop.hidden = true; };
+  send.onclick = () => {
+    const text = box.value.trim(); if (!text) return;
+    box.value = "";
+    const u = document.createElement("div"); u.className = "msg user"; u.textContent = text; log.appendChild(u);
+    if (mode === "mute") return;
+    const reply = "Echo: " + text;
+    const a = document.createElement("div"); a.className = "msg assistant"; log.appendChild(a);
+    stop.hidden = false; let i = 0;
+    timer = setInterval(() => {
+      a.textContent = reply.slice(0, ++i);
+      if (i >= reply.length) { clearInterval(timer); timer = null; stop.hidden = true; }
+    }, speed);
+  };
+}
+</script>
+</body>
+</html>

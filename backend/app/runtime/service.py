@@ -193,7 +193,10 @@ async def _run(db: Session, execution_id: str) -> str:
         set_status(db, ex, X.WAITING_FOR_TOOL, f"tool {name}")
         _event(db, ex, "tool_call", {"tool": name, "args": args})
         fn = _TOOLS.get(name)
-        result = await fn(ex, args) if fn else {"error": "tool_not_available"}
+        if fn is None and name.startswith("mcp:") and "mcp:*" in _TOOLS:  # external MCP tools (MCP-01)
+            result = await _TOOLS["mcp:*"](ex, {"tool": name, "arguments": args})
+        else:
+            result = await fn(ex, args) if fn else {"error": "tool_not_available"}
         _event(db, ex, "tool_result", {"tool": name, "result": result})
         set_status(db, ex, X.RUNNING, "tool returned")
         return result

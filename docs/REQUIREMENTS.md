@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 76.2%**
+**Overall verified completion: 83.2%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -112,18 +112,18 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | GH-07 | P1 | Webhooks + CI check status | Webhook signature verified | pytest | GH-02 | done | test_webhooks_are_signed_deduplicated_and_update_checks: bad/missing signature and unknown repo 401, replayed delivery ignored, check_run updates PR checks, pull_request merged updates state |
 | GH-08 | P0 | GitHub UI page | E2E | Playwright | GH-02 | done | frontend/e2e/github.spec.ts: connect dialog validation + honest failure when GitHub unreachable (nothing stored), repositories with protected branches, PR/worktree sections, axe WCAG 2.2 AA ar/en with dialog open, no overflow 375/1440 |
 
-## M9 — Browser Bridge and MCP (weight 7%, 0%) — spec Phases 11, 18
+## M9 — Browser Bridge and MCP (weight 7%, 100%) — spec Phases 11, 18
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| BB-01 | P0 | Reference evaluation of ai-browser-bridge (license, platform, security, ToS) | Report in docs | inspection | — | pending | — |
-| BB-02 | P0 | Browser Bridge service: isolated profiles, 9 session states, Playwright, DISABLED by default + EXPERIMENTAL label | State machine tests against local test page | pytest/Playwright | BB-01 | pending | — |
-| BB-03 | P0 | Per-provider ToS gate: provider adapter cannot be enabled until owner acknowledges terms | Gate test | pytest | BB-02 | pending | — |
-| BB-04 | P0 | Never expose cookies/secrets; no CAPTCHA bypass; dedicated profiles only | Security tests | pytest | BB-02 | pending | — |
-| MCP-01 | P0 | MCP client: register servers, discover tools/resources, health, permission enforcement | Test against local MCP server | pytest | RT-07 | pending | — |
-| MCP-02 | P0 | MCP server exposing platform tools (incl. Browser Bridge tools) | MCP client can list/call tools | pytest | MCP-01 | pending | — |
-| MCP-03 | P0 | Skills & MCP registry UI with security assessment before enable | E2E | Playwright | MCP-01 | pending | — |
-| MCP-04 | P1 | Skill install with source inspection (dangerous commands, network, fs, credentials) | Scanner tests | pytest | — | pending | — |
+| BB-01 | P0 | Reference evaluation of ai-browser-bridge (license, platform, security, ToS) | Report in docs | inspection | — | done | docs/BROWSER_BRIDGE.md §1: license MIT, macOS-only, Node/CDP, shared profile, public tunnel, ToS; decision ADR-025 |
+| BB-02 | P0 | Browser Bridge service: isolated profiles, 9 session states, Playwright, DISABLED by default + EXPERIMENTAL label | State machine tests against local test page | pytest/Playwright | BB-01 | done | backend/tests/test_browser.py (20 tests, real headless Chromium vs local test page): 9-state table, start/prompt/stream/cancel/stop/restart, login/captcha/interface_changed, session limit, orphans; UI e2e/browser-bridge.spec.ts ar+en; disabled by default + EXPERIMENTAL labels |
+| BB-03 | P0 | Per-provider ToS gate: provider adapter cannot be enabled until owner acknowledges terms | Gate test | pytest | BB-02 | done | test_disabled_by_default_and_per_provider_terms_gate + test_gate_rechecked_on_every_prompt: exact statement, Super-Admin-only, audit, revoke relocks |
+| BB-04 | P0 | Never expose cookies/secrets; no CAPTCHA bypass; dedicated profiles only | Security tests | pytest | BB-02 | done | test_only_dedicated_profile_directories (7 cases), test_bridge_code_has_no_path_to_cookies_or_storage, page cookie never leaves (TOPSECRET check), captcha untouched |
+| MCP-01 | P0 | MCP client: register servers, discover tools/resources, health, permission enforcement | Test against local MCP server | pytest | RT-07 | done | tests/test_integrations.py against local stdio MCP server fixture: register+assessment, discover tools/resources, health, unreachable→502, agent calls enforced (disabled/unassigned/tool disabled → allowed), audit |
+| MCP-02 | P0 | MCP server exposing platform tools (incl. Browser Bridge tools) | MCP client can list/call tools | pytest | MCP-01 | done | MCP SDK client lists/calls platform tools over streamable HTTP with key scoping, 401 missing/revoked, registry client discovers platform server; browser tools gated |
+| MCP-03 | P0 | Skills & MCP registry UI with security assessment before enable | E2E | Playwright | MCP-01 | done | frontend/e2e/integrations.spec.ts ar+en: key once, register+discover+risk dialog+enable, tool enable, skill inspect→install disabled, axe, no overflow; full E2E 55/55 |
+| MCP-04 | P1 | Skill install with source inspection (dangerous commands, network, fs, credentials) | Scanner tests | pytest | — | done | test_scanner_flags_every_category, test_mcp_server_assessment, test_skill_install_inspect_enable_assign_and_context (high risk needs accept_risks; context only when enabled+assigned) |
 
 ## M10 — A2A and Communication (weight 5%, 100%) — spec Phase 6
 

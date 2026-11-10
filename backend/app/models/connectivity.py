@@ -108,6 +108,8 @@ class BrowserSession(TimestampMixin, Base):
     state: Mapped[str] = mapped_column(String(16), default=BrowserSessionState.DISCONNECTED.value)
     agent_id: Mapped[int | None] = mapped_column(ForeignKey("agents.id", ondelete="SET NULL"))
     conversation_ref: Mapped[str | None] = mapped_column(String(255))
+    history: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")  # [{role, text, at}] — text only
+    model: Mapped[str | None] = mapped_column(String(128))
     last_activity_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error: Mapped[str | None] = mapped_column(Text)
 
@@ -128,6 +130,7 @@ class McpServer(TimestampMixin, Base):
     security_assessment: Mapped[dict | None] = mapped_column(JSONB)
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(Text)
+    resources: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")  # discovered resources
 
 
 class McpTool(TimestampMixin, Base):
@@ -157,6 +160,7 @@ class Skill(TimestampMixin, Base):
     instructions: Mapped[str] = mapped_column(Text, default="")
     assessment: Mapped[dict | None] = mapped_column(JSONB)
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    agent_ids: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")  # assignment
 
 
 class A2AAccessKey(TimestampMixin, Base):
@@ -171,6 +175,23 @@ class A2AAccessKey(TimestampMixin, Base):
     key_hash: Mapped[str] = mapped_column(String(64), unique=True)
     hint: Mapped[str] = mapped_column(String(16))
     agent_ids: Mapped[list] = mapped_column(JSONB, default=list)
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class McpAccessKey(TimestampMixin, Base):
+    """Inbound access to the platform's MCP server (MCP-02). A key lists exactly which platform tools it may call;
+    only a SHA-256 of the token is stored and the token is shown once."""
+
+    __tablename__ = "mcp_access_keys"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organization_id: Mapped[int] = org_fk()
+    name: Mapped[str] = mapped_column(String(128))
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    hint: Mapped[str] = mapped_column(String(16))
+    tools: Mapped[list] = mapped_column(JSONB, default=list)
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
