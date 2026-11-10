@@ -1298,7 +1298,7 @@
           "acceptance": "Scan runs",
           "verification": "script",
           "depends": [],
-          "status": "pending",
+          "status": "in_progress",
           "evidence": ""
         }
       ]
@@ -1477,7 +1477,8 @@
       "migrations: 7 revisions (44 tables + langgraph schema); base → head → -1 → head; alembic check clean",
       "frontend: i18n guard (496 keys), contrast, tsc, next build",
       "ruff: clean",
-      "frontend: 44/44 Playwright in real Chrome against API + worker in bus mode — tasks, approvals, audit, evaluations, axe WCAG 2.2 AA × ar/en incl. dialogs"
+      "frontend: 44/44 Playwright in real Chrome against API + worker in bus mode — tasks, approvals, audit, evaluations, axe WCAG 2.2 AA × ar/en incl. dialogs",
+      "security: scripts/security-scan.sh — pip-audit on backend lock (no known vulnerabilities), npm audit --omit=dev (0 vulnerabilities); --strict exits 2 when a scanner is missing (verified)"
     ],
     "failed": []
   },
@@ -1488,6 +1489,7 @@
     "A2A: no UI yet for access keys / A2A services beyond the Providers page (API only); streaming, push notifications and multi-turn follow-ups not implemented",
     "ui-ux-pro-max search database (data/*.csv) is not in the repo checkout; UI work used the skill's bundled references + design-system/MASTER.md",
     "Sandbox in Docker deployments: the worker container has no Docker daemon access yet (docker.sock would be root-equivalent); see ADR-019 deployment note",
-    "Sandbox image here was built offline (debootstrap + docker import); docker/sandbox/Dockerfile (ubuntu:24.04 base) must be built and verified on the owner's machine"
+    "Sandbox image here was built offline (debootstrap + docker import); docker/sandbox/Dockerfile (ubuntu:24.04 base) must be built and verified on the owner's machine",
+    "SEC-08: container image scanning (Trivy) is scripted but has never run — Trivy and vulnerability feeds are unreachable here; run scripts/security-scan.sh --strict on the owner's machine/CI"
   ]
 }

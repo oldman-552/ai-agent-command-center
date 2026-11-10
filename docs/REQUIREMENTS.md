@@ -169,7 +169,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | SEC-05 | P0 | Command policy (default deny, allowlist per tool permission) | Tests | pytest | SEC-04 | done | tests/test_sandbox.py::test_command_policy_default_deny (17 cases: per-tool allow-lists, no shells, no traversal/absolute paths, no code-loading flags, argv only), runtime test: denied command returned to the agent and audited as sandbox.command_denied |
 | SEC-06 | P0 | Audit log searchable/filterable, redacted; Audit UI | Tests + E2E | pytest + Playwright | FND-06 | done | tests/test_audit.py (filters, severity threshold, literal search, keyset paging, tenant isolation, redaction on output, CSV export formula-safe, read-only API); frontend/e2e/audit.spec.ts (search, details dialog, severity filter in URL and export link, CSV download) + axe WCAG 2.2 AA ar/en with dialog open |
 | SEC-07 | P1 | CSRF protection for cookie auth, secure CORS, security headers | Tests | pytest | FND-04 | done | CSRF double-submit, no CORS, security headers; tests pass |
-| SEC-08 | P1 | Dependency + container scanning in CI scripts | Scan runs | script | — | pending | — |
+| SEC-08 | P1 | Dependency + container scanning in CI scripts | Scan runs | script | — | in_progress | — |
 
 ## M14 — Enterprise Experience (weight 5%, 0%) — spec Phases 21, 23, 24
 

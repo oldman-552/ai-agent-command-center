@@ -1,10 +1,10 @@
 {
-  "date": "2026-11-10 06:53",
+  "date": "2026-11-10 06:54",
   "spec_version": "4.0",
-  "current_phase": "Phases 1, 19, 23, 25",
+  "current_phase": "Phases 16, 17, 22",
   "current_milestone": {
-    "id": 1,
-    "name": "Foundation"
+    "id": 13,
+    "name": "Enterprise Security"
   },
   "overall_percent": 56.2,
   "milestones": [
@@ -195,26 +195,15 @@
     "SEC-06",
     "SEC-07"
   ],
-  "in_progress": [],
+  "in_progress": [
+    "SEC-08"
+  ],
   "files_changed": [
     "PROJECT_STATUS.json",
-    "backend/app/bus/consumer.py",
-    "backend/app/bus/handlers.py",
-    "backend/app/config.py",
-    "backend/app/connectivity/gateway/service.py",
-    "backend/app/models/__init__.py",
-    "backend/app/models/bus.py",
-    "backend/app/orchestration/selection.py",
-    "backend/app/runtime/service.py",
-    "backend/app/worker.py",
-    "backend/tests/test_bus.py",
-    "docs/ARCHITECTURE_DECISIONS.md",
     "docs/REQUIREMENTS.md",
     "docs/requirements.json",
     "progress.txt",
-    "backend/alembic/versions/6c5b77e23dd0_circuit_breakers.py",
-    "backend/app/runtime/circuit.py",
-    "backend/tests/test_recovery.py"
+    "scripts/security-scan.sh"
   ],
   "tests": {
     "passed": [
@@ -222,7 +211,8 @@
       "migrations: 7 revisions (44 tables + langgraph schema); base → head → -1 → head; alembic check clean",
       "frontend: i18n guard (496 keys), contrast, tsc, next build",
       "ruff: clean",
-      "frontend: 44/44 Playwright in real Chrome against API + worker in bus mode — tasks, approvals, audit, evaluations, axe WCAG 2.2 AA × ar/en incl. dialogs"
+      "frontend: 44/44 Playwright in real Chrome against API + worker in bus mode — tasks, approvals, audit, evaluations, axe WCAG 2.2 AA × ar/en incl. dialogs",
+      "security: scripts/security-scan.sh — pip-audit on backend lock (no known vulnerabilities), npm audit --omit=dev (0 vulnerabilities); --strict exits 2 when a scanner is missing (verified)"
     ],
     "failed": []
   },
@@ -232,7 +222,8 @@
     "A2A: no UI yet for access keys / A2A services beyond the Providers page (API only); streaming, push notifications and multi-turn follow-ups not implemented",
     "ui-ux-pro-max search database (data/*.csv) is not in the repo checkout; UI work used the skill's bundled references + design-system/MASTER.md",
     "Sandbox in Docker deployments: the worker container has no Docker daemon access yet (docker.sock would be root-equivalent); see ADR-019 deployment note",
-    "Sandbox image here was built offline (debootstrap + docker import); docker/sandbox/Dockerfile (ubuntu:24.04 base) must be built and verified on the owner's machine"
+    "Sandbox image here was built offline (debootstrap + docker import); docker/sandbox/Dockerfile (ubuntu:24.04 base) must be built and verified on the owner's machine",
+    "SEC-08: container image scanning (Trivy) is scripted but has never run — Trivy and vulnerability feeds are unreachable here; run scripts/security-scan.sh --strict on the owner's machine/CI"
   ],
   "blockers": [
     "Dev environment blocks all container registries: official images cannot be pulled here; verified instead with locally-built equivalent images (docker/offline). Official images must be verified on the owner's machine",
