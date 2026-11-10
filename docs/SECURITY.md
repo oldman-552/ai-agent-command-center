@@ -5,7 +5,7 @@ tests that verify it (`backend/tests`, `frontend/e2e`).
 
 ## Identity and access
 
-- Local accounts, passwords hashed with **argon2id**; login throttling (HTTP 429 after repeated failures, audited).
+- Local accounts, passwords hashed with **argon2id**; login throttling (HTTP 429 after 5 failures for a username within 5 minutes, audited; counted in Redis so every API replica shares it, with a per-process fallback if Redis is down).
 - Session: JWT in an **HttpOnly, SameSite=Lax** cookie (`Secure` when `COOKIE_SECURE=true`); a token version on the
   user invalidates all sessions on password/role changes. **CSRF double-submit**: state-changing requests must echo
   the `acc_csrf` cookie in `X-CSRF-Token`. The WebSocket requires the same value as its first message.

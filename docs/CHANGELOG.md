@@ -6,6 +6,8 @@ to `docs/requirements.json`.
 ## Unreleased — 2026-11-10
 
 ### Added
+- **Scaling out**: sign-in throttling shared across API replicas through Redis; two-replica test (sessions, throttling,
+  live updates).
 - **A2A streaming**: `SendStreamingMessage` and `SubscribeToTask` over SSE on the server; the `a2a` engine streams
   remote output live when the agent card offers it, without duplicating output on resume.
 - **Launchers & deployment** (FI-01..03): `START.bat`, `STOP.bat`, `UPDATE.bat`, `RESET-DEV.bat`, `INSTALL.ps1`,

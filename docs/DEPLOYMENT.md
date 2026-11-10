@@ -44,6 +44,13 @@ host dedicated to this platform. Without a daemon the shell tools report `sandbo
 Browser Bridge. Logs are JSON on stdout (`docker compose logs`). Set `OTEL_EXPORTER_OTLP_ENDPOINT` to send traces to
 any OTLP/HTTP collector.
 
+## Scaling out
+
+The API is stateless apart from PostgreSQL and Redis: run several `api` replicas behind a reverse proxy that passes
+WebSocket upgrades for `/api/ws` (no sticky sessions needed). Sessions are signed tokens, sign-in throttling and live
+updates go through Redis, background work through RabbitMQ. Workers scale with `docker compose up --scale worker=N`;
+the supervisor and automations elect a leader. Verified with two API processes (`backend/tests/test_replicas.py`).
+
 ## Upgrades
 
 `./update.sh` / `UPDATE.bat`: fast-forward pull, rebuild with fresh base images, restart; the `migrate` service

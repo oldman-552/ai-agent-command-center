@@ -24,14 +24,68 @@ SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-_FAILS: dict[str, list[float]] = defaultdict(list)
 _WINDOW, _MAX_FAILS = 300.0, 5
 
 
-def _too_many(username: str) -> bool:
-    now = time.monotonic()
-    _FAILS[username] = [t for t in _FAILS[username] if now - t < _WINDOW]
-    return len(_FAILS[username]) >= _MAX_FAILS
+class LoginThrottle:
+    """Failed sign-ins per username within a sliding window, shared by every API replica through Redis (a sorted
+    set per username, keyed by a hash so usernames never appear in Redis). If Redis is unreachable it falls back to
+    this process's memory: still a limit, though per replica — never a reason to let sign-ins through unchecked."""
+    PREFIX = "acc:login_fail:"
+
+    def __init__(self) -> None:
+        self._local: dict[str, list[float]] = defaultdict(list)
+
+    @classmethod
+    def _key(cls, username: str) -> str:
+        import hashlib
+        return cls.PREFIX + hashlib.sha256(username.lower().encode()).hexdigest()
+
+    @staticmethod
+    def _redis():
+        from app.observability.live import client
+        return client()
+
+    def blocked(self, username: str) -> bool:
+        now = time.time()
+        try:
+            r, k = self._redis(), self._key(username)
+            r.zremrangebyscore(k, 0, now - _WINDOW)
+            return int(r.zcard(k)) >= _MAX_FAILS
+        except Exception:  # noqa: BLE001 — Redis down: local fallback
+            self._local[username] = [t for t in self._local[username] if now - t < _WINDOW]
+            return len(self._local[username]) >= _MAX_FAILS
+
+    def failed(self, username: str) -> None:
+        now = time.time()
+        try:
+            r, k = self._redis(), self._key(username)
+            p = r.pipeline()
+            p.zadd(k, {f"{now}:{secrets.token_hex(4)}": now})
+            p.expire(k, int(_WINDOW) + 1)
+            p.execute()
+        except Exception:  # noqa: BLE001
+            self._local[username].append(now)
+
+    def succeeded(self, username: str) -> None:
+        self._local.pop(username, None)
+        try:
+            self._redis().delete(self._key(username))
+        except Exception:  # noqa: BLE001, S110 — best effort; the window expires anyway
+            pass
+
+    def clear(self) -> None:
+        """Tests only."""
+        self._local.clear()
+        try:
+            r = self._redis()
+            for k in r.scan_iter(self.PREFIX + "*"):
+                r.delete(k)
+        except Exception:  # noqa: BLE001, S110 — best effort; the window expires anyway
+            pass
+
+
+login_throttle = LoginThrottle()
 
 
 class LoginIn(BaseModel):
@@ -109,16 +163,16 @@ def _set_session(response: Response, user: User) -> None:
 
 @router.post("/login", response_model=UserOut)
 def login(body: LoginIn, response: Response, db: DB) -> UserOut:
-    if _too_many(body.username):
+    if login_throttle.blocked(body.username):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "too_many_attempts")
     user = db.scalar(select(User).where(User.username == body.username))
     if not user or not user.is_active or not verify_password(body.password, user.password_hash):
-        _FAILS[body.username].append(time.monotonic())
+        login_throttle.failed(body.username)
         log_activity(db, "auth.login_failed", category="security", level="warning",
                      organization_id=user.organization_id if user else None,
                      details={"username": body.username}, commit=True)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_credentials")
-    _FAILS.pop(body.username, None)
+    login_throttle.succeeded(body.username)
     _set_session(response, user)
     log_activity(db, "auth.login", category="security", user_id=user.id, organization_id=user.organization_id,
                  commit=True)

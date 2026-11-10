@@ -1,7 +1,7 @@
 from sqlalchemy import func, select
 
 from app.models import AgentTemplate, AuditLog, Provider, Role, User
-from app.security.auth import _FAILS
+from app.security.auth import login_throttle
 from app.security.crypto import (
     decrypt_secret,
     encrypt_secret,
@@ -62,7 +62,7 @@ def test_login_success_sets_httponly_cookie(client):
 
 
 def test_login_wrong_password_rejected_and_audited(client, db):
-    _FAILS.clear()
+    login_throttle.clear()
     r = client.post("/api/auth/login", json={"username": "admin", "password": "wrong-password"})
     assert r.status_code == 401
     entry = db.scalar(select(AuditLog).where(AuditLog.action == "auth.login_failed")
@@ -71,12 +71,12 @@ def test_login_wrong_password_rejected_and_audited(client, db):
 
 
 def test_login_rate_limited(client):
-    _FAILS.clear()
+    login_throttle.clear()
     for _ in range(5):
         client.post("/api/auth/login", json={"username": "admin", "password": "nope-nope"})
     r = client.post("/api/auth/login", json={"username": "admin", "password": ADMIN_PW})
     assert r.status_code == 429
-    _FAILS.clear()
+    login_throttle.clear()
 
 
 def test_me_requires_auth(client):
@@ -124,3 +124,18 @@ def test_redaction():
     obj = redact_obj({"api_key": "abc123456", "nested": [{"note": "uses sk-ant-api03-CCCCCCCCCCCCCCCCCC"}]})
     assert obj["api_key"] == "[REDACTED]"
     assert "CCCC" not in obj["nested"][0]["note"]
+
+
+def test_login_throttle_still_limits_when_redis_is_down(monkeypatch):
+    from app.security.auth import LoginThrottle
+
+    def down():
+        raise ConnectionError("redis down")
+    t = LoginThrottle()
+    monkeypatch.setattr(LoginThrottle, "_redis", staticmethod(down))
+    for _ in range(5):
+        assert not t.blocked("u1")
+        t.failed("u1")
+    assert t.blocked("u1") and not t.blocked("u2")
+    t.succeeded("u1")
+    assert not t.blocked("u1")
