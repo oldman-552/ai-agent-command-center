@@ -6,6 +6,8 @@ to `docs/requirements.json`.
 ## Unreleased — 2026-11-10
 
 ### Added
+- **Reverse proxy for several API replicas**: `deploy/nginx/acc.conf` (TLS, WebSocket, streaming, `least_conn`),
+  tested with a real nginx in front of two API processes.
 - **Memory search mode**: optional embedding model (OpenAI / OpenAI-compatible, e.g. local Ollama) next to the local
   index; background indexing, fallback and breaker; settings card on the Memory page with a data-egress notice.
 - **A2A extended card and multi-turn**: `GetExtendedAgentCard`; conversations continue across tasks in a `contextId`,

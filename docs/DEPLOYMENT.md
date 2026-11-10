@@ -49,7 +49,18 @@ any OTLP/HTTP collector.
 The API is stateless apart from PostgreSQL and Redis: run several `api` replicas behind a reverse proxy that passes
 WebSocket upgrades for `/api/ws` (no sticky sessions needed). Sessions are signed tokens, sign-in throttling and live
 updates go through Redis, background work through RabbitMQ. Workers scale with `docker compose up --scale worker=N`;
-the supervisor and automations elect a leader. Verified with two API processes (`backend/tests/test_replicas.py`).
+the supervisor and automations elect a leader.
+
+`deploy/nginx/acc.conf` is a ready reverse proxy: TLS, http→https redirect, `/api/ws` with WebSocket upgrade,
+`/api/` (buffering off for A2A/MCP streams) balanced with `least_conn` across the API replicas, everything else to
+the web app. List one `server` line per API replica (on one host, give each replica its own `127.0.0.1` port; the
+production compose file binds a single API to `127.0.0.1:${API_PORT}`). It works with nginx 1.24 (Ubuntu 24.04)
+and later.
+
+Verified (`backend/tests/test_replicas.py`): two API processes on the same PostgreSQL and Redis — sessions,
+sign-in throttling and live updates cross them — and the same through a real nginx started from that file (requests
+of one session answered by both replicas, a WebSocket upgrade carrying changes made through either). The TLS part is
+checked with `nginx -t` and a throwaway certificate.
 
 ## Upgrades
 
