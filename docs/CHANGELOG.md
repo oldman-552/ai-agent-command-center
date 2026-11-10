@@ -18,7 +18,7 @@ to `docs/requirements.json`.
 - **20-item navigation** (UX-01) with new pages: Projects, Agent Teams, Orchestration, Executions (timeline), MCP &
   A2A, Agent Runtime, Skills, Analytics (usage, cost, budgets), Settings (users).
 - **Live updates** (UX-02, FND-14): Redis pub/sub after commit, WebSocket `/api/ws` with CSRF proof.
-- **Observability** (UX-05): JSON logs with trace ids, OpenTelemetry spans and OTLP export, health of all services.
+- **Observability** (UX-05): JSON logs with trace ids, OpenTelemetry spans and OTLP export, trace context carried across RabbitMQ (outbox → consumer), health of all services.
 - **Automations** (UX-06): cron/interval/event triggers, history, pause/resume/edit/run/delete, in-app only.
 - **Routing** (GW-07), **budgets** with approval for extra spending (GW-08), **teams** (AG-07), **existing-project
   analysis** (OR-09).

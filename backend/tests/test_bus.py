@@ -159,6 +159,36 @@ async def test_outbox_is_transactional_and_relay_publishes_with_confirms(db):
     await conn.close()
 
 
+async def test_trace_context_crosses_the_bus(db):
+    """UX-05: the consumer's span joins the trace of the request/transaction that enqueued the message."""
+    from opentelemetry import trace
+
+    from app.observability.tracing import setup_tracing, tracer
+    setup_tracing("api")
+    e = env_for()
+    with tracer().start_as_current_span("producer") as span:
+        enqueue(db, e)
+        db.commit()
+        produced = span.get_span_context().trace_id
+    row = db.scalar(select(OutboxMessage).where(OutboxMessage.message_id == e.message_id))
+    assert row.trace_context and row.trace_context["traceparent"].split("-")[1] == f"{produced:032x}"
+    conn, ch = await channel()
+    qname = f"test.trace.{uuid.uuid4().hex[:6]}"
+    await topo.declare_event_subscription(ch, qname, ["task.#"])
+    seen: list[tuple[int, int]] = []
+
+    async def handler(env):
+        ctx = trace.get_current_span().get_span_context()
+        seen.append((ctx.trace_id, ctx.span_id))
+    c = Consumer(name=f"t.trace.{uuid.uuid4().hex[:6]}", queue=qname, handler=handler)
+    await c.start(await conn.channel(publisher_confirms=True))
+    assert await Relay(ch).publish_pending() == 1
+    assert await wait_for(lambda: seen, 10)
+    assert seen[0][0] == produced  # same trace, new span
+    await (await ch.get_queue(qname)).delete(if_unused=False, if_empty=False)
+    await conn.close()
+
+
 async def run_consumer(consumer: Consumer, envs: list[Envelope], until, timeout=15.0, raw: list[bytes] = ()):
     conn, ch = await channel()
     await topo.declare(ch)

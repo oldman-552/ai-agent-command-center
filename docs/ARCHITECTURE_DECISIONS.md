@@ -372,8 +372,10 @@ browser refetches through the normal permission-checked API. Bursts are coalesce
 **Observability (UX-05):** JSON logs with trace/span ids and redaction (`LOG_FORMAT=text` for local); OpenTelemetry
 spans for HTTP requests (FastAPI instrumentation), `execution.run` and `bus.consume`; OTLP/HTTP export when
 `OTEL_EXPORTER_OTLP_ENDPOINT` is set. `/api/health` reports database, RabbitMQ, Redis, worker heartbeats (with roles)
-and the Browser Bridge; 503 only when the database is down, otherwise `degraded` names what is missing. Trace context is
-not yet propagated through RabbitMQ envelopes (each consumer starts a new trace) — documented limitation.
+and the Browser Bridge; 503 only when the database is down, otherwise `degraded` names what is missing. Trace context
+crosses RabbitMQ: `enqueue()` stores the active W3C `traceparent`/`tracestate` on the outbox row (not in the
+versioned envelope), the relay sends it as AMQP headers, and each consumer span is a child of it; retries carry the
+consumer's own context.
 **Automations (UX-06):** `automations` + `automation_runs`; triggers cron (UTC, croniter, ≥ 5 min), interval (≥ 5
 min) and audit events (cursor, no replay of history, no automation→automation loops); actions submit an objective or
 re-analyze the repository. Run by the worker role `automations` (advisory-lock leader). The creator's (last editor's)

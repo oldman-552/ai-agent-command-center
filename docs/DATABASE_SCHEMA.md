@@ -556,6 +556,7 @@ Constraints: `uq_organizations_slug`
 | `exchange` | VARCHAR(64) | no |  |
 | `routing_key` | VARCHAR(128) | no |  |
 | `envelope` | JSONB | no |  |
+| `trace_context` | JSONB | yes |  |
 | `priority` | INTEGER | no |  |
 | `attempts` | INTEGER | no |  |
 | `last_error` | TEXT | yes |  |

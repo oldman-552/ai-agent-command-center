@@ -13,7 +13,7 @@ below with exactly what is missing; none of them is hidden behind a mock.
 
 | Suite | Result | Command |
 |---|---|---|
-| Backend (pytest, real PostgreSQL, RabbitMQ, Redis, Docker sandbox, headless Chromium) | **265 / 265 passed** | `cd backend && uv run pytest -q` |
+| Backend (pytest, real PostgreSQL, RabbitMQ, Redis, Docker sandbox, headless Chromium) | **266 / 266 passed** | `cd backend && uv run pytest -q` |
 | Lint | clean | `uv run ruff check app tests` |
 | Frontend type check + i18n guard (1 081 keys, ar = en) | clean | `npm run check` |
 | Design-token contrast (WCAG) | all pass | `node scripts/check-contrast.mjs` |
@@ -62,7 +62,6 @@ below with exactly what is missing; none of them is hidden behind a mock.
 - **Token counts for budgets** in context assembly are estimates without a tokenizer; recorded usage comes from the
   providers.
 - **A2A**: no streaming, push notifications, extended card or multi-turn follow-ups yet.
-- **Tracing**: trace context is not propagated through RabbitMQ messages (each consumer starts a new trace).
 - **Single-host deployment**: multiple API replicas behind a load balancer were not tested; workers scale out (leader
   election for supervisor and automations).
 - Windows launchers and the official container images (Docker Hub, Playwright, node) were not built in the

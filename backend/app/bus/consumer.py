@@ -28,7 +28,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.bus import topology as topo
 from app.bus.contract import Envelope
-from app.bus.outbox import amqp_message
+from app.bus.outbox import amqp_message, current_trace_context
 from app.db import get_engine, session_factory
 from app.models import ProcessedMessage
 
@@ -145,7 +145,7 @@ class Consumer:
         tier, _ = topo.tier_for_attempt(env.attempt)
         ex = await channel.get_exchange(topo.retry_exchange(tier), ensure=True)
         # routing key = origin queue: the retry queue dead-letters it back there via the default exchange
-        await ex.publish(amqp_message(nxt), routing_key=self.queue)
+        await ex.publish(amqp_message(nxt, current_trace_context()), routing_key=self.queue)
 
     async def start(self, channel: AbstractChannel) -> AbstractQueue:
         await channel.set_qos(prefetch_count=self.prefetch)
@@ -154,9 +154,12 @@ class Consumer:
         async def cb(msg: AbstractIncomingMessage) -> None:
             task = asyncio.current_task()
             self.inflight.add(task)
+            from opentelemetry.propagate import extract
+
             from app.observability.tracing import tracer
+            headers = {k: v for k, v in (msg.headers or {}).items() if isinstance(v, str)}
             try:
-                with tracer().start_as_current_span("bus.consume", attributes={
+                with tracer().start_as_current_span("bus.consume", context=extract(headers), attributes={
                         "messaging.system": "rabbitmq", "messaging.destination.name": self.queue,
                         "messaging.message.id": str(msg.message_id or ""), "acc.consumer": self.name}):
                     await self.on_message(msg, channel)

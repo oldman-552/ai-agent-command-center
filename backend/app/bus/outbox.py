@@ -37,12 +37,21 @@ def route(env: Envelope) -> tuple[str, str]:
 def enqueue(db: Session, env: Envelope) -> OutboxMessage:
     exchange, key = route(env)
     row = OutboxMessage(message_id=env.message_id, exchange=exchange, routing_key=key,
-                        envelope=env.model_dump(mode="json"), priority=env.priority)
+                        envelope=env.model_dump(mode="json"), priority=env.priority,
+                        trace_context=current_trace_context())
     db.add(row)
     return row
 
 
-def amqp_message(env: Envelope) -> aio_pika.Message:
+def current_trace_context() -> dict[str, str] | None:
+    """The active span's W3C trace context, so the consumer's span joins the producer's trace."""
+    from opentelemetry.propagate import inject
+    carrier: dict[str, str] = {}
+    inject(carrier)
+    return carrier or None
+
+
+def amqp_message(env: Envelope, trace: dict[str, str] | None = None) -> aio_pika.Message:
     expiration = None
     if env.expires_at is not None:
         expiration = max((env.expires_at - datetime.now(UTC)).total_seconds(), 0.001)
@@ -50,7 +59,8 @@ def amqp_message(env: Envelope) -> aio_pika.Message:
         body=env.to_bytes(), content_type="application/json", delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
         message_id=env.message_id, correlation_id=env.correlation_id, priority=env.priority, type=env.message_type,
         timestamp=env.timestamp, expiration=expiration,
-        headers={"schema_version": env.schema_version, "attempt": env.attempt, "sender": env.sender})
+        headers={"schema_version": env.schema_version, "attempt": env.attempt, "sender": env.sender,
+                 **(trace or {})})
 
 
 class Relay:
@@ -75,7 +85,7 @@ class Relay:
                     env = Envelope.model_validate(row.envelope)
                     ex = await self._exchange(row.exchange)
                     # confirmed by the broker; commands must reach a queue, events may have no subscriber yet
-                    await ex.publish(amqp_message(env), routing_key=row.routing_key,
+                    await ex.publish(amqp_message(env, row.trace_context), routing_key=row.routing_key,
                                      mandatory=row.exchange == topo.COMMANDS)
                     row.published_at = datetime.now(UTC)
                     sent += 1

@@ -23,6 +23,8 @@ class OutboxMessage(Base):
     exchange: Mapped[str] = mapped_column(String(64))
     routing_key: Mapped[str] = mapped_column(String(128))
     envelope: Mapped[dict] = mapped_column(JSONB)
+    # W3C trace context (traceparent/tracestate) of the transaction that enqueued it; sent as AMQP headers
+    trace_context: Mapped[dict | None] = mapped_column(JSONB)
     priority: Mapped[int] = mapped_column(Integer, default=5)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     last_error: Mapped[str | None] = mapped_column(Text)
