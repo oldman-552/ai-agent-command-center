@@ -5,6 +5,7 @@ The schema is rebuilt with the real Alembic migrations, so migrations are tested
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -40,6 +41,8 @@ def _schema():
     with eng.begin() as c:
         c.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
     eng.dispose()
+    # project ids restart with the fresh schema, so sandbox workspaces from earlier runs must go too
+    shutil.rmtree(os.environ["WORKSPACES_DIR"], ignore_errors=True)
     cfg = Config(str(BACKEND / "alembic.ini"))
     cfg.set_main_option("script_location", str(BACKEND / "alembic"))
     command.upgrade(cfg, "head")
