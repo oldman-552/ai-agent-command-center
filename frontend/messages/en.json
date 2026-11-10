@@ -1067,6 +1067,47 @@
       "cancel": "Cancel",
       "save": "Save",
       "saved": "Selectors saved; restart the session to use them."
+    },
+    "profiles": {
+      "title": "Browser profiles",
+      "help": "One browser profile per employee, agent or account. Sign in to a site (for example an Arena account) once in a profile's window; the sign-in stays in that profile. A profile opens in one window at a time — open it to watch what happens.",
+      "mine": "My profile",
+      "open": "open",
+      "name": "Profile name",
+      "nameHelp": "Lower-case letters, digits and hyphens, e.g. ahmed or arena-1. Agents and people get one automatically the first time.",
+      "label": "Display name",
+      "owner": "Belongs to",
+      "account": "An account (no person)",
+      "agent": "An agent",
+      "add": "Add profile",
+      "none": "No profiles yet.",
+      "columns": {
+        "name": "Profile",
+        "owner": "Belongs to",
+        "status": "Window",
+        "actions": "Actions"
+      },
+      "openIn": "open — {provider}",
+      "closed": "closed",
+      "delete": "Delete"
+    },
+    "sites": {
+      "add": "Add site",
+      "remove": "Remove",
+      "title": "Add a website",
+      "help": "Any website with a chat box. It stays locked until you acknowledge its terms, and its selectors are unverified until you check them.",
+      "fields": {
+        "name": "Name",
+        "key": "Short key (e.g. mysite)",
+        "url": "Address (https)",
+        "terms_url": "Terms of use address",
+        "input": "Prompt box selector (optional)",
+        "send": "Send button selector (optional)",
+        "response": "Answer selector (optional)"
+      },
+      "note": "Adding and removing sites is audited. You can refine all selectors later under Selectors.",
+      "cancel": "Cancel",
+      "save": "Add"
     }
   },
   "projects": {

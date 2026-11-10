@@ -13,7 +13,7 @@ below with exactly what is missing; none of them is hidden behind a mock.
 
 | Suite | Result | Command |
 |---|---|---|
-| Backend (pytest, real PostgreSQL, RabbitMQ, Redis, Docker sandbox, headless Chromium) | **323 / 323 passed** | `cd backend && uv run pytest -q` |
+| Backend (pytest, real PostgreSQL, RabbitMQ, Redis, Docker sandbox, headless Chromium) | **327 / 327 passed** | `cd backend && uv run pytest -q` |
 | Lint | clean | `uv run ruff check app tests` |
 | Frontend type check + i18n guard (1 081 keys, ar = en) | clean | `npm run check` |
 | Design-token contrast (WCAG) | all pass | `node scripts/check-contrast.mjs` |

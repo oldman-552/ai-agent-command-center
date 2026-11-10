@@ -41,6 +41,10 @@ async def _local(method: str, path: str, body: dict[str, Any]) -> dict[str, Any]
     b = LOCAL
     if path == "/health":
         return b.health()
+    if method == "DELETE" and path.startswith("/profiles/"):
+        from app.browser.server import delete_profile
+        _, _, org, name = path.split("/", 3)
+        return await delete_profile(int(org), name)
     parts = path.strip("/").split("/")  # sessions/<id>[/<op>]
     sid = int(parts[1])
     op = parts[2] if len(parts) > 2 else ""

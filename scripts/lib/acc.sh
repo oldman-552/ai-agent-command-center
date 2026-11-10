@@ -8,6 +8,7 @@ LOG="$LOGS/$(basename "${0%.sh}")-$(date +%Y%m%d-%H%M%S).log"
 COMPOSE=(docker compose --project-directory "$ROOT" -f "$ROOT/docker-compose.yml")
 [ -f "$ROOT/docker-compose.override.yml" ] && COMPOSE+=(-f "$ROOT/docker-compose.override.yml")
 [ "${ACC_PROFILE:-}" = "production" ] && COMPOSE+=(-f "$ROOT/docker-compose.prod.yml")
+grep -qs "^ACC_DESKTOP_BRIDGE=1" "$ROOT/.env" && COMPOSE+=(-f "$ROOT/docker-compose.desktop.yml")  # ./bridge-desktop.sh
 
 say()  { printf '%s\n' "$*" | tee -a "$LOG"; }
 fail() { printf 'ERROR: %s\n' "$*" | tee -a "$LOG" >&2; printf 'Log: %s\n' "$LOG" >&2; exit 1; }

@@ -24,6 +24,7 @@ os.environ.setdefault("SANDBOX_IMAGE", "acc/sandbox:python")
 os.environ["ADMIN_PASSWORD"] = "test-admin-password-1"
 os.environ["REDIS_URL"] = os.environ.get("TEST_REDIS_URL", "redis://localhost:6379/15")  # live updates + heartbeats
 os.environ.setdefault("LOG_FORMAT", "text")
+os.environ.setdefault("BROWSER_SHOW_TEST_PAGE", "true")  # the local test page drives the bridge tests
 
 from alembic.config import Config
 from fastapi.testclient import TestClient

@@ -131,7 +131,7 @@ async def test_platform_mcp_server_lists_and_calls_tools_with_key_scoping(db):
         names = {t.name for t in (await s.list_tools()).tools}
         agents = await s.call_tool("list_agents", {})
         denied = await s.call_tool("get_task", {"task_id": 1})
-        bridge = await s.call_tool("create_browser_session", {"provider": "claude", "profile": "x"})
+        bridge = await s.call_tool("create_browser_session", {"provider": "arena", "profile": "x"})
         return names, agents, denied, bridge
 
     names, agents, denied, bridge = await _session_call(token, go)

@@ -31,14 +31,22 @@ Evaluated 2026-11-10 from the public GitHub page (the code was **not** copied or
 - Capabilities: start/stop, sign-in / CAPTCHA detection (waits for a human), conversation creation and resumption,
   prompt submission, streaming of the visible answer, generation monitoring, cancellation, timeouts, reconnection,
   error reporting, health.
-- Adapters (`app/browser/adapters.py`): `test` (the platform's own fake chat page at
-  `/api/browser-bridge/test-page`, used by the automated tests), `claude`, `chatgpt`, `gemini`, `arena` (unverified
-  selectors).
-- **arena.ai (`arena`, added at the owner's request):** its terms of use prohibit accessing the service by automated
-  means (§5(vi)) and share inputs with third-party model providers that may not keep them confidential (§3.4); they
-  also forbid personal or sensitive data (§3.5(F)). Its acknowledgement statement therefore names those clauses, and
-  the generic statement does not unlock it. Its selectors are guesses that were never checked against the live page,
-  and its bot checks stop a session in `AUTH_REQUIRED` for a person to solve — the bridge never touches a challenge.
+- **Sites** (`app/browser/adapters.py`, owner decision 2026-11-10): only **arena.ai** (`arena`) is built in; the
+  Claude/ChatGPT/Gemini adapters were removed. The Super Admin adds any other website with **Add site** (name,
+  https address, terms address, optional selectors; `POST /api/browser-bridge/sites`, audited). Every site stays
+  locked until its terms are acknowledged; removing a site also removes its acknowledgement and selector overrides.
+  The local test page (`test`) is listed only with `BROWSER_SHOW_TEST_PAGE=true` (development and tests).
+- **arena.ai:** its terms of use prohibit accessing the service by automated means (§5(vi)) and share inputs with
+  third-party model providers that may not keep them confidential (§3.4); they also forbid personal or sensitive
+  data (§3.5(F)). Its acknowledgement statement names those clauses, and the generic statement does not unlock it.
+  Its selectors are guesses never checked against the live page; its bot checks stop a session in
+  `AUTH_REQUIRED` for a person to solve — the bridge never touches a challenge.
+- **Browser profiles — one per employee, agent or account** (`GET/POST/DELETE /api/browser-bridge/profiles`,
+  *Browser profiles* on the page). A profile is one browser profile directory used for every site, so a person's
+  sign-ins (e.g. their Arena account) live in it. A person's own profile (their username) and an agent's
+  (`agent-<identifier>`) are created the first time they open a session; accounts not tied to a person are added
+  by name. A profile opens in **one window at a time**; deleting it deletes its stored sign-ins on the bridge
+  machine. Profile directories never point at a personal browser profile.
 - **Selectors** (Super Admin, audited, `PUT /api/browser-bridge/providers/{key}/selectors`; *Selectors* on the
   provider card): when a provider's page changes, its CSS selectors can be overridden per organization without a
   code change; they apply from the next start of a session, and an overridden provider is always *unverified*.
@@ -66,6 +74,19 @@ Evaluated 2026-11-10 from the public GitHub page (the code was **not** copied or
 
 ## 4. Running it
 
+**Desktop mode — watch the windows yourself (Linux desktop).** The bridge runs on your computer with visible Chrome
+windows while the rest stays in Docker:
+```bash
+./bridge-desktop.sh --setup     # once: Python packages + Chromium for the bridge, enables desktop mode in .env
+./stop.sh && ./start.sh         # restart so the API and worker use the bridge on this computer
+./bridge-desktop.sh             # keep this terminal open while you use the bridge
+```
+Each session opens its profile in its own window: sign in to Arena once per profile (one profile per employee),
+then open any profile's session to follow it. Profiles are stored in `./browser-profiles` (mode 700). The bridge
+listens only on Docker's host-gateway address, never on all interfaces; PostgreSQL and Redis are published on
+`127.0.0.1` only (`docker-compose.desktop.yml`). Needs a screen: not for servers or Codespaces. If a firewall
+(ufw) is on, allow the Docker networks to reach port 8100 on the gateway address.
+
 - Development: `scripts/dev-up.sh` starts `python -m app.browser.server` on `127.0.0.1:8100`.
 - Docker: the `browser-bridge` service (`backend/Dockerfile.bridge`, Playwright image, headless). Not published to the host.
 - Real providers need a **visible** browser window so a person can sign in: run the bridge on the host with
@@ -78,5 +99,7 @@ Evaluated 2026-11-10 from the public GitHub page (the code was **not** copied or
 | State machine, streaming, cancel, stop/restart, sign-in, CAPTCHA, interface change, session limit, gate re-check, no secret leakage | `backend/tests/test_browser.py` against the local test page with real headless Chromium |
 | `browser` execution engine | `test_browser_engine_runs_an_agent_turn` |
 | UI (gate, terms dialog, live session, axe) | `frontend/e2e/browser-bridge.spec.ts` |
-| Claude / ChatGPT / Gemini websites | **Not verified** — selectors are best effort |
+| Sites added, profiles per person (shared across sites, one window each), deleting a profile's sign-ins | `test_browser.py`, `browser-bridge.spec.ts` |
+| arena.ai and sites you add | **Not verified** — selectors are best effort; adjust them under *Selectors* |
+| Desktop mode (`./bridge-desktop.sh`, visible windows) | Container → host-gateway reachability checked; **visible windows not run here** (no screen) |
 | Windows / macOS | **Not verified** here (Linux only); Playwright supports both |

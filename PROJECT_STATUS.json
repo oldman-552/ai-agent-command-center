@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-10 22:04",
+  "date": "2026-11-10 22:38",
   "spec_version": "4.0",
   "current_phase": "Phases 16, 17, 22",
   "current_milestone": {
@@ -249,8 +249,14 @@
     "backend/app/browser/adapters.py",
     "backend/app/browser/api.py",
     "backend/app/browser/bridge.py",
+    "backend/app/browser/client.py",
     "backend/app/browser/gate.py",
+    "backend/app/browser/server.py",
+    "backend/app/integrations/mcp_server.py",
+    "backend/tests/conftest.py",
     "backend/tests/test_browser.py",
+    "backend/tests/test_integrations.py",
+    "docs/ARCHITECTURE_DECISIONS.md",
     "docs/BROWSER_BRIDGE.md",
     "docs/CHANGELOG.md",
     "docs/RELEASE_READINESS.md",
@@ -258,7 +264,11 @@
     "frontend/messages/ar.json",
     "frontend/messages/en.json",
     "frontend/src/app/(app)/browser-bridge/page.tsx",
-    "frontend/src/lib/browser-bridge.ts"
+    "frontend/src/lib/browser-bridge.ts",
+    "scripts/dev-up.sh",
+    "scripts/lib/acc.sh",
+    "bridge-desktop.sh",
+    "docker-compose.desktop.yml"
   ],
   "tests": {
     "passed": [

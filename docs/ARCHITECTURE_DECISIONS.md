@@ -435,3 +435,14 @@ Verified with simulated streams and the mock model; live verification needs an A
 Follow-up: `ask.human` parks the execution in `WAITING_FOR_INPUT` via `InputRequired` after a checkpoint that carries
 the pending question; `answer_input` appends the answer as that call's result in a new checkpoint and re-dispatches.
 A worker skips parked executions unless their question has been answered, so redelivery never resumes one early.
+
+## ADR-031 — Browser Bridge: owner-chosen sites, profiles per person, desktop mode (2026-11-10)
+**Context:** The owner wants the bridge to serve arena.ai only plus sites he adds himself, with one browser profile per
+employee (each signed in to their own Arena account) that he can watch in real windows on his computer.
+**Decision:** Built-in sites are reduced to arena.ai (and the hidden local test page); other sites are data in the
+organization's settings, added by the Super Admin and locked until their terms are acknowledged (ADR-005 still
+applies; arena.ai's statement names its specific clauses). Profiles become per person/agent/account and shared across
+sites, registered with an owner, one window at a time. Desktop mode runs the bridge process on the host with
+`BROWSER_HEADLESS=false`, bound to Docker's host-gateway address only, with PostgreSQL/Redis published on 127.0.0.1.
+**Consequences:** No adapter is verified against a live provider; selectors are adjustable per site. Desktop mode is
+Linux-desktop only for now; in Docker/Codespaces the bridge stays headless.

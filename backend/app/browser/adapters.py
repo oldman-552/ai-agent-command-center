@@ -10,6 +10,7 @@ automated tests use.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field, replace
 
 
@@ -36,29 +37,11 @@ class Adapter:
         "#challenge-form", "[data-captcha]"))
 
 
-ADAPTERS: dict[str, Adapter] = {a.key: a for a in (
+BUILTIN: dict[str, Adapter] = {a.key: a for a in (
     Adapter(key="test", name="Local test page", url="/api/browser-bridge/test-page", terms_url="",
             input="#prompt", send="#send", response=".msg.assistant", generating="#stop:not([hidden])",
             stop="#stop", login="#login-required", new_chat="#new-chat", models=("echo-1",), verified=True,
             requires_terms=False, notes="The platform's own fake chat page used for automated tests."),
-    Adapter(key="claude", name="Claude (claude.ai)", url="https://claude.ai/new",
-            terms_url="https://www.anthropic.com/legal/consumer-terms",
-            input="div[contenteditable='true']", send="button[aria-label*='Send']",
-            response="[data-is-streaming], .font-claude-message", generating="button[aria-label*='Stop']",
-            stop="button[aria-label*='Stop']", login="a[href*='login'], input[type='email']",
-            notes="Unverified selectors. Prefer the official API or Claude Code CLI."),
-    Adapter(key="chatgpt", name="ChatGPT (chatgpt.com)", url="https://chatgpt.com/",
-            terms_url="https://openai.com/policies/terms-of-use",
-            input="#prompt-textarea", send="button[data-testid='send-button']",
-            response="[data-message-author-role='assistant']", generating="button[data-testid='stop-button']",
-            stop="button[data-testid='stop-button']", login="button[data-testid='login-button']",
-            notes="Unverified selectors. Prefer the official API or Codex CLI."),
-    Adapter(key="gemini", name="Gemini (gemini.google.com)", url="https://gemini.google.com/app",
-            terms_url="https://policies.google.com/terms/generative-ai",
-            input="rich-textarea .ql-editor", send="button[aria-label*='Send']",
-            response="message-content", generating="button[aria-label*='Stop']",
-            stop="button[aria-label*='Stop']", login="a[href*='accounts.google.com']",
-            notes="Unverified selectors. Prefer the official API or Gemini CLI."),
     Adapter(key="arena", name="Arena agent (arena.ai)", url="https://arena.ai/agent",
             terms_url="https://help.arena.ai/articles/5629909088-terms-of-use",
             input="textarea", send="button[type='submit'], button[aria-label*='Send' i]",
@@ -71,6 +54,42 @@ ADAPTERS: dict[str, Adapter] = {a.key: a for a in (
                           "and inputs are shared with third-party model providers that may not keep them "
                           "confidential (section 3.4); I will not send confidential code or personal data."),
 )}
+# kept for code that only needs the built-in sites (tests); use catalog()/lookup() for an organization
+ADAPTERS = BUILTIN
+
+SITE_KEY_RE = re.compile(r"^[a-z][a-z0-9-]{1,31}$")
+
+
+def test_page_visible() -> bool:
+    import os
+    return os.environ.get("BROWSER_SHOW_TEST_PAGE", "").lower() in ("1", "true", "yes")
+
+
+def custom_adapter(key: str, d: dict) -> Adapter:
+    """A site the Super Admin added (stored in organization settings). Always unverified, always needs terms."""
+    return Adapter(key=key, name=str(d.get("name") or key)[:80], url=str(d["url"]), terms_url=str(d.get("terms_url") or ""),
+                   input=d.get("input") or "textarea", send=d.get("send") or "button[type='submit']",
+                   response=d.get("response") or "[data-role='assistant']",
+                   generating=d.get("generating") or "button[aria-label*='Stop' i]",
+                   stop=d.get("stop") or "button[aria-label*='Stop' i]",
+                   login=d.get("login") or "a[href*='login']", new_chat=d.get("new_chat") or None,
+                   notes="Added by the Super Admin; selectors unverified.", verified=False, requires_terms=True)
+
+
+def catalog(org_settings: dict | None, *, include_hidden: bool = False) -> dict[str, Adapter]:
+    """Every site an organization can use: the built-in ones plus the ones it added. The local test page is listed
+    only for tests and development (BROWSER_SHOW_TEST_PAGE), but always resolvable for the automated tests."""
+    cfg = (org_settings or {}).get("browser_bridge") or {}
+    out = {k: a for k, a in BUILTIN.items() if k != "test" or include_hidden or test_page_visible()}
+    for k, d in (cfg.get("sites") or {}).items():
+        if SITE_KEY_RE.match(k) and k not in BUILTIN and isinstance(d, dict) and d.get("url"):
+            out[k] = custom_adapter(k, d)
+    return out
+
+
+def lookup(org_settings: dict | None, key: str) -> Adapter | None:
+    return catalog(org_settings, include_hidden=True).get(key)
+
 
 SELECTOR_FIELDS = ("input", "send", "response", "generating", "stop", "login", "new_chat")
 
@@ -84,4 +103,5 @@ def effective(a: Adapter, overrides: dict[str, str] | None) -> Adapter:
 def public(a: Adapter) -> dict:
     return {"key": a.key, "name": a.name, "url": a.url, "terms_url": a.terms_url, "verified": a.verified,
             "selectors": {k: getattr(a, k) for k in SELECTOR_FIELDS},
-            "requires_terms": a.requires_terms, "models": list(a.models), "notes": a.notes, "experimental": True}
+            "requires_terms": a.requires_terms, "models": list(a.models), "notes": a.notes, "experimental": True,
+            "custom": a.key not in BUILTIN}

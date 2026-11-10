@@ -1,0 +1,19 @@
+# Desktop mode: the Browser Bridge runs on THIS computer with visible browser windows (./bridge-desktop.sh), so you
+# can watch each profile, sign in and solve bot checks yourself. Everything else stays in Docker.
+# Enabled by the scripts when ACC_DESKTOP_BRIDGE=1 is in .env. Postgres and Redis are published on 127.0.0.1 only,
+# for the bridge process; the API and worker reach the bridge through Docker's host gateway.
+services:
+  postgres:
+    ports: ["127.0.0.1:${BRIDGE_DB_PORT:-55432}:5432"]
+  redis:
+    ports: ["127.0.0.1:${BRIDGE_REDIS_PORT:-56379}:6379"]
+  api:
+    environment:
+      BROWSER_BRIDGE_URL: http://host.docker.internal:${BRIDGE_PORT:-8100}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+  worker:
+    environment:
+      BROWSER_BRIDGE_URL: http://host.docker.internal:${BRIDGE_PORT:-8100}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+  browser-bridge:
+    profiles: !override ["never"]   # replaced by the bridge on the host (needs Compose ≥ 2.24)

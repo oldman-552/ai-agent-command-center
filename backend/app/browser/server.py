@@ -86,6 +86,22 @@ async def cancel(sid: int) -> dict:
     return await get_bridge().cancel(sid)
 
 
+@app.delete("/profiles/{organization_id}/{name}")
+async def delete_profile(organization_id: int, name: str) -> dict:
+    """Remove a profile directory (its sign-ins) unless a window uses it."""
+    import shutil
+
+    from app.browser import client
+    from app.browser.bridge import BridgeError, profile_dir
+    b = client.LOCAL or get_bridge()
+    if any(rt.profile == (organization_id, name) for rt in b._rt.values()):
+        raise BridgeError("profile_in_use", 409)
+    path = profile_dir(organization_id, name)
+    if path.exists():
+        shutil.rmtree(path)
+    return {"deleted": name}
+
+
 @app.get("/sessions/{sid}")
 async def status(sid: int) -> dict:
     return get_bridge().snapshot(sid)
@@ -96,4 +112,6 @@ if __name__ == "__main__":
 
     from app.observability.logs import setup_logging
     setup_logging("browser-bridge")
-    uvicorn.run(app, host="127.0.0.1", port=int(get_settings().browser_bridge_url.rsplit(":", 1)[-1].split("/")[0]))
+    import os
+    # desktop mode binds the address the platform containers reach (Docker's host gateway), never all interfaces
+    uvicorn.run(app, host=os.environ.get("BROWSER_BRIDGE_BIND", "127.0.0.1"), port=int(get_settings().browser_bridge_url.rsplit(":", 1)[-1].split("/")[0]))

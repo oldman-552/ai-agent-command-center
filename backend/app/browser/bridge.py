@@ -24,7 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.browser import gate
-from app.browser.adapters import ADAPTERS, Adapter, effective
+from app.browser.adapters import Adapter, effective
 from app.config import get_settings
 from app.db import session_factory
 from app.models import BrowserSession
@@ -68,12 +68,13 @@ def transition(db: Session, s: BrowserSession, to: str, error: str | None = None
                      details={"session_id": s.id, "provider": s.provider_key, "error": error})
 
 
-def profile_dir(organization_id: int, provider: str, profile: str) -> Path:
-    """A dedicated, platform-owned profile directory. Anything else is refused."""
+def profile_dir(organization_id: int, profile: str) -> Path:
+    """A dedicated, platform-owned browser profile of one person, agent or account — the same profile for every
+    site, like a browser profile (cookies and sign-ins of all sites live in it). Anything else is refused."""
     if not PROFILE_RE.match(profile or ""):
         raise BridgeError("invalid_profile_name", 422)
     base = Path(get_settings().browser_profiles_dir).resolve()
-    path = (base / str(int(organization_id)) / provider / profile).resolve()
+    path = (base / str(int(organization_id)) / profile).resolve()
     if base not in path.parents:
         raise BridgeError("invalid_profile_name", 422)
     return path
@@ -84,6 +85,7 @@ class Runtime:
     context: Any
     page: Any
     adapter: Adapter
+    profile: tuple[int, str] = (0, "")
     partial: str = ""
     monitor: asyncio.Task | None = None
     cancelled: bool = False
@@ -155,8 +157,14 @@ class Bridge:
                 return self.snapshot(session_id)
             if len(self._rt) >= settings.browser_max_sessions:
                 raise BridgeError("too_many_sessions", 429)
-            a = effective(ADAPTERS[s.provider_key], gate.overrides(db, s.organization_id, s.provider_key))
-            pdir = profile_dir(s.organization_id, s.provider_key, s.profile_name)
+            base = gate.adapter(db, s.organization_id, s.provider_key)
+            if base is None:
+                raise BridgeError("unknown_provider", 404)
+            busy = [x for sid, x in self._rt.items() if sid != session_id and x.profile == (s.organization_id, s.profile_name)]
+            if busy:  # a browser profile can be open in one window only
+                raise BridgeError("profile_in_use", 409)
+            a = effective(base, gate.overrides(db, s.organization_id, s.provider_key))
+            pdir = profile_dir(s.organization_id, s.profile_name)
             transition(db, s, S.STARTING.value)
             db.commit()
         try:
@@ -167,7 +175,7 @@ class Bridge:
                     str(pdir), headless=settings.browser_headless, accept_downloads=False,
                     args=["--no-first-run", "--no-default-browser-check", "--disable-sync"])
             page = ctx.pages[0] if ctx.pages else await ctx.new_page()
-            rt = Runtime(context=ctx, page=page, adapter=a)
+            rt = Runtime(context=ctx, page=page, adapter=a, profile=(s.organization_id, s.profile_name))
             self._rt[session_id] = rt
             await page.goto(self._url(a, options or {}), wait_until="domcontentloaded", timeout=30_000)
             to, err = await self._detect(rt)

@@ -18,10 +18,10 @@ from sqlalchemy import select
 
 from app.browser import client as bridge_client
 from app.browser import gate
-from app.browser.adapters import ADAPTERS, public
+from app.browser.adapters import catalog, public
 from app.browser.bridge import ACTIVE, BridgeError, profile_dir
 from app.db import session_factory
-from app.models import Agent, Approval, BrowserSession, McpAccessKey, Task
+from app.models import Agent, Approval, BrowserSession, McpAccessKey, Organization, Task
 from app.security.audit import log_activity
 
 server = FastMCP("AI Agent Command Center", instructions="Platform tools of the AI Agent Command Center. "
@@ -155,16 +155,17 @@ def list_providers(ctx: Context) -> str:
     key = _auth(ctx, "list_providers")
     with session_factory()() as db:
         st = gate.state(db, key.organization_id)
+        sites = catalog(db.get(Organization, key.organization_id).settings)
     return _json({"enabled": st["enabled"], "providers": [
-        {**public(a), "unlocked": not a.requires_terms or a.key in st["acks"]} for a in ADAPTERS.values()]})
+        {**public(a), "unlocked": not a.requires_terms or a.key in st["acks"]} for a in sites.values()]})
 
 
 @server.tool(description="Status of one Browser Bridge provider: enabled, unlocked, live sessions.")
 def get_provider_status(ctx: Context, provider: str) -> str:
     key = _auth(ctx, "get_provider_status")
-    if provider not in ADAPTERS:
-        return _json({"error": "unknown_provider"})
     with session_factory()() as db:
+        if gate.adapter(db, key.organization_id, provider) is None:
+            return _json({"error": "unknown_provider"})
         try:
             gate.check(db, key.organization_id, provider)
             usable, reason = True, None
@@ -179,24 +180,27 @@ def get_provider_status(ctx: Context, provider: str) -> str:
 
 @server.tool(description="Models known for a Browser Bridge provider (informational).")
 def list_available_models(ctx: Context, provider: str) -> str:
-    _auth(ctx, "list_available_models")
-    a = ADAPTERS.get(provider)
+    key = _auth(ctx, "list_available_models")
+    with session_factory()() as db:
+        a = gate.adapter(db, key.organization_id, provider)
     return _json({"provider": provider, "models": list(a.models) if a else []})
 
 
-@server.tool(description="Start a browser session for a provider in a dedicated profile (EXPERIMENTAL).")
+@server.tool(description="Start a browser session for a site in an existing browser profile (EXPERIMENTAL).")
 async def create_browser_session(ctx: Context, provider: str, profile: str) -> str:
     key = _auth(ctx, "create_browser_session")
     with session_factory()() as db:
         try:
             gate.check(db, key.organization_id, provider)
-            profile_dir(key.organization_id, provider, profile)
+            profile_dir(key.organization_id, profile)
         except gate.GateClosed as e:
             return _json({"error": e.code})
         except BridgeError as e:
             return _json({"error": e.code})
+        if profile not in gate.profiles(db, key.organization_id):
+            return _json({"error": "unknown_profile"})
         busy = db.scalar(select(BrowserSession.id).where(
-            BrowserSession.organization_id == key.organization_id, BrowserSession.provider_key == provider,
+            BrowserSession.organization_id == key.organization_id,
             BrowserSession.profile_name == profile, BrowserSession.state.in_(ACTIVE)))
         if busy:
             return _json({"error": "profile_in_use", "session_id": busy})

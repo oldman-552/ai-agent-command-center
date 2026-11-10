@@ -22,26 +22,33 @@ for (const lang of ["ar", "en"] as const) {
     await setEnabled(page, false);
     await page.goto("/browser-bridge");
     await expect(page.getByTestId("bb-status")).toContainText(en ? "Disabled" : "معطّل");
-    await expect(page.getByTestId("bb-provider-claude")).toContainText(en ? "Locked" : "مقفل");
+    await expect(page.getByTestId("bb-provider-arena")).toContainText(en ? "Locked" : "مقفل");
     await axe(page);
 
     // the terms gate: the confirm button stays disabled until the box is ticked
-    await page.getByTestId("bb-provider-claude").getByRole("button", { name: en ? /^Acknowledge/ : /إقرار|أقر/ }).click();
+    await page.getByTestId("bb-provider-arena").getByRole("button", { name: en ? /^Acknowledge/ : /إقرار|أقر/ }).click();
     const confirm = page.getByTestId("bb-ack-confirm");
     await expect(confirm).toBeDisabled();
     await page.getByTestId("bb-ack-check").check();
     await axe(page);
     await confirm.click();
-    await expect(page.getByTestId("bb-provider-claude")).toContainText(en ? "Unlocked" : "مفتوح");
-    await page.getByTestId("bb-provider-claude").getByRole("button", { name: en ? /^Revoke/ : /سحب|إلغاء/ }).click(); // revoke again
-    await expect(page.getByTestId("bb-provider-claude")).toContainText(en ? "Locked" : "مقفل");
+    await expect(page.getByTestId("bb-provider-arena")).toContainText(en ? "Unlocked" : "مفتوح");
+    await page.getByTestId("bb-provider-arena").getByRole("button", { name: en ? /^Revoke/ : /سحب|إلغاء/ }).click(); // revoke again
+    await expect(page.getByTestId("bb-provider-arena")).toContainText(en ? "Locked" : "مقفل");
 
     // enable and drive the local test page through a real headless browser
     await page.getByTestId("bb-toggle").click();
     await expect(page.getByTestId("bb-status")).toContainText(en ? "Enabled" : "مفعّل");
     await expect(page.getByTestId("bb-status")).toContainText(en ? "Running" : "تعمل");
     await page.locator("#bb-provider").selectOption("test");
-    await page.locator("#bb-profile").fill(`e2e-${lang}-${Date.now() % 100000}`);
+    // a dedicated profile for this run (one window per profile); "My profile" is the default otherwise
+    const csrf = (await page.context().cookies()).find((c) => c.name === "acc_csrf")?.value ?? "";
+    const prof = `e2e-${lang}-${Date.now() % 100000}`;
+    expect((await page.request.post("/api/browser-bridge/profiles", { data: { name: prof, label: prof },
+      headers: { "X-CSRF-Token": csrf } })).status()).toBe(201);
+    await page.reload();
+    await page.locator("#bb-provider").selectOption("test");
+    await page.locator("#bb-profile").selectOption(prof);
     await page.getByTestId("bb-start").click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByTestId("bb-state")).toHaveText(en ? "Ready" : "جاهز", { timeout: 30_000 });
@@ -86,4 +93,33 @@ test("arena.ai: its own terms clauses, and the Super Admin can adjust selectors 
   await card.getByTestId("bb-sel-arena").click();
   await page.getByTestId("bb-sel-reset").click();
   await expect(card).not.toContainText("custom selectors");
+});
+
+test("profiles per employee and adding any website (English)", async ({ page }) => {
+  await login(page, "en");
+  await page.goto("/browser-bridge");
+  const n = `emp-${Date.now() % 100000}`;
+  const prof = page.getByTestId("bb-profiles");
+  await prof.locator("#pf-name").fill(n);
+  await prof.locator("#pf-label").fill("Employee one");
+  await prof.locator("#pf-owner").selectOption({ label: "admin" });
+  await prof.getByTestId("pf-add").click();
+  await expect(page.getByTestId(`pf-${n}`)).toContainText("Employee one");
+  await expect(page.getByTestId(`pf-${n}`)).toContainText("admin");
+  await axe(page);
+  await page.getByTestId("bb-add-site").click();
+  const dlg = page.getByTestId("bb-site-dialog");
+  const key = `site${Date.now() % 100000}`;
+  await dlg.locator("#site-name").fill("My chat site");
+  await dlg.locator("#site-key").fill(key);
+  await dlg.locator("#site-url").fill("https://chat.example.com/app");
+  await dlg.locator("#site-terms_url").fill("https://chat.example.com/terms");
+  await dlg.getByTestId("bb-site-save").click();
+  const card = page.getByTestId(`bb-provider-${key}`);
+  await expect(card).toContainText("My chat site");
+  await expect(card).toContainText("Locked");
+  await card.getByTestId(`bb-remove-${key}`).click();
+  await expect(card).toHaveCount(0);
+  await page.getByTestId(`pf-${n}`).getByRole("button", { name: /Delete/ }).click();
+  await expect(page.getByTestId(`pf-${n}`)).toHaveCount(0);
 });

@@ -6,6 +6,9 @@ to `docs/requirements.json`.
 ## Unreleased — 2026-11-10
 
 ### Added
+- **Browser Bridge rework** (owner decision): only arena.ai built in (Claude/ChatGPT/Gemini adapters removed), **Add
+  site** for any website, **one browser profile per employee, agent or account** shared across sites (one window at a
+  time), and **desktop mode** (`./bridge-desktop.sh`) with visible windows on your own computer.
 - **Browser Bridge: arena.ai adapter** (experimental, owner request; terms clauses acknowledged explicitly) and
   **selector overrides** per provider for the Super Admin, so a changed page can be fixed without a code change.
 - The Browser Bridge service is optional in the default compose file (`COMPOSE_PROFILES=browser-bridge`), so a first

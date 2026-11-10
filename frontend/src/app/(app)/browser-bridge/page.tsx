@@ -12,7 +12,8 @@ import { NativeSelect } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api";
-import { type BridgeProvider, useBridge, useBridgeActions, useBridgeSession, useBridgeSessions, useBridgeStatus } from "@/lib/browser-bridge";
+import { type BridgeProvider, useBridge, useBridgeActions, useBridgeProfiles, useBridgeSession, useBridgeSessions, useBridgeStatus } from "@/lib/browser-bridge";
+import { useUsers } from "@/lib/admin";
 import { useToasts } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +50,7 @@ export default function BrowserBridgePage() {
   const a = useBridgeActions();
   const fail = useFail();
   const [sel, setSel] = useState<BridgeProvider>();
+  const [addSite, setAddSite] = useState(false);
   const [ack, setAck] = useState<BridgeProvider>();
   const [open, setOpen] = useState<number>();
   const d = bridge.data;
@@ -88,7 +90,10 @@ export default function BrowserBridgePage() {
 
       {d && (
         <section aria-labelledby="prov-h" className="flex flex-col gap-3">
-          <h2 id="prov-h" className="text-lg font-semibold">{t("providers")}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="prov-h" className="text-lg font-semibold">{t("providers")}</h2>
+            {manage && <Button size="sm" variant="outline" onClick={() => setAddSite(true)} data-testid="bb-add-site"><SquarePlus aria-hidden />{t("sites.add")}</Button>}
+          </div>
           <ul className="grid gap-3 md:grid-cols-2">
             {d.providers.map((p) => (
               <li key={p.key}>
@@ -105,6 +110,7 @@ export default function BrowserBridgePage() {
                   {p.acknowledgement && <p className="text-xs text-muted-foreground">{t("ackedBy", { by: p.acknowledgement.by })}</p>}
                   {manage && (p.requires_terms || p.overridden) && (
                     <div className="mt-auto flex flex-wrap gap-2">
+                      {p.custom && <Button size="sm" variant="ghost" onClick={() => a.removeSite.mutate(p.key, { onError: fail })} aria-label={`${t("sites.remove")}: ${p.name}`} data-testid={`bb-remove-${p.key}`}>{t("sites.remove")}</Button>}
                       {p.requires_terms && <Button size="sm" variant="ghost" onClick={() => setSel(p)} aria-label={`${t("selectors.edit")}: ${p.name}`} data-testid={`bb-sel-${p.key}`}>{t("selectors.edit")}</Button>}
                       {p.unlocked
                         ? <Button size="sm" variant="outline" onClick={() => a.revoke.mutate(p.key, { onError: fail })} aria-label={`${t("revoke")}: ${p.name}`}>{t("revoke")}</Button>
@@ -118,9 +124,11 @@ export default function BrowserBridgePage() {
         </section>
       )}
 
+      {d && <Profiles manage={manage} />}
       {d && <Sessions providers={d.providers.filter((p) => p.unlocked)} enabled={d.enabled} manage={manage} onOpen={setOpen} />}
       {ack && <AckDialog p={ack} onClose={() => setAck(undefined)} />}
       {sel && <SelectorsDialog p={sel} onClose={() => setSel(undefined)} />}
+      {addSite && <AddSiteDialog onClose={() => setAddSite(false)} />}
       {open && <SessionDialog id={open} manage={manage} onClose={() => setOpen(undefined)} />}
     </div>
   );
@@ -161,6 +169,7 @@ function Sessions({ providers, enabled, manage, onOpen }: { providers: BridgePro
   const fail = useFail();
   const [provider, setProvider] = useState("");
   const [profile, setProfile] = useState("");
+  const profiles = useBridgeProfiles();
   const chosen = provider || providers[0]?.key || "";
   return (
     <section aria-labelledby="sess-h" className="flex flex-col gap-3">
@@ -169,7 +178,7 @@ function Sessions({ providers, enabled, manage, onOpen }: { providers: BridgePro
         <Card className="p-4">
           <form className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" onSubmit={(e) => {
             e.preventDefault();
-            a.create.mutate({ provider: chosen, profile: profile.trim() }, { onSuccess: (s) => { setProfile(""); onOpen(s.id); }, onError: fail });
+            a.create.mutate({ provider: chosen, ...(profile ? { profile } : {}) }, { onSuccess: (s) => onOpen(s.id), onError: fail });
           }}>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="bb-provider">{t("provider")}</Label>
@@ -179,7 +188,10 @@ function Sessions({ providers, enabled, manage, onOpen }: { providers: BridgePro
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="bb-profile">{t("profile")}</Label>
-              <Input id="bb-profile" required pattern="[a-z0-9][a-z0-9\-]{0,39}" value={profile} onChange={(e) => setProfile(e.target.value)} dir="ltr" aria-describedby="bb-profile-help" />
+              <NativeSelect id="bb-profile" value={profile} onChange={(e) => setProfile(e.target.value)} aria-describedby="bb-profile-help">
+                <option value="">{t("profiles.mine")}</option>
+                {profiles.data?.map((p) => <option key={p.name} value={p.name} disabled={!!p.active_session}>{p.label || p.name}{p.active_session ? ` (${t("profiles.open")})` : ""}</option>)}
+              </NativeSelect>
             </div>
             <Button type="submit" disabled={a.create.isPending} data-testid="bb-start"><Play aria-hidden />{t("startSession")}</Button>
             <p id="bb-profile-help" className="text-xs text-muted-foreground sm:col-span-3">{t("profileHelp")}</p>
@@ -297,6 +309,121 @@ function SelectorsDialog({ p, onClose }: { p: BridgeProvider; onClose: () => voi
             {p.overridden && <Button type="button" variant="ghost" onClick={() => save({})} data-testid="bb-sel-reset">{t("reset")}</Button>}
             <Button type="button" variant="outline" onClick={onClose}>{t("cancel")}</Button>
             <Button type="submit" disabled={a.selectors.isPending} data-testid="bb-sel-save">{t("save")}</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** One browser profile per employee, agent or account: its sign-ins (e.g. an Arena account) stay in it. */
+function Profiles({ manage }: { manage: boolean }) {
+  const t = useTranslations("bridge.profiles");
+  const profiles = useBridgeProfiles();
+  const users = useUsers(manage);
+  const a = useBridgeActions();
+  const fail = useFail();
+  const [name, setName] = useState("");
+  const [label, setLabel] = useState("");
+  const [owner, setOwner] = useState("");
+  const ownerName = (o: string | null) => {
+    if (!o) return t("account");
+    const u = users.data?.find((x) => `user:${x.id}` === o);
+    return u ? u.username : o.startsWith("agent:") ? t("agent") : o;
+  };
+  return (
+    <section aria-labelledby="prof-h" className="flex flex-col gap-3" data-testid="bb-profiles">
+      <h2 id="prof-h" className="text-lg font-semibold">{t("title")}</h2>
+      <p className="max-w-3xl text-sm text-muted-foreground">{t("help")}</p>
+      {manage && (
+        <Card className="p-4">
+          <form className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end" onSubmit={(e) => {
+            e.preventDefault();
+            a.addProfile.mutate({ name: name.trim(), label: label.trim(), owner: owner || null }, {
+              onSuccess: () => { setName(""); setLabel(""); setOwner(""); }, onError: fail });
+          }}>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="pf-name">{t("name")}</Label>
+              <Input id="pf-name" required dir="ltr" pattern="[a-z0-9][a-z0-9\-]{0,39}" value={name} onChange={(e) => setName(e.target.value)} aria-describedby="pf-help" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="pf-label">{t("label")}</Label>
+              <Input id="pf-label" value={label} maxLength={80} onChange={(e) => setLabel(e.target.value)} dir="auto" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="pf-owner">{t("owner")}</Label>
+              <NativeSelect id="pf-owner" value={owner} onChange={(e) => setOwner(e.target.value)}>
+                <option value="">{t("account")}</option>
+                {users.data?.map((u) => <option key={u.id} value={`user:${u.id}`}>{u.username}</option>)}
+              </NativeSelect>
+            </div>
+            <Button type="submit" disabled={a.addProfile.isPending} data-testid="pf-add"><SquarePlus aria-hidden />{t("add")}</Button>
+            <p id="pf-help" className="text-xs text-muted-foreground sm:col-span-4">{t("nameHelp")}</p>
+          </form>
+        </Card>
+      )}
+      {profiles.data?.length === 0 && <p className="text-sm text-muted-foreground">{t("none")}</p>}
+      {!!profiles.data?.length && (
+        <Card className="overflow-x-auto" tabIndex={0} aria-label={t("title")}>
+          <table className="w-full min-w-[560px] text-sm" data-testid="pf-table">
+            <thead className="border-b bg-muted/50 text-xs text-muted-foreground">
+              <tr>{(["name", "owner", "status", "actions"] as const).map((c) => <th key={c} scope="col" className="px-4 py-2 text-start font-medium">{t(`columns.${c}`)}</th>)}</tr>
+            </thead>
+            <tbody className="divide-y">
+              {profiles.data.map((p) => (
+                <tr key={p.name} data-testid={`pf-${p.name}`}>
+                  <td className="px-4 py-2"><span className="font-medium" dir="auto">{p.label || p.name}</span> <span className="font-mono text-xs text-muted-foreground" dir="ltr">{p.name}</span></td>
+                  <td className="px-4 py-2" dir="auto">{ownerName(p.owner)}</td>
+                  <td className="px-4 py-2">{p.active_session ? t("openIn", { provider: p.active_session.provider }) : t("closed")}</td>
+                  <td className="px-4 py-2">
+                    {manage && <Button size="sm" variant="ghost" disabled={!!p.active_session || a.removeProfile.isPending}
+                      onClick={() => a.removeProfile.mutate(p.name, { onError: fail })} aria-label={`${t("delete")}: ${p.label || p.name}`}>{t("delete")}</Button>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+    </section>
+  );
+}
+
+/** Any website (Super Admin): stays locked until its terms are acknowledged, like every site. */
+function AddSiteDialog({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("bridge.sites");
+  const tc = useTranslations("common");
+  const a = useBridgeActions();
+  const fail = useFail();
+  const [v, setV] = useState({ key: "", name: "", url: "", terms_url: "", input: "", send: "", response: "" });
+  const field = (k: keyof typeof v, opts: { ltr?: boolean; required?: boolean; type?: string; pattern?: string } = {}) => (
+    <div className="flex flex-col gap-1">
+      <Label htmlFor={`site-${k}`}>{t(`fields.${k}`)}</Label>
+      <Input id={`site-${k}`} value={v[k]} required={opts.required} type={opts.type} pattern={opts.pattern} dir={opts.ltr ? "ltr" : "auto"}
+        className={opts.ltr ? "font-mono text-xs" : undefined} onChange={(e) => setV({ ...v, [k]: e.target.value })} />
+    </div>
+  );
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent closeLabel={tc("close")} className="max-h-[90vh] max-w-xl overflow-y-auto" data-testid="bb-site-dialog">
+        <DialogTitle>{t("title")}</DialogTitle>
+        <DialogDescription>{t("help")}</DialogDescription>
+        <form className="flex flex-col gap-3" onSubmit={(e) => {
+          e.preventDefault();
+          const body = Object.fromEntries(Object.entries(v).filter(([, x]) => x.trim()).map(([k, x]) => [k, x.trim()])) as typeof v;
+          a.addSite.mutate(body, { onSuccess: onClose, onError: fail });
+        }}>
+          {field("name", { required: true })}
+          {field("key", { ltr: true, required: true, pattern: "[a-z][a-z0-9\\-]{1,31}" })}
+          {field("url", { ltr: true, required: true, type: "url" })}
+          {field("terms_url", { ltr: true, type: "url" })}
+          {field("input", { ltr: true })}
+          {field("send", { ltr: true })}
+          {field("response", { ltr: true })}
+          <p className="text-xs text-muted-foreground">{t("note")}</p>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>{t("cancel")}</Button>
+            <Button type="submit" disabled={a.addSite.isPending} data-testid="bb-site-save">{t("save")}</Button>
           </div>
         </form>
       </DialogContent>

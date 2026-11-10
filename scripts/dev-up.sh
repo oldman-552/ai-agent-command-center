@@ -3,6 +3,7 @@
 # Not used on Windows — START.bat runs everything in Docker there.
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export BROWSER_SHOW_TEST_PAGE=true  # development: the local test page is listed
 pg_lsclusters 2>/dev/null | grep -q online || sudo pg_ctlcluster 16 main start </dev/null >/dev/null 2>&1
 pgrep -f beam.smp >/dev/null || sudo -u rabbitmq bash -c 'rabbitmq-server -detached' </dev/null >/dev/null 2>&1
 redis-cli ping >/dev/null 2>&1 || redis-server --daemonize yes --port 6379 --save "" --appendonly no >/dev/null
