@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-10 14:06",
+  "date": "2026-11-10 14:14",
   "spec_version": "4.0",
   "current_phase": "Phases 16, 17, 22",
   "current_milestone": {
@@ -246,29 +246,7 @@
     "SEC-08"
   ],
   "files_changed": [
-    "backend/Dockerfile",
-    "backend/Dockerfile.bridge",
-    "backend/app/runtime/engines/cli.py",
-    "backend/tests/test_cli_engine.py",
-    "docker/cli/Dockerfile",
-    "docker/offline/README.md",
-    "docker/sandbox/Dockerfile",
-    "docs/ARCHITECTURE_DECISIONS.md",
-    "docs/CHANGELOG.md",
-    "docs/PROVIDER_INTEGRATION.md",
-    "docs/RELEASE_READINESS.md",
-    "docs/SECURITY.md",
-    "frontend/Dockerfile",
-    "frontend/e2e/agents.spec.ts",
-    "frontend/messages/ar.json",
-    "frontend/messages/en.json",
-    "frontend/src/components/agent-form.tsx",
-    "frontend/src/lib/agents.ts",
-    "scripts/dev-up.sh",
-    "scripts/security-scan.sh",
-    "docker/offline/base.Dockerfile",
-    "docker/offline/cli.Dockerfile",
-    "scripts/check-image-updates.sh"
+    "docs/RELEASE_READINESS.md"
   ],
   "tests": {
     "passed": [
