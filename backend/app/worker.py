@@ -27,6 +27,7 @@ from app.connectivity.a2a import engine as _a2a_engine  # noqa: F401  (registers
 from app.connectivity.gateway import service as _gateway  # noqa: F401  (registers the api engine)
 from app.db import session_factory
 from app.devplane import tools as _devplane_tools  # noqa: F401  (repo.read/files.write/git.*)
+from app.governance import budgets as _budgets  # noqa: F401  (budget.increase executor)
 from app.integrations import mcp_client as _mcp_client  # noqa: F401  (mcp:* tools)
 from app.memory import tools as _memory_tools  # noqa: F401  (memory.write)
 from app.runtime import service

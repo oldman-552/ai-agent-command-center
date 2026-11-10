@@ -48,12 +48,13 @@ class UserOut(BaseModel):
     language: str
     organization_id: int
     permissions: list[str]
+    is_active: bool = True
 
 
 def user_out(u: User) -> UserOut:
     return UserOut(id=u.id, username=u.username, role=u.role.key, role_name_ar=u.role.name_ar,
                    role_name_en=u.role.name_en, language=u.language, organization_id=u.organization_id,
-                   permissions=sorted(p.key for p in u.role.permissions))
+                   permissions=sorted(p.key for p in u.role.permissions), is_active=u.is_active)
 
 
 class LanguageIn(BaseModel):

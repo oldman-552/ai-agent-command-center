@@ -123,3 +123,22 @@ def push_branch(worktree: Path, remote_url: str, branch: str, token: str | None,
     if r.returncode != 0:
         msg = (r.stderr or r.stdout).replace(token or "\x00", "***")
         raise GitError(f"push failed: {msg.strip()[:500]}")
+
+
+def clone(dest: Path, remote_url: str, token: str | None) -> str:
+    """Clone an existing repository (existing-project mode). https only, except local paths in tests."""
+    if not remote_url.startswith(("https://", "/")):
+        raise GitError("remote must be https")
+    if dest.exists() and any(dest.iterdir()):
+        raise GitError("destination is not empty")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    env = _env()
+    if token:
+        env.update(GIT_ASKPASS=_askpass(), ACC_GIT_TOKEN=token)
+    r = subprocess.run(["git", *SAFE_CONFIG, "-c", "protocol.https.allow=always", "-c", "credential.helper=",
+                        "clone", "--quiet", "--no-recurse-submodules", "--", remote_url, str(dest)],
+                       env=env, capture_output=True, text=True, timeout=600, check=False)
+    if r.returncode != 0:
+        msg = (r.stderr or r.stdout).replace(token or "\x00", "***")
+        raise GitError(f"clone failed: {msg.strip()[:500]}")
+    return git(dest, "rev-parse", "HEAD")

@@ -338,3 +338,25 @@ decision; compose runs the bridge headless, so real sign-in needs the bridge on 
   agent's task context.
 **Limits:** the scanner is heuristic (false positives and negatives are possible) — it informs a human decision, it is
 not a sandbox; skills never execute code on the platform.
+
+## ADR-027 — Routing, budgets, teams and existing-project analysis (2026-11-10)
+**Routing (GW-07):** agents opt in with `context_policy.routing = "auto"`. `gateway/routing.py` filters every enabled
+model by availability (provider enabled, circuit not open, provider budget not exhausted), capabilities (tools when
+the agent has tools, vision for images, `required_capabilities`), context window and user configuration
+(`allowed_provider_ids`, `excluded_models`, mocks only with `allow_mock`), then ranks by complexity fit (task type,
+prompt size or an explicit hint → tier 1–3), estimated cost from configured prices only, observed latency, recent
+success ratio and provider priority. The top three become the route list (fallback order). Each decision is audited
+(`gateway.routed`) and shown as an execution log event; `POST /api/routing/preview` explains a decision without
+running anything. LiteLLM was not added: our adapters already cover the providers in scope (ADR-010).
+**Budgets (GW-08):** `governance/budgets.py` computes spend from recorded cost rows and real (non-mock) usage rows per
+scope (global/agent/project/task/provider) and period (daily/monthly/total); task and project `budget_usd` are
+implicit total budgets. `create_execution` refuses new work in an exhausted scope with HTTP 402 `budget_exceeded`;
+the stop is audited and a deduplicated `budget.increase` approval (+50 %, frozen payload) is opened in a separate
+transaction so the caller's transaction is untouched. The orchestrator treats it like any refusal: that task waits,
+the rest continues. Approving raises the limit by exactly the approved amount.
+**Teams (AG-07):** `/api/teams` CRUD with agent and user membership, an optional lead (must be a member; removed
+leads are cleared), projects can belong to a team, membership is tenant-checked and audited.
+**Existing projects (OR-09):** `/api/projects/{id}/import` clones the linked GitHub repository into the project
+workspace with the hardened git (askpass, no hooks); `/analyze` stores a static map (languages, frameworks,
+infrastructure, architecture roles, dependencies, tests, technical debt) — nothing is executed. Planning for
+`existing`/`maintenance` projects includes the map, fenced as data.

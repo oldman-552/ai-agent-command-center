@@ -15,17 +15,19 @@ from app.connectivity.a2a import engine as _a2a_engine  # noqa: F401  (registers
 from app.connectivity.a2a import keys as a2a_keys
 from app.connectivity.a2a import server as a2a_server
 from app.control import agents, users
+from app.control import teams as teams_api
 from app.db import session_factory
 from app.devplane import api as devplane_api
 from app.devplane import tools as _devplane_tools  # noqa: F401  (repo.read/files.write/git.*)
 from app.evaluation import api as evaluation_api
 from app.governance import api as approvals_api
-from app.governance import audit_api
+from app.governance import audit_api, budgets_api
 from app.integrations import api as integrations_api
 from app.integrations import mcp_client as _mcp_client  # noqa: F401  (registers mcp:* tools)
 from app.integrations.mcp_server import endpoint as mcp_endpoint
 from app.memory import api as memory_api
 from app.memory import tools as _memory_tools  # noqa: F401  (memory.write)
+from app.observability import analytics as analytics_api
 from app.observability import dashboard
 from app.orchestration import api as orchestration_api
 from app.runtime import api as runtime_api
@@ -80,6 +82,10 @@ app.include_router(evaluation_api.router)
 app.include_router(devplane_api.router)
 app.include_router(supervisor_api.router)
 app.include_router(memory_api.router)
+app.include_router(teams_api.router)
+app.include_router(budgets_api.router)
+app.include_router(budgets_api.routing_router)
+app.include_router(analytics_api.router)
 app.include_router(browser_api.router)
 app.include_router(integrations_api.router)
 app.mount("/api/mcp", mcp_endpoint)

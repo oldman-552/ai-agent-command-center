@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -32,6 +33,8 @@ class ProjectIn(BaseModel):
 
 def project_out(p: Project, agent_ids: list[int]) -> dict:
     return {"id": p.id, "name": p.name, "description": p.description, "mode": p.mode, "agent_ids": agent_ids,
+            "team_id": p.team_id, "budget_usd": str(p.budget_usd) if p.budget_usd is not None else None,
+            "repository_id": p.repository_id, "analyzed_at": p.analyzed_at,
             "created_at": p.created_at, "archived_at": p.archived_at}
 
 
@@ -60,6 +63,95 @@ def create_project(body: ProjectIn, db: DB, user: User = Depends(require("projec
                  project_id=p.id)
     db.commit()
     return project_out(p, [a.id for a in agents])
+
+
+class ProjectPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    description: str | None = Field(default=None, max_length=8000)
+    mode: Literal["new", "existing", "maintenance"] | None = None
+    team_id: int | None = None
+    budget_usd: Decimal | None = Field(default=None, ge=0, max_digits=12, decimal_places=4)
+    agent_ids: list[int] | None = Field(default=None, max_length=200)
+
+
+@router.patch("/projects/{project_id}")
+def update_project(project_id: int, body: ProjectPatch, db: DB, user: User = Depends(require("projects.write"))) -> dict:
+    from app.models import Team
+    p = get_scoped(db, Project, project_id, user)
+    data = body.model_dump(exclude_unset=True)
+    if data.get("team_id") is not None:
+        get_scoped(db, Team, data["team_id"], user)
+    if "budget_usd" in data and not {"budgets.manage"} <= {x.key for x in user.role.permissions}:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "budgets_manage_required")
+    for k in ("description", "mode", "team_id", "budget_usd"):
+        if k in data:
+            setattr(p, k, data[k])
+    if body.agent_ids is not None:
+        agents = [get_scoped(db, Agent, aid, user) for aid in sorted(set(body.agent_ids))]
+        db.execute(project_agents.delete().where(project_agents.c.project_id == p.id))
+        for a in agents:
+            db.execute(project_agents.insert().values(project_id=p.id, agent_id=a.id))
+    log_activity(db, "projects.updated", category="projects", organization_id=user.organization_id, user_id=user.id,
+                 project_id=p.id, details={k: str(v) for k, v in data.items()})
+    db.commit()
+    return project_out(p, _roster(db, p.id))
+
+
+@router.post("/projects/{project_id}/import")
+def import_repository(project_id: int, db: DB, user: User = Depends(require("github.manage"))) -> dict:
+    """Existing-project mode: clone the linked GitHub repository into the project's workspace (once)."""
+    from app.devplane import git as g
+    from app.devplane import service as gh
+    from app.devplane.worktrees import repo_path
+    from app.models import ApiCredential, Repository
+    from app.sandbox import runner
+    from app.security.crypto import decrypt_secret
+    p = get_scoped(db, Project, project_id, user)
+    repo = db.get(Repository, p.repository_id) if p.repository_id else None
+    if repo is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "no_linked_repository")
+    dest = repo_path(p.organization_id, p.id)
+    if (dest / ".git").exists():
+        raise HTTPException(status.HTTP_409_CONFLICT, "already_imported")
+    cred = db.get(ApiCredential, repo.credential_id) if repo.credential_id else None
+    try:
+        head = g.clone(dest, gh.remote_url(repo), decrypt_secret(cred.encrypted_value) if cred else None)
+    except g.GitError as e:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(e)) from e
+    runner.ensure_workspace(p.organization_id, p.id)
+    if p.mode == "new":
+        p.mode = "existing"
+    log_activity(db, "projects.imported", category="devplane", organization_id=user.organization_id, user_id=user.id,
+                 project_id=p.id, details={"repository": repo.full_name, "head": head})
+    db.commit()
+    return {"project_id": p.id, "head": head, "mode": p.mode}
+
+
+@router.post("/projects/{project_id}/analyze")
+def analyze_project(project_id: int, db: DB, user: User = Depends(require("projects.write"))) -> dict:
+    """OR-09: static repository map (technologies, architecture, dependencies, tests, debt)."""
+    from datetime import UTC, datetime
+
+    from app.devplane.worktrees import repo_path
+    from app.orchestration.inspector import analyze
+    p = get_scoped(db, Project, project_id, user)
+    path = repo_path(p.organization_id, p.id)
+    if not path.is_dir() or not any(path.iterdir()):
+        raise HTTPException(status.HTTP_409_CONFLICT, "no_repository")
+    p.analysis, p.analyzed_at = analyze(path), datetime.now(UTC)
+    log_activity(db, "projects.analyzed", category="projects", organization_id=user.organization_id, user_id=user.id,
+                 project_id=p.id, details={"files": p.analysis["files"],
+                                           "languages": [x["name"] for x in p.analysis["technologies"]["languages"]]})
+    db.commit()
+    return p.analysis
+
+
+@router.get("/projects/{project_id}/analysis")
+def get_analysis(project_id: int, db: DB, user: User = Depends(require("projects.read"))) -> dict:
+    p = get_scoped(db, Project, project_id, user)
+    if p.analysis is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "not_analyzed")
+    return p.analysis
 
 
 # ---------------- workflows ----------------

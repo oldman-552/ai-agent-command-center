@@ -311,7 +311,7 @@ def test_browser_engine_runs_an_agent_turn(db, page_server):
         finally:
             await bridge.shutdown()
 
-    ex_id, sid = asyncio.run(go())
+    ex_id, _sid = asyncio.run(go())
     db.expire_all()
     ex = db.get(Execution, ex_id)
     assert ex.status == "COMPLETED", ex.error

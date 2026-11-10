@@ -137,3 +137,27 @@ async def stream(ws: WebSocket, execution_id: str) -> None:
         return
     finally:
         db.close()
+
+
+@router.get("/runtime/overview")
+def runtime_overview(db: DB, user: User = Depends(require("executions.read"))) -> dict:
+    """Agent Runtime page: registered engines, execution counts by status, open circuits (all from the DB)."""
+    from sqlalchemy import func
+
+    from app.models import Agent, CircuitBreaker
+    from app.runtime.contract import get_engine, registered_engines
+    org = user.organization_id
+    by_status = dict(db.execute(select(Execution.status, func.count()).where(Execution.organization_id == org)
+                                .group_by(Execution.status)).all())
+    by_engine = dict(db.execute(select(Agent.execution_engine, func.count()).where(
+        Agent.organization_id == org, Agent.archived_at.is_(None)).group_by(Agent.execution_engine)).all())
+    engines = []
+    for kind in sorted(registered_engines()):
+        engines.append({"kind": kind, "is_mock": bool(getattr(get_engine(kind), "is_mock", False)),
+                        "agents": int(by_engine.get(kind, 0))})
+    circuits = db.scalars(select(CircuitBreaker).where(CircuitBreaker.organization_id == org)
+                          .order_by(CircuitBreaker.updated_at.desc()).limit(100)).all()
+    return {"engines": engines, "executions": {k: int(v) for k, v in by_status.items()},
+            "circuits": [{"scope": c.scope, "ref_id": c.ref_id, "state": c.state,
+                          "failures": c.consecutive_failures, "last_failure": c.last_failure,
+                          "opened_at": c.opened_at, "updated_at": c.updated_at} for c in circuits]}

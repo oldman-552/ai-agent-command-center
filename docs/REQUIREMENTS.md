@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 83.2%**
+**Overall verified completion: 86.8%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -38,7 +38,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | RT-07 | P0 | Tool registry + per-agent tool permission validation (default deny) | Unpermitted tool call blocked + audited | pytest | RT-01 | done | default-deny tool gate, audited denial, WAITING_FOR_TOOL state (test) |
 | RT-08 | P1 | Retry policy with exponential backoff + retry budget | Retry tests | pytest | RT-03 | done | exponential backoff, retry budget, fatal not retried, resume without repeating steps (tests) |
 
-## M3 — Dynamic Agent Management (weight 7%, 86%) — spec Phase 3
+## M3 — Dynamic Agent Management (weight 7%, 100%) — spec Phase 3
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -48,9 +48,9 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | AG-04 | P0 | Agent lifecycle states with recorded transitions | Transition history persisted | pytest | AG-01 | done | 13-state lifecycle with allowed-transition map, every transition recorded; illegal rejected (test) |
 | AG-05 | P0 | Configuration versioning (snapshot per change) | Version increments on edit | pytest | AG-01 | done | agent_config_versions snapshot per change; test_edit_creates_config_version |
 | AG-06 | P0 | Agents UI: list, create/edit form, details, templates — ar/en | E2E create/edit flow | Playwright | AG-01, FND-07 | done | Agents list/filters/actions, create/edit form (RHF+Zod, tool ceilings), details (versions, transitions), templates gallery; E2E CRUD flow + axe ar/en |
-| AG-07 | P1 | Agent teams | Team CRUD + membership | pytest | AG-01 | pending | — |
+| AG-07 | P1 | Agent teams | Team CRUD + membership | pytest | AG-01 | done | tests/test_routing_budgets_teams.py::test_team_crud_and_membership (CRUD, lead rule, cross-tenant 404, RBAC, project link, audit) |
 
-## M4 — Multi-Provider AI Gateway (weight 8%, 70%) — spec Phases 9, 20
+## M4 — Multi-Provider AI Gateway (weight 8%, 90%) — spec Phases 9, 20
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -60,8 +60,8 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | GW-04 | P0 | Connection test per provider | Mock passes; real adapters tested with HTTP mocks | pytest | GW-01 | done | POST /providers/{id}/test updates status; tests via HTTP mocks |
 | GW-05 | P0 | Token + cost accounting per execution (usage_records/cost_records); no fabricated prices | Recorded per call; unknown price = null | pytest | GW-01 | done | usage_records per call; cost_records only with owner prices (exact cached/uncached math); unknown price => null; tests |
 | GW-06 | P0 | Fallback provider/model on failure | Primary failure → fallback used + logged | pytest | GW-01 | done | primary→fallback on provider failure, audited gateway.fallback; no splicing after partial output; test |
-| GW-07 | P1 | Routing by complexity/capability/cost/availability | Routing tests | pytest | GW-02 | pending | — |
-| GW-08 | P1 | Budgets: agent/project/task/daily/monthly; stop new work at limit + approval request | Budget tests | pytest | GW-05 | pending | — |
+| GW-07 | P1 | Routing by complexity/capability/cost/availability | Routing tests | pytest | GW-02 | done | test_routes_by_complexity / capability_and_context_window / cost_availability_and_user_config / provider_budget_removes_it_from_routing / auto_routed_agent_runs_end_to_end (HTTP-mocked Anthropic) / routing_preview_endpoint |
+| GW-08 | P1 | Budgets: agent/project/task/daily/monthly; stop new work at limit + approval request | Budget tests | pytest | GW-05 | done | test_budget_stops_new_work_requests_approval_and_resumes_after_increase (402, dedup approval, unrelated agent runs, approved +50%) + test_token_daily_project_and_implicit_task_budgets + permission test |
 | GW-09 | P0 | Providers & Models UI | E2E add provider, test connection | Playwright | GW-02 | done | Providers & models page: add provider (write-only key), set/rotate key, test, discover, enable/disable, delete, add/edit model prices; E2E + axe ar/en |
 | GW-10 | P0 | At least one real official API call verified | Live call with owner key succeeds | manual/live test | GW-01 | pending | — |
 
@@ -74,7 +74,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | EE-03 | P1 | External agent runtime adapter (A2A client) | Adapter contract test | pytest | A2A-02 | done | tests/test_a2a.py::test_a2a_engine_delegates_to_external_agent_and_reattaches_on_resume (platform agent → A2A provider → remote agent over HTTP; resume re-attaches without resubmitting), test_a2a_engine_unreachable_service_fails_cleanly |
 | EE-04 | P0 | Unsupported integrations explicitly documented | PROVIDER_INTEGRATION.md table | inspection | — | pending | — |
 
-## M6 — Intelligent Orchestration (weight 9%, 89%) — spec Phases 4, 13
+## M6 — Intelligent Orchestration (weight 9%, 100%) — spec Phases 4, 13
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -86,7 +86,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | OR-06 | P0 | Duplicate execution prevention | Same idempotency key never runs twice | pytest | MQ-03 | done | test_duplicate_events_and_advances_never_run_work_twice (duplicate advance + duplicate execution.finished), task execution idempotency key task:{id}:attempt:{n}; API workflow idempotency_key → same workflow |
 | OR-07 | P0 | Task center: Kanban (9 columns) + list + details with acceptance criteria, evidence, history | E2E | Playwright | OR-01 | done | frontend/e2e/tasks.spec.ts: objective → mock-planned task → worker execution → REVIEW column → details (acceptance criteria, evidence, history, deep link) → note required for changes → approve → COMPLETED + workflow completed; list view; axe WCAG 2.2 AA + no page overflow at 375/1440 in ar/en. Kanban has the spec's 9 columns; screenshots reviewed in RTL and LTR |
 | OR-08 | P0 | Tasks never marked complete on agent claim alone (evidence gate) | Completion requires passing evaluation | pytest | EV-01 | done | test_human_cannot_approve_without_a_passing_evaluation (409 evaluation_not_passed); evaluator revise/reject never reaches REVIEW (test_reviewer_model_can_withhold_but_never_grant_approval) |
-| OR-09 | P1 | Project modes: new / existing (repo inspection, tech detection) / maintenance | Existing-repo analysis produces map | pytest | GH-02 | pending | — |
+| OR-09 | P1 | Project modes: new / existing (repo inspection, tech detection) / maintenance | Existing-repo analysis produces map | pytest | GH-02 | done | test_repository_analysis_produces_a_map + test_existing_project_import_and_analyze_api (clone from local bare remote) + test_planner_prompt_uses_the_repository_map_for_existing_projects |
 
 ## M7 — Agent Supervisor (weight 6%, 100%) — spec Phase 5
 

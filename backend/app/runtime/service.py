@@ -73,6 +73,8 @@ def create_execution(db: Session, *, organization_id: int, agent: Agent, input: 
         raise HTTPException(status.HTTP_409_CONFLICT, "agent_concurrency_limit")
     if not circuit.allows(db, "agent", agent.id):  # EV-03: repeated failures open the agent's circuit
         raise HTTPException(status.HTTP_409_CONFLICT, "agent_circuit_open")
+    from app.governance import budgets  # GW-08: no new work in an exhausted budget scope
+    budgets.guard(db, organization_id, actor, agent_id=agent.id, project_id=project_id, task_id=task_id)
     engine = get_engine(agent.execution_engine)
     ex = Execution(organization_id=organization_id, agent_id=agent.id, task_id=task_id, project_id=project_id,
                    provider=None, model=agent.model, engine=agent.execution_engine,

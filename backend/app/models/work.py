@@ -63,6 +63,8 @@ class Project(TimestampMixin, Base):
     repository_id: Mapped[int | None] = mapped_column(ForeignKey("repositories.id", ondelete="SET NULL"))
     default_branch: Mapped[str] = mapped_column(String(255), default="main")
     budget_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
+    analysis: Mapped[dict | None] = mapped_column(JSONB)  # OR-09 repository map (existing/maintenance projects)
+    analyzed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     repository: Mapped[Repository | None] = relationship(lazy="joined")

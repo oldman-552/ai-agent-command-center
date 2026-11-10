@@ -52,6 +52,7 @@ OPERATIONS: dict[str, Operation] = {
     "git.merge_protected": Operation("Merge into a protected branch", R.HIGH.value),
     "irreversible": Operation("Irreversible operation", R.HIGH.value),
     "task.critical": Operation("Accept a task that performs a critical operation", R.HIGH.value),
+    "budget.increase": Operation("Additional spending beyond a budget", R.HIGH.value),
 }
 
 Executor = Callable[[Session, Approval], dict[str, Any]]

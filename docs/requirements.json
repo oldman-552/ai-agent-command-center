@@ -376,8 +376,8 @@
           "depends": [
             "AG-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_routing_budgets_teams.py::test_team_crud_and_membership (CRUD, lead rule, cross-tenant 404, RBAC, project link, audit)"
         }
       ]
     },
@@ -468,8 +468,8 @@
           "depends": [
             "GW-02"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_routes_by_complexity / capability_and_context_window / cost_availability_and_user_config / provider_budget_removes_it_from_routing / auto_routed_agent_runs_end_to_end (HTTP-mocked Anthropic) / routing_preview_endpoint"
         },
         {
           "id": "GW-08",
@@ -480,8 +480,8 @@
           "depends": [
             "GW-05"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_budget_stops_new_work_requests_approval_and_resumes_after_increase (402, dedup approval, unrelated agent runs, approved +50%) + test_token_daily_project_and_implicit_task_budgets + permission test"
         },
         {
           "id": "GW-09",
@@ -678,8 +678,8 @@
           "depends": [
             "GH-02"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "test_repository_analysis_produces_a_map + test_existing_project_import_and_analyze_api (clone from local bare remote) + test_planner_prompt_uses_the_repository_map_for_existing_projects"
         }
       ]
     },

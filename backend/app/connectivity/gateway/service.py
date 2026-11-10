@@ -18,7 +18,7 @@ from app.connectivity.gateway import adapters as _adapters  # noqa: F401  (regis
 from app.connectivity.gateway.base import ChatRequest, ProviderError, ProviderUnavailable, adapter_for
 from app.context.assembler import system_message
 from app.db import session_factory
-from app.models import Agent, CostRecord, Execution, ModelInfo, Provider, UsageRecord
+from app.models import Agent, CostRecord, Execution, ModelInfo, Provider, Task, UsageRecord
 from app.runtime import circuit
 from app.runtime.contract import EngineContext, EngineEvent, RetryableError, register_engine
 from app.security.audit import log_activity
@@ -85,7 +85,24 @@ class ApiEngine:
         try:
             ex = db.get(Execution, ctx.execution_id)
             agent = db.get(Agent, ex.agent_id)
-            routes = _routes(db, agent)
+            if (agent.context_policy or {}).get("routing") == "auto":  # GW-07: rank models per request
+                from app.connectivity.gateway import routing
+                task = db.get(Task, ex.task_id) if ex.task_id else None
+                need = routing.assess(agent, ctx.input, task.task_type if task else None)
+                ranked, rejected = routing.rank(db, agent, need)
+                decision = routing.explain(need, ranked, rejected)
+                log_activity(db, "gateway.routed", category="runtime", organization_id=agent.organization_id,
+                             agent_id=agent.id, execution_id=ex.id, details=decision)
+                db.commit()
+                top = decision["candidates"][0] if decision["candidates"] else None
+                yield EngineEvent("log", {"message": f"routing: tier {need.tier} → "
+                                          f"{top['provider'] + '/' + top['model'] if top else 'no model'}",
+                                          "routing": decision})
+                if not ranked:
+                    raise ProviderError("no enabled model satisfies this request (see the routing decision)")
+                routes = [(c.provider, c.model.name) for c in ranked[:3]]
+            else:
+                routes = _routes(db, agent)
             messages = ctx.input.get("messages") or [{"role": "user", "content": str(ctx.input.get("prompt", ""))}]
             last_error: Exception | None = None
             for i, (provider, model) in enumerate(routes):
