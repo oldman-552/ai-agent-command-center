@@ -69,6 +69,7 @@ def test_live_updates_are_published_after_commit_only(db):
 
 def test_websocket_requires_session_and_csrf_then_streams_org_events(client, admin_client, db):
     from starlette.websockets import WebSocketDisconnect
+
     from app.models import Organization
     other = Organization(name=f"WS {uuid.uuid4().hex[:6]}", slug=f"ws-{uuid.uuid4().hex[:8]}")
     db.add(other)

@@ -161,3 +161,10 @@ def runtime_overview(db: DB, user: User = Depends(require("executions.read"))) -
             "circuits": [{"scope": c.scope, "ref_id": c.ref_id, "state": c.state,
                           "failures": c.consecutive_failures, "last_failure": c.last_failure,
                           "opened_at": c.opened_at, "updated_at": c.updated_at} for c in circuits]}
+
+
+@router.get("/runtime/clis")
+def cli_catalog(user: User = Depends(require("agents.read"))) -> list[dict]:
+    """Supported coding CLIs for the `cli` engine, the flags used and how they were verified (EE-02/EE-04)."""
+    from app.runtime.engines.cli import public
+    return public()

@@ -1207,7 +1207,7 @@
     "cronHelp": "خمسة حقول بتوقيت UTC، مثل 0 3 * * 1-5 (أيام العمل الساعة 03:00). بحد أقصى كل 5 دقائق.",
     "minutes": "الدقائق (5 على الأقل)",
     "eventAction": "حدث التدقيق",
-    "eventHelp": "إجراء تدقيق، مثل github.pr_merged أو approvals.decided.",
+    "eventHelp": "إجراء تدقيق، مثل github.pr_merged أو approvals.approved.",
     "action": "الإجراء",
     "wfTitle": "عنوان الهدف",
     "objective": "الهدف",

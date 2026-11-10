@@ -67,11 +67,13 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - The dev DB is disposable; the super admin password in the dev container is `dev-only-password-123` (backend/.env, not committed).
 
 ### Next steps (in order)
-1. Remaining: AG-07 teams, GW-07 routing, GW-08 budgets, OR-09 project modes, M5 CLI engines (EE-02/04),
-   FND-14 Redis, M14 UX items, M15 docs/launchers. M9 (browser bridge `app/browser/`, MCP+skills `app/integrations/`,
-   ADR-025/026, docs/BROWSER_BRIDGE.md, docs/MCP_AND_SKILLS.md) is complete. M11 context & memory is
-   complete (`app/memory/`, `app/context/`, `/memory`, ADR-024). M7 supervisor (`app/supervisor/`, `/supervisor`, ADR-023) and M8 GitHub are complete;
-   GitHub was only verified against an HTTP fake. SEC-08: image scan still never run here.
+1. Remaining items need the owner (see docs/RELEASE_READINESS.md): GW-10 live API call, FI-06 real provider +
+   GitHub run, SEC-08 Trivy image scan, FI-01 real Windows run. Everything else is implemented and verified; keep
+   docs in sync (`scripts/gen-docs.py` for API/schema).
+   GitHub was only verified against an HTTP fake + local bare remote. SEC-08: image scan still never run here.
+   Docker stack check: `docker/offline/` equivalents (base `acc/ubuntu-base:noble` = sandbox image with root and the
+   sandbox user removed; copy uv, node and the proxy CA into docker/offline first; the frontend standalone must be
+   built with API_INTERNAL_URL=http://api:8000 for the container).
    Bus test workers run with WORKER_ROLES=executions,orchestrator so the supervisor doesn't act on shared test data.
    M12 (evaluation, profiles, recovery, circuit breakers, graceful shutdown — ADR-018/020) is complete. Sandbox (`app/sandbox/`, ADR-019), audit (`/audit`), approvals (ADR-017) and the
    evaluation gate (ADR-018) are done.

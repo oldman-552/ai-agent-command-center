@@ -46,7 +46,8 @@ class Settings(BaseSettings):
     browser_max_sessions: int = 4
     browser_generation_timeout_seconds: int = 300
     skills_dir: str = "/data/skills"  # local skill folders that can be inspected and installed (no remote fetch)
-    sandbox_image: str = "acc/sandbox:python"  # built from docker/sandbox/Dockerfile
+    sandbox_image: str = "acc/sandbox:python"
+    cli_sandbox_image: str = "acc/cli:latest"  # docker/cli/Dockerfile: the coding CLIs, built by the owner (EE-02)  # built from docker/sandbox/Dockerfile
 
     cookie_secure: bool = False  # set True behind HTTPS
 

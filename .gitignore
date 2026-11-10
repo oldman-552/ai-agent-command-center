@@ -41,3 +41,9 @@ desktop.ini
 docker/offline/uv
 docker/offline/node
 docker/offline/ca.crt
+
+# offline verification build inputs (copied locally, never committed)
+docker/offline/uv
+docker/offline/ca.crt
+docker/offline/node
+docker-compose.override.yml

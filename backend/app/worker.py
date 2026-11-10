@@ -31,6 +31,7 @@ from app.governance import budgets as _budgets  # noqa: F401  (budget.increase e
 from app.integrations import mcp_client as _mcp_client  # noqa: F401  (mcp:* tools)
 from app.memory import tools as _memory_tools  # noqa: F401  (memory.write)
 from app.runtime import service
+from app.runtime.engines import cli as _cli_engine  # noqa: F401  (sandboxed CLI engine)
 from app.runtime.engines import mock as _mock_engine  # noqa: F401  (registers the TEST-ONLY mock engine)
 from app.sandbox import tools as _sandbox_tools  # noqa: F401  (registers shell.test / shell.build)
 

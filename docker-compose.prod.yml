@@ -1,0 +1,62 @@
+# Production overrides (FI-03). Use with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d      (or ACC_PROFILE=production ./start.sh)
+# Put a TLS-terminating reverse proxy (Caddy, nginx, Traefik…) in front of the frontend port and set
+# COOKIE_SECURE=true so session cookies are only sent over HTTPS.
+x-prod-backend-env: &prod-env
+  COOKIE_SECURE: "true"
+  LOG_FORMAT: json
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+
+services:
+  postgres:
+    restart: always
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 2g }
+
+  rabbitmq:
+    restart: always
+    ports: !reset []          # no management UI on the host in production
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1g }
+
+  redis:
+    restart: always
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256m }
+
+  api:
+    restart: always
+    environment: *prod-env
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers",
+              "--forwarded-allow-ips", "*", "--no-server-header"]
+    ports: !override
+      - "127.0.0.1:${API_PORT:-8000}:8000"   # reachable by the reverse proxy on the host only
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 2g }
+
+  worker:
+    restart: always
+    environment: *prod-env
+    stop_grace_period: 60s    # lets running executions checkpoint and hand off (SHUTDOWN_GRACE_SECONDS=30)
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 2g }
+
+  browser-bridge:
+    restart: always
+    profiles: ["browser-bridge"]   # experimental: only started with --profile browser-bridge
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 3g }
+
+  frontend:
+    restart: always
+    ports: !override
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1g }

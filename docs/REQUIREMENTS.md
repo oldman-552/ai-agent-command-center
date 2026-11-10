@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 92.3%**
+**Overall verified completion: 97.5%**
 
 ## M1 — Foundation (weight 8%, 100%) — spec Phases 1, 19, 23, 25
 
@@ -65,14 +65,14 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | GW-09 | P0 | Providers & Models UI | E2E add provider, test connection | Playwright | GW-02 | done | Providers & models page: add provider (write-only key), set/rotate key, test, discover, enable/disable, delete, add/edit model prices; E2E + axe ar/en |
 | GW-10 | P0 | At least one real official API call verified | Live call with owner key succeeds | manual/live test | GW-01 | pending | — |
 
-## M5 — Execution Engines (weight 6%, 50%) — spec Phase 10
+## M5 — Execution Engines (weight 6%, 100%) — spec Phase 10
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
 | EE-01 | P0 | API execution engine (via gateway) | Runs task with Mock end-to-end | pytest | RT-01, GW-01 | done | real 'api' engine runs executions through the gateway end to end; tests |
-| EE-02 | P1 | CLI execution engine adapter (sandboxed subprocess) with documented support for Claude Code / Codex / Gemini CLI / OpenCode | Adapter + docs; verified flags only | pytest + docs | RT-01, SEC-04 | pending | — |
+| EE-02 | P1 | CLI execution engine adapter (sandboxed subprocess) with documented support for Claude Code / Codex / Gemini CLI / OpenCode | Adapter + docs; verified flags only | pytest + docs | RT-01, SEC-04 | done | backend/tests/test_cli_engine.py 11/11 (argv per CLI, key by env name not argv, JSON parsing, 127/exit/timeout/parse failures, no-credential refusal, catalog; real Docker secret-passing); flags + sources in docs/PROVIDER_INTEGRATION.md. CLIs themselves not installed here |
 | EE-03 | P1 | External agent runtime adapter (A2A client) | Adapter contract test | pytest | A2A-02 | done | tests/test_a2a.py::test_a2a_engine_delegates_to_external_agent_and_reattaches_on_resume (platform agent → A2A provider → remote agent over HTTP; resume re-attaches without resubmitting), test_a2a_engine_unreachable_service_fails_cleanly |
-| EE-04 | P0 | Unsupported integrations explicitly documented | PROVIDER_INTEGRATION.md table | inspection | — | pending | — |
+| EE-04 | P0 | Unsupported integrations explicitly documented | PROVIDER_INTEGRATION.md table | inspection | — | done | docs/PROVIDER_INTEGRATION.md 'Not supported' table + per-CLI verification table |
 
 ## M6 — Intelligent Orchestration (weight 9%, 100%) — spec Phases 4, 13
 
@@ -182,14 +182,14 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | UX-05 | P1 | Observability: structured logs, OpenTelemetry traces, health of all services | Health endpoint covers all; traces exported | pytest | — | done | tests/test_observability.py: JSON logs with trace ids + redaction, HTTP + execution.run spans exported (in-memory exporter), health of database/rabbitmq/redis/workers/bridge |
 | UX-06 | P1 | Automation & scheduling (pause/resume/edit/delete/history), in-app only | Tests | pytest | OR-01 | done | tests/test_automations.py (6 tests: validation, schedule, pause/resume/edit/delete/run now, history, event trigger without replay, permission re-check) + e2e/workspace.spec.ts |
 
-## M15 — Final Integration (weight 3%, 0%) — spec Phases 25, 26, F
+## M15 — Final Integration (weight 3%, 71%) — spec Phases 25, 26, F
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
 | FI-01 | P0 | Windows scripts: START/STOP/UPDATE/RESET-DEV.bat, INSTALL.ps1, HEALTH-CHECK.ps1 | Static checks here; real Windows run | script + Windows | — | pending | — |
-| FI-02 | P0 | Linux/macOS scripts: start/stop/update/install/health-check.sh | Run in dev env | shell | — | pending | — |
-| FI-03 | P0 | Production compose config | docker compose config | compose | FND-13 | pending | — |
-| FI-04 | P0 | 21 documentation files reflecting actual implementation | Exist + reviewed | inspection | — | pending | — |
-| FI-05 | P0 | End-to-end Definition-of-Done scenario with Mock provider | E2E passes | Playwright + pytest | — | pending | — |
+| FI-02 | P0 | Linux/macOS scripts: start/stop/update/install/health-check.sh | Run in dev env | shell | — | done | health-check.sh run against the dev stack (all services ok, exit 0); install.sh env generation run in a temp copy (secrets generated, Fernet key valid, chmod 600, idempotent); bash -n on all scripts; start/stop/update exercised via the offline compose stack |
+| FI-03 | P0 | Production compose config | docker compose config | compose | FND-13 | done | docker compose -f docker-compose.yml -f docker-compose.prod.yml config OK (restart always, limits, COOKIE_SECURE, loopback ports, bridge behind profile); base stack up with offline images: all healthy, migrations, data kept across stop/start |
+| FI-04 | P0 | 21 documentation files reflecting actual implementation | Exist + reviewed | inspection | — | done | 21 spec documents present (README + docs/*), API_REFERENCE/DATABASE_SCHEMA generated from code by scripts/gen-docs.py, RELEASE_READINESS.md |
+| FI-05 | P0 | End-to-end Definition-of-Done scenario with Mock provider | E2E passes | Playwright + pytest | — | done | frontend/e2e/definition-of-done.spec.ts: objective→4 tasks with dependencies, 2 parallel, reviews, critical approval in Approval Center, all COMPLETED, timeline/context/audit/analytics, Arabic RTL + axe; passed on dev stack and twice on the Docker compose stack; backend 265/265, E2E 61/61 |
 | FI-06 | P0 | End-to-end with real provider + GitHub | Live run | manual/live | GW-10 | pending | — |
-| FI-07 | P0 | Release readiness report + known limitations | Docs | inspection | — | pending | — |
+| FI-07 | P0 | Release readiness report + known limitations | Docs | inspection | — | done | docs/RELEASE_READINESS.md: test evidence, DoD table, open owner items (GW-10, FI-06, SEC-08, FI-01), known limitations |

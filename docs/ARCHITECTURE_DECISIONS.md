@@ -347,7 +347,7 @@ the agent has tools, vision for images, `required_capabilities`), context window
 prompt size or an explicit hint → tier 1–3), estimated cost from configured prices only, observed latency, recent
 success ratio and provider priority. The top three become the route list (fallback order). Each decision is audited
 (`gateway.routed`) and shown as an execution log event; `POST /api/routing/preview` explains a decision without
-running anything. LiteLLM was not added: our adapters already cover the providers in scope (ADR-010).
+running anything. LiteLLM was not added: our adapters already cover the providers in scope (ADR-004).
 **Budgets (GW-08):** `governance/budgets.py` computes spend from recorded cost rows and real (non-mock) usage rows per
 scope (global/agent/project/task/provider) and period (daily/monthly/total); task and project `budget_usd` are
 implicit total budgets. `create_execution` refuses new work in an exhausted scope with HTTP 402 `budget_exceeded`;
@@ -382,3 +382,16 @@ anything into the operating system.
 **Navigation (UX-01):** the spec's 20 items, each a working page (new: Projects, Agent Teams, Orchestration,
 Executions with timeline, MCP & A2A, Agent Runtime, Skills, Analytics with budgets, Settings with users). Templates are
 reached from Agents and Settings.
+
+## ADR-029 — CLI engine in the sandbox; launchers through Docker Compose only (2026-11-10)
+**CLI engine (EE-02):** coding CLIs run non-interactively in a fresh sandbox container (`acc/cli:latest`, built by the
+owner from `docker/cli/Dockerfile`) with only the task worktree mounted and network enabled (the CLI must reach its
+API). The API key comes from a platform credential and is passed with `docker run --env NAME` (value in docker's own
+environment, never in argv) and masked in output; consumer subscriptions are never used. Only documented flags are
+used; how each was verified is recorded in PROVIDER_INTEGRATION.md. CLI-reported costs are not recorded as platform
+cost. Approval-bypass flags (`--yolo`, `--dangerously-skip-permissions`) are never used.
+**Launchers (FI-01/02):** thin `.bat` wrappers call one PowerShell script (`scripts/windows/acc.ps1`, UTF-8 BOM,
+CRLF); Linux/macOS scripts share `scripts/lib/acc.sh`. Both only drive Docker Compose: check Docker, create `.env`
+with generated secrets (asking for the Super Admin password; never a fake credential), build, start, wait for health,
+open the browser, log to `logs/`. Stop never removes volumes; reset requires typing `RESET`. `docker-compose.prod.yml`
+adds restart policies, limits, secure cookies and loopback-only ports for a reverse proxy.

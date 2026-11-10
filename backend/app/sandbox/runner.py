@@ -92,7 +92,8 @@ def resolve_workspace(path: str | os.PathLike, organization_id: int, project_id:
     return real
 
 
-def docker_args(name: str, workspace: Path, argv: list[str], limits: Limits, image: str) -> list[str]:
+def docker_args(name: str, workspace: Path, argv: list[str], limits: Limits, image: str,
+                secret_names: tuple[str, ...] = ()) -> list[str]:
     args = ["docker", "run", "--rm", "--name", name, "--init",
             "--network", "bridge" if limits.network else "none",
             "--cpus", str(limits.cpus), "--memory", limits.memory, "--memory-swap", limits.memory,
@@ -104,6 +105,8 @@ def docker_args(name: str, workspace: Path, argv: list[str], limits: Limits, ima
             "--workdir", "/workspace"]
     for k, v in SAFE_ENV.items():
         args += ["--env", f"{k}={v}"]
+    for k in secret_names:  # `--env NAME` without a value: docker reads it from its own environment, so secrets
+        args += ["--env", k]  # never appear in argv / the host process list
     return [*args, image, *argv]
 
 
@@ -111,17 +114,23 @@ def _cap(b: bytes) -> tuple[str, bool]:
     return redact(b[:MAX_OUTPUT].decode("utf-8", "replace")), len(b) > MAX_OUTPUT
 
 
-async def run(workspace: Path, argv: list[str], *, limits: Limits | None = None, image: str | None = None) -> Result:
+async def run(workspace: Path, argv: list[str], *, limits: Limits | None = None, image: str | None = None,
+              secret_env: dict[str, str] | None = None) -> Result:
     limits = limits or default_limits()
     image = image or get_settings().sandbox_image
     name = f"acc-sbx-{uuid.uuid4().hex[:12]}"
     started = time.monotonic()
+    env = {"PATH": os.environ.get("PATH", "")}
+    if os.environ.get("DOCKER_HOST"):
+        env["DOCKER_HOST"] = os.environ["DOCKER_HOST"]
+    for k, v in (secret_env or {}).items():
+        if not k.isidentifier() or k in SAFE_ENV or k in ("PATH", "DOCKER_HOST"):
+            raise SandboxError(f"invalid secret variable name {k!r}")
+        env[k] = v
     try:
         proc = await asyncio.create_subprocess_exec(
-            *docker_args(name, workspace, argv, limits, image), stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-            env={"PATH": os.environ.get("PATH", ""), "DOCKER_HOST": os.environ.get("DOCKER_HOST", "")} if
-            os.environ.get("DOCKER_HOST") else {"PATH": os.environ.get("PATH", "")})
+            *docker_args(name, workspace, argv, limits, image, tuple(sorted(secret_env or {}))),
+            stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=env)
     except FileNotFoundError as e:
         raise SandboxError("docker is not available") from e
     timed_out = False
@@ -138,4 +147,7 @@ async def run(workspace: Path, argv: list[str], *, limits: Limits | None = None,
         raise SandboxError(f"docker failed: {err.decode('utf-8', 'replace')[:500]}")
     stdout, t1 = _cap(out)
     stderr, t2 = _cap(err)
+    for v in (secret_env or {}).values():  # a CLI that echoes its key must not leak it into our records
+        if v:
+            stdout, stderr = stdout.replace(v, "***"), stderr.replace(v, "***")
     return Result(code, stdout, stderr, timed_out, time.monotonic() - started, t1 or t2)

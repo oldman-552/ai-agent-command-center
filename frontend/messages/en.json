@@ -1207,7 +1207,7 @@
     "cronHelp": "Five fields in UTC, e.g. 0 3 * * 1-5 (weekdays at 03:00). At most every 5 minutes.",
     "minutes": "Minutes (at least 5)",
     "eventAction": "Audit event",
-    "eventHelp": "An audit action, e.g. github.pr_merged or approvals.decided.",
+    "eventHelp": "An audit action, e.g. github.pr_merged or approvals.approved.",
     "action": "Action",
     "wfTitle": "Objective title",
     "objective": "Objective",

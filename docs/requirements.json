@@ -538,8 +538,8 @@
             "RT-01",
             "SEC-04"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "backend/tests/test_cli_engine.py 11/11 (argv per CLI, key by env name not argv, JSON parsing, 127/exit/timeout/parse failures, no-credential refusal, catalog; real Docker secret-passing); flags + sources in docs/PROVIDER_INTEGRATION.md. CLIs themselves not installed here"
         },
         {
           "id": "EE-03",
@@ -560,8 +560,8 @@
           "acceptance": "PROVIDER_INTEGRATION.md table",
           "verification": "inspection",
           "depends": [],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "docs/PROVIDER_INTEGRATION.md 'Not supported' table + per-CLI verification table"
         }
       ]
     },
@@ -1402,8 +1402,8 @@
           "acceptance": "Run in dev env",
           "verification": "shell",
           "depends": [],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "health-check.sh run against the dev stack (all services ok, exit 0); install.sh env generation run in a temp copy (secrets generated, Fernet key valid, chmod 600, idempotent); bash -n on all scripts; start/stop/update exercised via the offline compose stack"
         },
         {
           "id": "FI-03",
@@ -1414,8 +1414,8 @@
           "depends": [
             "FND-13"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "docker compose -f docker-compose.yml -f docker-compose.prod.yml config OK (restart always, limits, COOKIE_SECURE, loopback ports, bridge behind profile); base stack up with offline images: all healthy, migrations, data kept across stop/start"
         },
         {
           "id": "FI-04",
@@ -1424,8 +1424,8 @@
           "acceptance": "Exist + reviewed",
           "verification": "inspection",
           "depends": [],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "21 spec documents present (README + docs/*), API_REFERENCE/DATABASE_SCHEMA generated from code by scripts/gen-docs.py, RELEASE_READINESS.md"
         },
         {
           "id": "FI-05",
@@ -1434,8 +1434,8 @@
           "acceptance": "E2E passes",
           "verification": "Playwright + pytest",
           "depends": [],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "frontend/e2e/definition-of-done.spec.ts: objective→4 tasks with dependencies, 2 parallel, reviews, critical approval in Approval Center, all COMPLETED, timeline/context/audit/analytics, Arabic RTL + axe; passed on dev stack and twice on the Docker compose stack; backend 265/265, E2E 61/61"
         },
         {
           "id": "FI-06",
@@ -1456,8 +1456,8 @@
           "acceptance": "Docs",
           "verification": "inspection",
           "depends": [],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "docs/RELEASE_READINESS.md: test evidence, DoD table, open owner items (GW-10, FI-06, SEC-08, FI-01), known limitations"
         }
       ]
     }

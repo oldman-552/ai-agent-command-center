@@ -32,6 +32,7 @@ from app.observability.logs import setup_logging
 from app.observability.tracing import instrument_app, setup_tracing
 from app.orchestration import api as orchestration_api
 from app.runtime import api as runtime_api
+from app.runtime.engines import cli as _cli_engine  # noqa: F401  (registers the sandboxed CLI engine)
 from app.runtime.engines import mock as _mock_engine  # noqa: F401  (registers the mock engine)
 from app.sandbox import tools as _sandbox_tools  # noqa: F401  (registers shell.test / shell.build)
 from app.security import auth

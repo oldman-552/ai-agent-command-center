@@ -8,6 +8,12 @@ services:
   rabbitmq:
     image: acc/rabbitmq-local:3
     build: { context: docker/offline, dockerfile: rabbitmq.Dockerfile, network: host, args: *proxy-args }
+  redis:
+    image: acc/redis-local:7
+    build: { context: docker/offline, dockerfile: redis.Dockerfile, network: host, args: *proxy-args }
+    command: !reset null
+  browser-bridge:
+    profiles: ["browser-bridge"]  # needs the Playwright image (registry blocked here)
   migrate:
     image: acc/backend-local
     build: { context: ., dockerfile: docker/offline/backend.Dockerfile, network: host, args: *proxy-args }
