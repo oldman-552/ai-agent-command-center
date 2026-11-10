@@ -63,3 +63,17 @@ export function useMemoryActions() {
     remove: useMutation({ mutationFn: (id: number) => api<{ deleted: number }>(`/api/memory/${id}`, { method: "DELETE" }), onSuccess: done }),
   };
 }
+
+export type EmbeddingState = { enabled: boolean; provider_id: number | null; model: string | null; pending: number;
+  supported_kinds: string[]; fallback: string };
+export const useEmbedding = () => useQuery({ queryKey: ["memory-embedding"], queryFn: () => api<EmbeddingState>("/api/memory/embedding") });
+export function useEmbeddingActions() {
+  const qc = useQueryClient();
+  const done = () => qc.invalidateQueries({ queryKey: ["memory-embedding"] });
+  return {
+    save: useMutation({ mutationFn: (b: { provider_id: number | null; model?: string | null }) =>
+      api<EmbeddingState>("/api/memory/embedding", { method: "PUT", body: JSON.stringify(b) }), onSuccess: done }),
+    reindex: useMutation({ mutationFn: () =>
+      api<EmbeddingState & { indexed: number; failed: number }>("/api/memory/embedding/reindex", { method: "POST" }), onSuccess: done }),
+  };
+}

@@ -70,7 +70,7 @@ blocked and there are no keys).
 | Automating consumer chat websites | **Experimental only** (Browser Bridge) | Disabled by default, per-provider terms acknowledgement, unverified selectors; prefer APIs/CLIs. |
 | Amazon Bedrock, Google Vertex AI, Azure OpenAI native auth | Not implemented | Use an OpenAI-compatible endpoint where the vendor offers one, or add an adapter. |
 | LiteLLM proxy | Not used | Own adapters cover the providers in scope (ADR-004); an OpenAI-compatible LiteLLM endpoint works as `openai_compatible`. |
-| Embedding models for memory | Not used | Local hashed embedding (ADR-024); swappable later. |
+| Embedding models for memory | Optional | OpenAI / OpenAI-compatible `/embeddings` (MEMORY_SYSTEM.md); Anthropic has no embeddings API, Gemini embeddings not implemented. |
 | Image / audio generation endpoints | Not implemented | Text chat with tools only. |
 | A2A input-required mid-task, non-text parts | Not implemented | No engine asks for input; text parts only. (Streaming, push, extended card and multi-turn are served.) |
 | CLI interactive modes, `--yolo`/`--dangerously-skip-permissions` | Not used | Non-interactive only; no approval bypass. |

@@ -6,6 +6,8 @@ to `docs/requirements.json`.
 ## Unreleased — 2026-11-10
 
 ### Added
+- **Memory search mode**: optional embedding model (OpenAI / OpenAI-compatible, e.g. local Ollama) next to the local
+  index; background indexing, fallback and breaker; settings card on the Memory page with a data-egress notice.
 - **A2A extended card and multi-turn**: `GetExtendedAgentCard`; conversations continue across tasks in a `contextId`,
   `referenceTaskIds` and `taskId` follow-ups (per key, bounded, fenced).
 - **A2A push notifications**: the four config methods and `taskPushNotificationConfig` in SendMessage; webhook

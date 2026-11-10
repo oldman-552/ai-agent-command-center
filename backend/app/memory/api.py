@@ -10,7 +10,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from app.memory import store
-from app.models import Agent, Memory, Project, Task, TaskDependency, Team, User
+from app.models import Agent, Memory, Organization, Project, Task, TaskDependency, Team, User
+from app.security.audit import log_activity
 from app.security.auth import DB, require
 from app.security.tenancy import get_scoped
 
@@ -79,7 +80,53 @@ def search(db: DB, q: str = Query(min_length=1, max_length=2000), project_id: in
         raise HTTPException(422, "scope_required")
     hits = store.search(db, organization_id=user.organization_id, query=q, project_id=project_id,
                         agent_id=agent_id, team_id=team_id, limit=limit)
-    return [out(h.memory, h.score) for h in hits]
+    return [{**out(h.memory, h.score), "match": h.method} for h in hits]
+
+
+class EmbeddingIn(BaseModel):
+    provider_id: int | None = None  # null turns semantic embeddings off
+    model: str | None = Field(default=None, max_length=128)
+
+
+def _embedding_state(db, organization_id: int) -> dict:
+    from app.memory import semantic
+    cfg = semantic.get_config(db, organization_id)
+    return {"enabled": cfg is not None, "provider_id": cfg["provider_id"] if cfg else None,
+            "model": cfg["model"] if cfg else None, "pending": semantic.pending(db, organization_id),
+            "supported_kinds": sorted(semantic.KINDS), "fallback": "hashed"}
+
+
+@router.get("/embedding")
+def get_embedding(db: DB, user: User = Depends(require("memory.read"))) -> dict:
+    return _embedding_state(db, user.organization_id)
+
+
+@router.put("/embedding")
+def set_embedding(body: EmbeddingIn, db: DB, user: User = Depends(require("settings.manage"))) -> dict:
+    """Choosing a model sends memory text to that provider (none for local servers); audited."""
+    from app.memory import semantic
+    org = db.get(Organization, user.organization_id)
+    try:
+        cfg = semantic.set_config(db, org, body.provider_id, body.model)
+    except semantic.EmbeddingError as e:
+        raise HTTPException(422, str(e)) from e
+    log_activity(db, "memory.embedding_configured", category="memory", organization_id=org.id,
+                 actor=f"user:{user.id}", details={"provider_id": body.provider_id, "model": body.model,
+                                                   "enabled": cfg is not None})
+    db.commit()
+    semantic.reset()
+    return _embedding_state(db, user.organization_id)
+
+
+@router.post("/embedding/reindex")
+def reindex(db: DB, user: User = Depends(require("settings.manage"))) -> dict:
+    """Index up to 200 memories now (the worker also does this in the background)."""
+    from app.memory import semantic
+    if semantic.get_config(db, user.organization_id) is None:
+        raise HTTPException(409, "semantic embeddings are not configured")
+    db.commit()
+    res = semantic.backfill(user.organization_id)
+    return {**res, **_embedding_state(db, user.organization_id)}
 
 
 @router.post("", status_code=201)

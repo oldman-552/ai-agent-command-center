@@ -90,6 +90,7 @@ def correct(db: Session, m: Memory, *, content: str, title: str | None, user_id:
                  team_id=m.team_id, task_id=m.task_id, expires_at=m.expires_at, version=m.version + 1,
                  supersedes_id=m.id)
     new.embedding = embed(f"{new.title}\n{new.content}")
+    new.semantic_embedding, new.semantic_model = None, None  # re-embedded by the index loop
     m.is_current = False
     db.add(new)
     db.flush()
@@ -130,6 +131,7 @@ class Hit:
     score: float
     lexical: float
     semantic: float
+    method: str = "hashed"  # which vector the semantic score came from: "hashed" or "model"
 
 
 def search(db: Session, *, organization_id: int, query: str, project_id: int | None, agent_id: int | None = None,
@@ -155,11 +157,16 @@ def search(db: Session, *, organization_id: int, query: str, project_id: int | N
     tsq = func.plainto_tsquery("simple", query or "")
     rows = db.execute(stmt.add_columns(func.ts_rank(Memory.tsv, tsq)).limit(500)).all()
     q = embed(query or "")
+    from app.memory import semantic
+    qs = semantic.query_vector(db, organization_id, query or "") if rows else None
     max_lex = max((float(r[1]) for r in rows), default=0.0) or 1.0
     hits = []
     for m, lex in rows:
-        sem = cosine(m.embedding, q)
+        if qs and m.semantic_model == qs[0] and m.semantic_embedding:
+            sem, method = cosine(m.semantic_embedding, qs[1]), "model"
+        else:
+            sem, method = cosine(m.embedding, q), "hashed"
         boost = 0.1 if m.verification == "verified" else (-0.05 if m.verification == "suggestion" else 0.0)
-        hits.append(Hit(m, 0.6 * sem + 0.4 * float(lex) / max_lex + boost, float(lex), sem))
+        hits.append(Hit(m, 0.6 * sem + 0.4 * float(lex) / max_lex + boost, float(lex), sem, method))
     hits.sort(key=lambda h: (-h.score, -h.memory.id))
     return hits[:limit]

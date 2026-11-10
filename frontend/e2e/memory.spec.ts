@@ -90,3 +90,30 @@ for (const lang of ["ar", "en"] as const) {
     }
   });
 }
+
+test("search mode: choose an embedding model, see where text goes, index, turn off (English)", async ({ page }) => {
+  await login(page, "en");
+  const csrf = (await page.context().cookies()).find((c) => c.name === "acc_csrf")?.value ?? "";
+  const name = `E2E local embed ${Date.now()}`;
+  const r = await page.request.post("/api/providers", { headers: { "X-CSRF-Token": csrf },
+    data: { name, kind: "openai_compatible", base_url: "http://127.0.0.1:9/v1" } });  // nothing listens there
+  expect(r.status(), await r.text()).toBe(201);
+  await page.goto("/memory");
+  const card = page.getByTestId("search-mode");
+  await expect(card.getByTestId("sm-status")).toHaveText("Local index");
+  await expect(card.getByTestId("sm-save")).toBeDisabled();
+  await card.locator("#sm-provider").selectOption({ label: name });
+  await expect(card.getByTestId("sm-egress")).toContainText(name);
+  await card.locator("#sm-model").fill("nomic-embed-text");
+  await card.getByTestId("sm-save").click();
+  await expect(card.getByTestId("sm-status")).toHaveText("Embedding model");
+  await expect(card.getByTestId("sm-pending")).toBeVisible();
+  await card.getByTestId("sm-reindex").click();  // the server is unreachable: reported, nothing breaks
+  await expect(page.getByText(/0 indexed, \d+ failed\./)).toBeVisible();
+  const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  expect(axe.violations.map((v) => v.id)).toEqual([]);
+  await page.getByTestId("search-mode").getByTestId("sm-off").click();
+  await expect(card.getByTestId("sm-status")).toHaveText("Local index");
+  // search keeps working on the local index
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+});

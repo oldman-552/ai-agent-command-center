@@ -13,7 +13,8 @@ import { NativeSelect } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api";
-import { MEMORY_TYPES, type Memory, PROJECT_TYPES, type Verification, useContextPreview, useMemories, useMemory, useMemoryActions } from "@/lib/memory";
+import { useProvidersLite } from "@/lib/agents";
+import { MEMORY_TYPES, type Memory, PROJECT_TYPES, type Verification, useContextPreview, useEmbedding, useEmbeddingActions, useMemories, useMemory, useMemoryActions } from "@/lib/memory";
 import { useProjects, useTasks } from "@/lib/tasks";
 import { useToasts } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -156,6 +157,7 @@ export default function MemoryPage() {
       )}
 
       {projectId && <ContextPreviewCard projectId={projectId} />}
+      <SearchModeCard manage={can("settings.manage")} />
 
       {adding && projectId && (
         <MemoryDialog title={t("add")} onClose={() => setAdding(false)} busy={actions.create.isPending}
@@ -303,6 +305,88 @@ function ContextPreviewCard({ projectId }: { projectId: number }) {
             <pre tabIndex={0} aria-label={t("userMessage")} className="mt-1 max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" dir="auto">{preview.data!.prompt}</pre>
           </details>
         </div>
+      )}
+    </Card>
+  );
+}
+
+function SearchModeCard({ manage }: { manage: boolean }) {
+  const t = useTranslations("memory.searchMode");
+  const tc = useTranslations("common");
+  const state = useEmbedding();
+  const providers = useProvidersLite();
+  const actions = useEmbeddingActions();
+  const toast = useToasts((s) => s.push);
+  const [providerId, setProviderId] = useState("");
+  const [model, setModel] = useState("");
+  useEffect(() => {
+    if (state.data) { setProviderId(state.data.provider_id ? String(state.data.provider_id) : ""); setModel(state.data.model ?? ""); }
+  }, [state.data]);
+  const fail = (e: unknown) => toast("error", tc("requestFailed", { code: e instanceof ApiError ? e.code : "error" }));
+  const eligible = (providers.data ?? []).filter((p) => state.data?.supported_kinds.includes(p.kind));
+  const chosen = eligible.find((p) => String(p.id) === providerId);
+  const sendsOut = chosen?.kind === "openai";
+  return (
+    <Card className="flex flex-col gap-4 p-4" aria-labelledby="sm-title" data-testid="search-mode">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 id="sm-title" className="text-lg font-semibold">{t("title")}</h2>
+          <p className="max-w-3xl text-sm text-muted-foreground">{t("help")}</p>
+        </div>
+        {state.data && (
+          <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium",
+            state.data.enabled ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")} data-testid="sm-status">
+            {state.data.enabled ? t("modeModel") : t("modeHashed")}
+          </span>
+        )}
+      </div>
+      {state.isLoading && <Skeleton className="h-16" />}
+      {state.isError && <p role="alert" className="text-sm text-destructive">{tc("error")}</p>}
+      {state.data?.enabled && (
+        <p className="text-sm" data-testid="sm-pending">{t("pending", { n: state.data.pending })}</p>
+      )}
+      {manage && state.data && (
+        <form className="flex flex-col gap-3" onSubmit={(e) => {
+          e.preventDefault();
+          actions.save.mutate({ provider_id: Number(providerId), model }, {
+            onSuccess: () => toast("success", t("saved")), onError: fail });
+        }}>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="sm-provider">{t("provider")}</Label>
+              <NativeSelect id="sm-provider" value={providerId} onChange={(e) => setProviderId(e.target.value)} aria-describedby="sm-provider-help">
+                <option value="">—</option>
+                {eligible.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </NativeSelect>
+              <p id="sm-provider-help" className="text-xs text-muted-foreground">{t("providerHelp")}</p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="sm-model">{t("model")}</Label>
+              <Input id="sm-model" dir="ltr" value={model} onChange={(e) => setModel(e.target.value)} maxLength={128} />
+            </div>
+          </div>
+          {chosen && (
+            <p role="note" className="flex items-start gap-2 rounded-md border border-dashed p-2 text-xs" data-testid="sm-egress">
+              <ShieldAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+              {sendsOut ? t("egress", { name: chosen.name }) : t("egressLocal", { name: chosen.name })}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" disabled={!providerId || !model.trim() || actions.save.isPending} data-testid="sm-save">{t("enable")}</Button>
+            {state.data.enabled && (
+              <>
+                <Button type="button" variant="outline" disabled={actions.reindex.isPending} data-testid="sm-reindex"
+                  onClick={() => actions.reindex.mutate(undefined, {
+                    onSuccess: (r) => toast(r.failed ? "error" : "success", t("reindexed", { n: r.indexed, failed: r.failed })),
+                    onError: fail })}>{t("reindex")}</Button>
+                <Button type="button" variant="ghost" disabled={actions.save.isPending} data-testid="sm-off"
+                  onClick={() => actions.save.mutate({ provider_id: null }, { onSuccess: () => toast("success", t("off")), onError: fail })}>
+                  {t("disable")}
+                </Button>
+              </>
+            )}
+          </div>
+        </form>
       )}
     </Card>
   );

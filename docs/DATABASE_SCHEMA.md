@@ -544,6 +544,8 @@ Constraints: `fk_mcp_tools_server_id_mcp_servers`, `uq_mcp_tools_server_id`
 | `is_current` | BOOLEAN | no |  |
 | `expires_at` | DATETIME | yes |  |
 | `embedding` | ARRAY | yes |  |
+| `semantic_embedding` | ARRAY | yes |  |
+| `semantic_model` | VARCHAR(160) | yes |  |
 | `tsv` | TSVECTOR | no |  |
 | `created_at` | DATETIME | no |  |
 | `updated_at` | DATETIME | no |  |

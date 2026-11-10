@@ -858,7 +858,25 @@
       "team_shared": "Team shared"
     },
     "itemTask": "Task description & acceptance criteria",
-    "itemReviewNote": "Reviewer change request"
+    "itemReviewNote": "Reviewer change request",
+    "searchMode": {
+      "title": "Search mode",
+      "help": "Memories are found by matching words plus a local similarity index. You can add an embedding model so that memories with the same meaning but different words are found too.",
+      "modeHashed": "Local index",
+      "modeModel": "Embedding model",
+      "pending": "{n, plural, =0 {All memories are indexed.} one {# memory waiting to be indexed.} other {# memories waiting to be indexed.}}",
+      "provider": "Provider",
+      "providerHelp": "OpenAI or an OpenAI-compatible server (e.g. Ollama, LM Studio, vLLM).",
+      "model": "Embedding model",
+      "egress": "The text of every memory will be sent to {name} to be indexed.",
+      "egressLocal": "The text of every memory will be sent to the server of {name} to be indexed; for a server on your own machine it stays local.",
+      "enable": "Use this model",
+      "reindex": "Index now",
+      "disable": "Turn off",
+      "saved": "Search mode saved; memories are being indexed.",
+      "reindexed": "{n} indexed, {failed} failed.",
+      "off": "Back to the local index."
+    }
   },
   "integrations": {
     "title": "MCP & A2A",

@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-10 17:06",
+  "date": "2026-11-10 17:18",
   "spec_version": "4.0",
   "current_phase": "Phases 16, 17, 22",
   "current_milestone": {
@@ -246,13 +246,25 @@
     "SEC-08"
   ],
   "files_changed": [
-    "backend/app/connectivity/a2a/server.py",
-    "backend/tests/test_a2a.py",
-    "docs/A2A_INTEGRATION.md",
+    "backend/app/memory/api.py",
+    "backend/app/memory/store.py",
+    "backend/app/models/governance.py",
+    "backend/app/worker.py",
+    "docs/API_REFERENCE.md",
     "docs/ARCHITECTURE_DECISIONS.md",
     "docs/CHANGELOG.md",
+    "docs/DATABASE_SCHEMA.md",
+    "docs/MEMORY_SYSTEM.md",
     "docs/PROVIDER_INTEGRATION.md",
-    "docs/RELEASE_READINESS.md"
+    "docs/RELEASE_READINESS.md",
+    "frontend/e2e/memory.spec.ts",
+    "frontend/messages/ar.json",
+    "frontend/messages/en.json",
+    "frontend/src/app/(app)/memory/page.tsx",
+    "frontend/src/lib/memory.ts",
+    "backend/alembic/versions/7dd59ff643be_memory_semantic_embedding.py",
+    "backend/app/memory/semantic.py",
+    "backend/tests/test_memory_semantic.py"
   ],
   "tests": {
     "passed": [

@@ -71,6 +71,9 @@ class Memory(TimestampMixin, Base):
     is_current: Mapped[bool] = mapped_column(Boolean, default=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     embedding: Mapped[list[float] | None] = mapped_column(ARRAY(Float))
+    # optional provider embedding (memory/semantic.py); used only when made by the configured model
+    semantic_embedding: Mapped[list[float] | None] = mapped_column(ARRAY(Float))
+    semantic_model: Mapped[str | None] = mapped_column(String(160))
     tsv: Mapped[str] = mapped_column(
         TSVECTOR, Computed("to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(content,''))", persisted=True)
     )

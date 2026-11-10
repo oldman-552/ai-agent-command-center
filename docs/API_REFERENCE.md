@@ -8,7 +8,7 @@ the `X-CSRF-Token` header equal to the `acc_csrf` cookie. Permissions are enforc
 Machine clients use scoped keys instead: A2A keys (`/api/a2a/agents/*`) and MCP keys (`/api/mcp/`).
 The live OpenAPI document is served at `/docs` and `/openapi.json` while the API runs.
 
-146 operations.
+149 operations.
 
 ## a2a
 
@@ -184,6 +184,9 @@ The live OpenAPI document is served at `/docs` and `/openapi.json` while the API
 | `GET` | `/api/context/tasks/{task_id}` | Preview — The context the platform would assemble for this task now (prompt + manifest; system policy shown too). |
 | `GET` | `/api/memory` | List Memories |
 | `POST` | `/api/memory` | Create |
+| `GET` | `/api/memory/embedding` | Get Embedding |
+| `PUT` | `/api/memory/embedding` | Set Embedding — Choosing a model sends memory text to that provider (none for local servers); audited. |
+| `POST` | `/api/memory/embedding/reindex` | Reindex — Index up to 200 memories now (the worker also does this in the background). |
 | `GET` | `/api/memory/search` | Search |
 | `GET` | `/api/memory/{memory_id}` | Get |
 | `DELETE` | `/api/memory/{memory_id}` | Delete |

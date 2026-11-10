@@ -296,7 +296,9 @@ Retrieved text and tool output are attacker-controllable (prompt injection) and 
 - Retrieval (MEM-02) is hybrid and fully local: PostgreSQL `ts_rank` on the existing GIN `tsv` column + cosine of a
   deterministic 256-d hashed word/char-trigram embedding stored in `embedding` (works for Arabic and English, no
   external model, no pgvector dependency). Verified memories get a small boost, suggestions a small penalty.
-  A real embedding model can replace `embed()` later without schema change.
+  Follow-up (2026-11-10): an optional provider embedding is stored *next to* the hashed one (`semantic_embedding`,
+  `semantic_model`), indexed by a worker loop, and used only when made by the configured model; query embedding is
+  bounded (timeout, cache, breaker) and falls back to hashed vectors. Off by default because it sends memory text out.
 - Isolation (MEM-03): every query is filtered by organization, and a project query admits only that project's rows
   (plus project-less agent/team rows of the same organization). The API checks the scope objects with `get_scoped`.
 - `app/context/assembler.py` (CX-01..03): per-task-type profiles (architecture, frontend, backend, database,

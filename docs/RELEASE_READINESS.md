@@ -13,7 +13,7 @@ below with exactly what is missing; none of them is hidden behind a mock.
 
 | Suite | Result | Command |
 |---|---|---|
-| Backend (pytest, real PostgreSQL, RabbitMQ, Redis, Docker sandbox, headless Chromium) | **301 / 301 passed** | `cd backend && uv run pytest -q` |
+| Backend (pytest, real PostgreSQL, RabbitMQ, Redis, Docker sandbox, headless Chromium) | **305 / 305 passed** | `cd backend && uv run pytest -q` |
 | Lint | clean | `uv run ruff check app tests` |
 | Frontend type check + i18n guard (1 081 keys, ar = en) | clean | `npm run check` |
 | Design-token contrast (WCAG) | all pass | `node scripts/check-contrast.mjs` |
@@ -59,8 +59,8 @@ below with exactly what is missing; none of them is hidden behind a mock.
 - **Sandbox access to Docker**: compose does not mount the Docker socket by default (root-equivalent); without a
   daemon the shell tools and CLI engine report "sandbox unavailable".
 - **Prompt-injection defences** are mitigations; enforcement lives in permissions and approvals.
-- **Memory retrieval** uses a local hashed embedding, not a semantic model; good for overlap in wording, weaker for
-  paraphrases.
+- **Memory retrieval** uses a local hashed embedding by default (good for overlap in wording, weaker for paraphrases);
+  an OpenAI/OpenAI-compatible embedding model can be added and was tested only against a simulated provider.
 - **Token counts for budgets** in context assembly are estimates without a tokenizer; recorded usage comes from the
   providers.
 - **A2A**: no input-required mid-task and text parts only (streaming, push notifications, extended card and

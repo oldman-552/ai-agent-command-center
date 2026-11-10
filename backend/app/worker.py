@@ -66,7 +66,8 @@ async def main() -> int:
 
     relay_ch = await conn.channel(publisher_confirms=True, on_return_raises=True)
     relay = asyncio.create_task(Relay(relay_ch).run(stop))
-    roles = os.environ.get("WORKER_ROLES", "executions,orchestrator,supervisor,automations,a2a_push").split(",")
+    roles = os.environ.get("WORKER_ROLES",
+                           "executions,orchestrator,supervisor,automations,a2a_push,memory_index").split(",")
     supervisor = None
     if "supervisor" in roles:  # M7: independent of the orchestrator; one leader across all workers
         from app.supervisor import service as supervisor_service
@@ -85,6 +86,10 @@ async def main() -> int:
     if "automations" in roles:  # UX-06: in-app scheduler, never an OS service
         from app.automation import service as automation_service
         automations = asyncio.create_task(automation_service.run(stop))
+    memory_index = None
+    if "memory_index" in roles:  # optional semantic embeddings for memory (off unless an org configures a model)
+        from app.memory import semantic as memory_semantic
+        memory_index = asyncio.create_task(memory_semantic.run(stop))
     a2a_push = None
     if "a2a_push" in roles:  # A2A webhooks (transactional outbox; safe with several workers)
         from app.connectivity.a2a import push as a2a_push_service
@@ -127,6 +132,8 @@ async def main() -> int:
         await automations
     if a2a_push is not None:
         await a2a_push
+    if memory_index is not None:
+        await memory_index
     await heartbeat
     await conn.close()
     log.info("worker stopped cleanly")
