@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import logging
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -95,5 +94,6 @@ async def status(sid: int) -> dict:
 if __name__ == "__main__":
     import uvicorn
 
-    logging.basicConfig(level=logging.INFO)
+    from app.observability.logs import setup_logging
+    setup_logging("browser-bridge")
     uvicorn.run(app, host="127.0.0.1", port=int(get_settings().browser_bridge_url.rsplit(":", 1)[-1].split("/")[0]))

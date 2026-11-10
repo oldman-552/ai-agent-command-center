@@ -107,7 +107,9 @@ export function DashboardView() {
   useEffect(() => {
     load();
     const id = setInterval(load, POLL_MS);
-    return () => clearInterval(id);
+    const onLive = () => load(); // UX-02: refresh as soon as the server reports a change
+    window.addEventListener("acc:live", onLive);
+    return () => { clearInterval(id); window.removeEventListener("acc:live", onLive); };
   }, [load]);
 
   const hasUsage = data?.usage_series.some((d) => d.tokens > 0) ?? false;

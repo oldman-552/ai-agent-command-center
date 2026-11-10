@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Dev-container helper (Linux): ensure local Postgres + RabbitMQ, then API (8000) and web (3000).
+# Dev-container helper (Linux): ensure local Postgres + RabbitMQ + Redis, then API (8000), worker, bridge and web (3000).
 # Not used on Windows — START.bat runs everything in Docker there.
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 pg_lsclusters 2>/dev/null | grep -q online || sudo pg_ctlcluster 16 main start </dev/null >/dev/null 2>&1
 pgrep -f beam.smp >/dev/null || sudo -u rabbitmq bash -c 'rabbitmq-server -detached' </dev/null >/dev/null 2>&1
+redis-cli ping >/dev/null 2>&1 || redis-server --daemonize yes --port 6379 --save "" --appendonly no >/dev/null
 for i in $(seq 1 30); do sudo rabbitmqctl -q status >/dev/null 2>&1 && break; sleep 1; done
 # dev broker user + the isolated vhost the backend tests use (idempotent)
 sudo rabbitmqctl -q list_users 2>/dev/null | grep -q '^acc' || { sudo rabbitmqctl -q add_user acc acc_dev; \

@@ -55,7 +55,7 @@ for (const lang of ["ar", "en"] as const) {
     await page.keyboard.press("Escape");
 
     // skills: inspect before install; installed skills start disabled
-    await page.getByTestId("tab-skills").click();
+    await page.goto("/skills"); // Skills has its own navigation item
     const inspect = page.getByRole("button", { name: new RegExp(en ? "^Inspect" : "^فحص") }).first();
     {
       await inspect.click();

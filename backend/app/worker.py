@@ -43,7 +43,10 @@ def _engines() -> tuple[str, ...]:
 
 
 async def main() -> int:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    from app.observability.logs import setup_logging
+    from app.observability.tracing import setup_tracing
+    setup_logging("worker")
+    setup_tracing("worker")
     with session_factory()() as db:
         n = service.mark_orphans_terminated(db, service.RUNTIME_ID)
         db.commit()
@@ -62,11 +65,25 @@ async def main() -> int:
 
     relay_ch = await conn.channel(publisher_confirms=True, on_return_raises=True)
     relay = asyncio.create_task(Relay(relay_ch).run(stop))
-    roles = os.environ.get("WORKER_ROLES", "executions,orchestrator,supervisor").split(",")
+    roles = os.environ.get("WORKER_ROLES", "executions,orchestrator,supervisor,automations").split(",")
     supervisor = None
     if "supervisor" in roles:  # M7: independent of the orchestrator; one leader across all workers
         from app.supervisor import service as supervisor_service
         supervisor = asyncio.create_task(supervisor_service.run(stop))
+    from app.observability import live
+
+    async def beat() -> None:  # UX-05: the API health report lists live workers and their roles
+        while not stop.is_set():
+            await asyncio.to_thread(live.heartbeat, "worker", {"roles": roles, "runtime_id": service.RUNTIME_ID})
+            try:
+                await asyncio.wait_for(stop.wait(), 15)
+            except TimeoutError:
+                pass
+    heartbeat = asyncio.create_task(beat())
+    automations = None
+    if "automations" in roles:  # UX-06: in-app scheduler, never an OS service
+        from app.automation import service as automation_service
+        automations = asyncio.create_task(automation_service.run(stop))
     consumers = (execution_consumers(_engines()) if "executions" in roles else []) + (
         orchestrator_consumers() if "orchestrator" in roles else [])
     if "orchestrator" in roles:
@@ -101,6 +118,9 @@ async def main() -> int:
     await relay
     if supervisor is not None:
         await supervisor
+    if automations is not None:
+        await automations
+    await heartbeat
     await conn.close()
     log.info("worker stopped cleanly")
     return 0

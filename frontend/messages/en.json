@@ -6,22 +6,30 @@
   },
   "nav": {
     "label": "Main navigation",
-    "dashboard": "Dashboard",
+    "dashboard": "Command Center",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "agents": "Agents",
     "templates": "Agent templates",
-    "providers": "Providers & models",
-    "tasks": "Task center",
-    "approvals": "Approvals",
+    "providers": "Providers & Models",
+    "tasks": "Tasks",
+    "approvals": "Approval Center",
     "pendingApprovals": "{n} pending approvals",
-    "audit": "Audit log",
-    "evaluations": "Evaluations",
+    "audit": "Audit Logs",
+    "evaluations": "Evaluation",
     "github": "GitHub",
-    "supervisor": "Supervisor",
+    "supervisor": "Agent Supervisor",
     "memory": "Context & Memory",
-    "integrations": "Skills & MCP",
-    "bridge": "Browser Bridge"
+    "integrations": "MCP & A2A",
+    "bridge": "Browser Bridge",
+    "projects": "Projects",
+    "teams": "Agent Teams",
+    "orchestration": "Orchestration",
+    "executions": "Executions",
+    "runtime": "Agent Runtime",
+    "skills": "Skills",
+    "analytics": "Analytics",
+    "settings": "Settings"
   },
   "language": {
     "label": "Language",
@@ -842,12 +850,13 @@
     "itemReviewNote": "Reviewer change request"
   },
   "integrations": {
-    "title": "Skills & MCP",
-    "subtitle": "Register MCP servers, install skills and issue access keys for the platform's own MCP server. Everything external is inspected first and stays disabled until a person enables it.",
+    "title": "MCP & A2A",
+    "subtitle": "Register MCP servers, issue access keys for the platform's own MCP server and A2A keys for agent-to-agent calls. Everything external is inspected first and stays disabled until a person enables it.",
     "tabs": {
       "servers": "MCP servers",
       "skills": "Skills",
-      "keys": "Access keys"
+      "keys": "MCP access keys",
+      "a2a": "A2A access keys"
     },
     "risk": {
       "high": "High risk",
@@ -927,7 +936,13 @@
     "createKey": "Create key",
     "tokenOnce": "Copy this key now — it will not be shown again.",
     "revoke": "Revoke",
-    "revoked": "Revoked"
+    "revoked": "Revoked",
+    "skillsTitle": "Skills",
+    "skillsSubtitle": "Install skills from host folders after a security inspection, enable them deliberately and assign them to agents.",
+    "a2aNew": "New A2A access key",
+    "a2aHelp": "External agents call the selected agents over A2A JSON-RPC at",
+    "a2aAgents": "Agents this key may call",
+    "a2aAgentCount": "{n} agents"
   },
   "bridge": {
     "title": "Browser Bridge",
@@ -1004,5 +1019,331 @@
       "too_many_sessions": "The maximum number of live sessions is reached.",
       "invalid_profile_name": "Invalid profile name."
     }
+  },
+  "projects": {
+    "title": "Projects",
+    "subtitle": "Every project has a mode — new, existing (built on a repository that already exists) or maintenance — a roster of agents, an optional team and budget.",
+    "new": "New project",
+    "empty": "No projects yet.",
+    "agents": "Agents",
+    "team": "Team",
+    "budget": "Budget",
+    "repository": "Repository",
+    "linked": "Linked",
+    "repoMap": "Repository map",
+    "edit": "Edit",
+    "editTitle": "Edit {name}",
+    "modeHelp": "Existing and maintenance projects are planned from a static map of their repository.",
+    "name": "Name",
+    "description": "Description",
+    "mode": "Mode",
+    "modes": {
+      "new": "New",
+      "existing": "Existing",
+      "maintenance": "Maintenance"
+    },
+    "budgetUsd": "Budget (USD, total)",
+    "budgetHelp": "When spending reaches it, new work in this project pauses and an approval is requested.",
+    "repoMapHelp": "A read-only inspection of the repository: nothing is executed.",
+    "import": "Import linked repository",
+    "imported": "Repository imported.",
+    "analyze": "Analyze repository",
+    "analyzing": "Analyzing…",
+    "notAnalyzed": "Not analyzed yet.",
+    "analyzedAt": "Analyzed {at} · {files} files",
+    "technologies": "Technologies",
+    "architecture": "Structure",
+    "tests": "Tests",
+    "testFiles": "{n} test files",
+    "dependencies": "Dependencies",
+    "depCount": "Python {py} · Node {node} · Go {go}",
+    "debt": "Technical debt",
+    "roles": {
+      "frontend": "frontend",
+      "backend": "backend",
+      "source": "source",
+      "library": "library",
+      "tests": "tests",
+      "documentation": "documentation",
+      "tooling": "tooling",
+      "infrastructure": "infrastructure",
+      "database": "database",
+      "ci": "CI",
+      "application": "application",
+      "other": "other"
+    },
+    "errors": {
+      "no_repository": "This project has no repository yet. Link and import one, or let agents create it.",
+      "no_linked_repository": "Link a GitHub repository to this project first.",
+      "already_imported": "The repository was already imported.",
+      "budgets_manage_required": "Changing budgets needs the budgets permission.",
+      "name_taken": "A project with this name already exists."
+    }
+  },
+  "teams": {
+    "title": "Agent Teams",
+    "subtitle": "Group agents and people. Teams can own projects and share team memories.",
+    "new": "New team",
+    "empty": "No teams yet.",
+    "counts": "{agents} agents · {users} people · {projects} projects",
+    "lead": "Lead agent",
+    "edit": "Edit",
+    "editTitle": "Edit {name}",
+    "delete": "Delete",
+    "deleteTitle": "Delete team?",
+    "deleteBody": "“{name}” will be deleted. Its projects stay and simply have no team.",
+    "help": "Only agents and people of your organization can be members.",
+    "name": "Name",
+    "description": "Description",
+    "agents": "Agents",
+    "people": "People",
+    "errors": {
+      "lead_must_be_a_member": "The lead agent must be a member of the team.",
+      "name_taken": "A team with this name already exists."
+    }
+  },
+  "executions": {
+    "title": "Executions",
+    "subtitle": "Every agent execution with its full timeline: state changes, tool calls and results, logs, usage and errors.",
+    "status": "Status",
+    "all": "All",
+    "empty": "No executions.",
+    "pick": "Select an execution to see its timeline.",
+    "timeline": "Timeline",
+    "live": "live",
+    "engine": "Engine",
+    "model": "Model",
+    "tokens": "Tokens",
+    "cost": "Cost",
+    "error": "Error",
+    "output": "Output",
+    "refresh": "Refresh",
+    "chunks": "{n} chunks",
+    "statuses": {
+      "CREATED": "Created",
+      "INITIALIZING": "Initializing",
+      "READY": "Ready",
+      "RUNNING": "Running",
+      "WAITING_FOR_TOOL": "Waiting for a tool",
+      "WAITING_FOR_APPROVAL": "Waiting for approval",
+      "WAITING_FOR_INPUT": "Waiting for input",
+      "CHECKPOINTED": "Checkpointed",
+      "RECOVERING": "Recovering",
+      "COMPLETED": "Completed",
+      "FAILED": "Failed",
+      "CANCELLED": "Cancelled",
+      "TERMINATED": "Terminated"
+    },
+    "events": {
+      "state": "State",
+      "tool_call": "Tool call",
+      "tool_result": "Tool result",
+      "log": "Log",
+      "error": "Error",
+      "output_delta": "Output",
+      "usage": "Usage",
+      "checkpoint": "Checkpoint"
+    },
+    "mock": "MOCK"
+  },
+  "orchestration": {
+    "title": "Orchestration",
+    "subtitle": "Objectives the manager is planning and executing, and the automations that start work on a schedule or after an event.",
+    "tabs": {
+      "workflows": "Objectives",
+      "automations": "Automations"
+    },
+    "workflowsHelp": "Submit new objectives from the task board.",
+    "toBoard": "Open the task board",
+    "noWorkflows": "No objectives yet.",
+    "waiting": "{n} tasks waiting",
+    "openTasks": "Open its tasks",
+    "wfStatus": {
+      "planning": "Planning",
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "review": "In review",
+      "blocked": "Blocked"
+    },
+    "automationsHelp": "Automations run inside the platform's worker only — nothing is installed on your computer. Every run is recorded.",
+    "newAutomation": "New automation",
+    "noAutomations": "No automations yet.",
+    "autoStatus": {
+      "active": "Active",
+      "paused": "Paused"
+    },
+    "trig": {
+      "cron": "cron {expr} (UTC)",
+      "interval": "every {n} minutes",
+      "event": "after event {action}"
+    },
+    "act": {
+      "workflow": "Submit an objective",
+      "analyze_project": "Analyze the repository"
+    },
+    "lastRun": "Last run",
+    "nextRun": "Next run",
+    "history": "History",
+    "pause": "Pause",
+    "resume": "Resume",
+    "runNow": "Run now",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteTitle": "Delete automation?",
+    "deleteBody": "“{name}” and its history will be deleted.",
+    "editTitle": "Edit {name}",
+    "dialogHelp": "Runs use the permissions of the person who last saved the automation.",
+    "name": "Name",
+    "project": "Project",
+    "trigger": "Trigger",
+    "trigTypes": {
+      "cron": "Schedule (cron)",
+      "interval": "Every N minutes",
+      "event": "After an event"
+    },
+    "cron": "Cron expression",
+    "cronHelp": "Five fields in UTC, e.g. 0 3 * * 1-5 (weekdays at 03:00). At most every 5 minutes.",
+    "minutes": "Minutes (at least 5)",
+    "eventAction": "Audit event",
+    "eventHelp": "An audit action, e.g. github.pr_merged or approvals.decided.",
+    "action": "Action",
+    "wfTitle": "Objective title",
+    "objective": "Objective",
+    "historyTitle": "History of {name}",
+    "historyHelp": "The most recent runs first.",
+    "noRuns": "No runs yet.",
+    "runStatus": {
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "skipped": "Skipped",
+      "running": "Running"
+    },
+    "runTrigger": {
+      "schedule": "schedule",
+      "event": "event",
+      "manual": "manual"
+    },
+    "mock": "MOCK"
+  },
+  "runtime": {
+    "title": "Agent Runtime",
+    "subtitle": "The execution engines available to agents, the state of all executions and every open circuit breaker.",
+    "engines": "Execution engines",
+    "agentsUsing": "{n} agents",
+    "mock": "mock",
+    "engineHelp": {
+      "api": "Official provider APIs through the gateway.",
+      "mock": "Clearly labelled mock output for tests and demos.",
+      "a2a": "Remote agents over the A2A protocol.",
+      "browser": "Experimental Browser Bridge sessions.",
+      "cli": "Local coding CLIs in the sandbox."
+    },
+    "executions": "Executions by status",
+    "circuits": "Circuit breakers",
+    "circuitsHelp": "After repeated failures an agent or provider is paused for a cool-down; one trial is then let through.",
+    "allClosed": "All circuits are closed.",
+    "scope": {
+      "agent": "Agent",
+      "provider": "Provider"
+    },
+    "state": {
+      "open": "open",
+      "half_open": "half-open",
+      "closed": "closed"
+    },
+    "failures": "{n} consecutive failures"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "subtitle": "Usage and cost by provider, model, agent, project or day — only recorded numbers, never estimates.",
+    "groupBy": "Group by",
+    "groups": {
+      "provider": "Provider",
+      "model": "Model",
+      "agent": "Agent",
+      "project": "Project",
+      "day": "Day"
+    },
+    "period": "Period",
+    "lastDays": "Last {n} days",
+    "requests": "Requests",
+    "tokens": "Tokens",
+    "cost": "Cost",
+    "unpriced": "Requests without a price",
+    "honesty": "Costs are calculated only for models with configured prices; mock usage is excluded.",
+    "tableLabel": "Usage table",
+    "empty": "No usage in this period.",
+    "cols": {
+      "requests": "Requests",
+      "tokens": "Tokens",
+      "share": "Share",
+      "cost": "Cost",
+      "unpriced": "Unpriced",
+      "latency": "Avg latency",
+      "retries": "Retries"
+    },
+    "budgets": "Budgets",
+    "budgetsHelp": "When a budget is reached, new work in its scope stops, completed results are kept and an approval for more spending is requested. Everything else continues.",
+    "scope": "Scope",
+    "scopes": {
+      "global": "Organization",
+      "agent": "Agent",
+      "project": "Project",
+      "task": "Task",
+      "provider": "Provider"
+    },
+    "scopeId": "ID",
+    "periodLabel": "Period",
+    "periods": {
+      "daily": "Daily",
+      "monthly": "Monthly",
+      "total": "Total"
+    },
+    "limitUsd": "Limit (USD)",
+    "limitTokens": "Limit (tokens)",
+    "addBudget": "Add budget",
+    "noBudgets": "No budgets yet.",
+    "disabled": "disabled",
+    "spentUsd": "${spent} of ${limit}",
+    "spentTokens": "{spent} of {limit} tokens",
+    "used": "Budget used",
+    "exceeded": "Limit reached",
+    "deleteBudget": "Delete budget"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Your preferences and, for administrators, users and roles.",
+    "preferences": "Preferences",
+    "signedInAs": "Signed in as",
+    "role": "Role",
+    "language": "Language",
+    "theme": "Theme",
+    "users": "Users",
+    "username": "Username",
+    "password": "Password",
+    "passwordHelp": "At least 12 characters. You can only grant roles whose permissions you hold yourself.",
+    "addUser": "Add user",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Disabled",
+    "more": "More settings",
+    "links": {
+      "bridge": "Browser Bridge gate",
+      "budgets": "Budgets",
+      "keys": "Access keys (MCP & A2A)",
+      "templates": "Agent templates",
+      "supervisor": "Supervisor policies"
+    },
+    "errors": {
+      "cannot_grant_higher_privileges": "You cannot grant a role with more permissions than your own.",
+      "username_taken": "This username is taken."
+    }
+  },
+  "live": {
+    "live": "Live",
+    "connecting": "Connecting…",
+    "offline": "Offline — refreshing periodically"
   }
 }

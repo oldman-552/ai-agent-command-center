@@ -206,4 +206,21 @@ class Automation(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(16), default="active")  # active|paused
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    state: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")  # e.g. event cursor
     created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+
+
+class AutomationRun(Base):
+    """One execution of an automation (UX-06 history)."""
+
+    __tablename__ = "automation_runs"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    automation_id: Mapped[int] = mapped_column(ForeignKey("automations.id", ondelete="CASCADE"), index=True)
+    organization_id: Mapped[int] = org_fk()
+    trigger: Mapped[str] = mapped_column(String(32))  # schedule | event | manual
+    status: Mapped[str] = mapped_column(String(16))   # succeeded | failed | skipped
+    detail: Mapped[str] = mapped_column(Text, default="")
+    result: Mapped[dict] = mapped_column(JSONB, default=dict)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

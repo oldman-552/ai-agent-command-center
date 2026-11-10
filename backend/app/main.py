@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
 
+from app.automation import api as automation_api
 from app.bootstrap import run_bootstrap
 from app.browser import api as browser_api
 from app.browser import engine as _browser_engine  # noqa: F401  (registers the experimental browser engine)
@@ -28,7 +27,9 @@ from app.integrations.mcp_server import endpoint as mcp_endpoint
 from app.memory import api as memory_api
 from app.memory import tools as _memory_tools  # noqa: F401  (memory.write)
 from app.observability import analytics as analytics_api
-from app.observability import dashboard
+from app.observability import dashboard, realtime
+from app.observability.logs import setup_logging
+from app.observability.tracing import instrument_app, setup_tracing
 from app.orchestration import api as orchestration_api
 from app.runtime import api as runtime_api
 from app.runtime.engines import mock as _mock_engine  # noqa: F401  (registers the mock engine)
@@ -36,7 +37,8 @@ from app.sandbox import tools as _sandbox_tools  # noqa: F401  (registers shell.
 from app.security import auth
 from app.supervisor import api as supervisor_api
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+setup_logging("api")
+setup_tracing("api")
 
 
 @asynccontextmanager
@@ -86,6 +88,9 @@ app.include_router(teams_api.router)
 app.include_router(budgets_api.router)
 app.include_router(budgets_api.routing_router)
 app.include_router(analytics_api.router)
+app.include_router(automation_api.router)
+app.include_router(realtime.router)
+instrument_app(app)
 app.include_router(browser_api.router)
 app.include_router(integrations_api.router)
 app.mount("/api/mcp", mcp_endpoint)
@@ -93,10 +98,12 @@ app.include_router(memory_api.context_router)
 
 
 @app.get("/api/health", tags=["system"])
-def health() -> JSONResponse:
+async def health() -> JSONResponse:
+    """Health of every service (UX-05): database, RabbitMQ, Redis, worker heartbeats, Browser Bridge.
+    503 only when the database is unreachable (the API cannot work); other problems report `degraded`."""
+    from app.observability.realtime import health_report
     try:
-        with session_factory()() as db:
-            db.execute(text("SELECT 1"))
-        return JSONResponse({"status": "ok", "database": "ok"})
+        code, body = await health_report()
     except Exception:  # noqa: BLE001 — must never raise
         return JSONResponse({"status": "degraded", "database": "error"}, status_code=503)
+    return JSONResponse(body, status_code=code)

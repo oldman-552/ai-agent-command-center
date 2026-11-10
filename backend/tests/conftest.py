@@ -22,6 +22,8 @@ os.environ["RABBITMQ_URL"] = TEST_AMQP
 os.environ["WORKSPACES_DIR"] = os.environ.get("TEST_WORKSPACES_DIR", "/tmp/acc-test-workspaces")
 os.environ.setdefault("SANDBOX_IMAGE", "acc/sandbox:python")
 os.environ["ADMIN_PASSWORD"] = "test-admin-password-1"
+os.environ["REDIS_URL"] = os.environ.get("TEST_REDIS_URL", "redis://localhost:6379/15")  # live updates + heartbeats
+os.environ.setdefault("LOG_FORMAT", "text")
 
 from alembic.config import Config
 from fastapi.testclient import TestClient

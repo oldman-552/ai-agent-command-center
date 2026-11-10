@@ -2,9 +2,9 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 86.8%**
+**Overall verified completion: 92.3%**
 
-## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
+## M1 — Foundation (weight 8%, 100%) — spec Phases 1, 19, 23, 25
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -21,7 +21,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | FND-11 | P0 | WCAG 2.2 AA: contrast + axe on all pages, ar/en, light/dark | check-contrast + axe pass | script + Playwright | FND-10 | done | check-contrast 40/40; axe WCAG 2.2 AA 8/8 (login, dashboard × ar/en × light/dark) |
 | FND-12 | P0 | Responsive 375/768/1024/1440 without horizontal overflow | E2E overflow checks pass | Playwright | FND-07 | done | Playwright overflow checks 8/8 at 375/768/1024/1440 ar/en |
 | FND-13 | P0 | docker-compose stack: healthchecks, migrate job, persistent volumes | Stack healthy; data survives stop/start | docker compose (offline images in dev env) | — | done | compose config valid; offline-image stack: 6 services healthy, data persists stop/start |
-| FND-14 | P1 | Redis service + health | Redis reachable, health endpoint reports it | pytest + compose | FND-13 | pending | — |
+| FND-14 | P1 | Redis service + health | Redis reachable, health endpoint reports it | pytest + compose | FND-13 | done | redis service in docker-compose (+healthcheck, compose config OK) + dev-up; /api/health reports redis; tests/test_observability.py::test_health_reports_every_service |
 | FND-15 | P1 | Organizations/teams schema for multi-tenant readiness; tenant scoping in authz | Every project-scoped query filtered by org; test cross-org denial | pytest | FND-03 | done | organizations/teams + organization_id on scoped tables, tenancy.scoped/get_scoped; cross-org test |
 | FND-16 | P1 | Requirements matrix, decision log (ADRs), progress.txt + PROJECT_STATUS.json | Files generated from requirements.json | inspection | — | done | docs/requirements.json (115 reqs), REQUIREMENTS.md, ARCHITECTURE_DECISIONS.md (11 ADRs), progress.txt + PROJECT_STATUS.json generated |
 
@@ -171,16 +171,16 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | SEC-07 | P1 | CSRF protection for cookie auth, secure CORS, security headers | Tests | pytest | FND-04 | done | CSRF double-submit, no CORS, security headers; tests pass |
 | SEC-08 | P1 | Dependency + container scanning in CI scripts | Scan runs | script | — | in_progress | — |
 
-## M14 — Enterprise Experience (weight 5%, 0%) — spec Phases 21, 23, 24
+## M14 — Enterprise Experience (weight 5%, 100%) — spec Phases 21, 23, 24
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
-| UX-01 | P0 | 20-item navigation, every page functional (no dead buttons) | E2E visits each page | Playwright | — | pending | — |
-| UX-02 | P0 | Real-time updates via WebSocket across dashboard/tasks/executions | E2E sees live change | Playwright | RT-04 | pending | — |
-| UX-03 | P0 | Execution timeline view | E2E | Playwright | RT-02 | pending | — |
-| UX-04 | P0 | Analytics: cost/usage by provider/model/agent/project | API + UI tests | pytest + Playwright | GW-05 | pending | — |
-| UX-05 | P1 | Observability: structured logs, OpenTelemetry traces, health of all services | Health endpoint covers all; traces exported | pytest | — | pending | — |
-| UX-06 | P1 | Automation & scheduling (pause/resume/edit/delete/history), in-app only | Tests | pytest | OR-01 | pending | — |
+| UX-01 | P0 | 20-item navigation, every page functional (no dead buttons) | E2E visits each page | Playwright | — | done | frontend/e2e/navigation.spec.ts ar+en: nav has exactly the 20 spec items, each page renders an h1, no console errors, no 5xx, axe WCAG 2.2 AA; workspace.spec.ts exercises the new pages' actions |
+| UX-02 | P0 | Real-time updates via WebSocket across dashboard/tasks/executions | E2E sees live change | Playwright | RT-04 | done | tests/test_observability.py (publish after commit only, WS needs session+CSRF, org isolation, anonymous 4401) + frontend/e2e/live.spec.ts (execution created in another tab appears on the non-polling executions list via WebSocket through the Next proxy) |
+| UX-03 | P0 | Execution timeline view | E2E | Playwright | RT-02 | done | frontend/e2e/workspace.spec.ts: /executions timeline (state/tool/log/usage events, live refetch) ar+en with axe |
+| UX-04 | P0 | Analytics: cost/usage by provider/model/agent/project | API + UI tests | pytest + Playwright | GW-05 | done | tests/test_routing_budgets_teams.py::test_analytics_groups_real_usage_and_never_invents_cost + e2e/workspace.spec.ts analytics table and budgets |
+| UX-05 | P1 | Observability: structured logs, OpenTelemetry traces, health of all services | Health endpoint covers all; traces exported | pytest | — | done | tests/test_observability.py: JSON logs with trace ids + redaction, HTTP + execution.run spans exported (in-memory exporter), health of database/rabbitmq/redis/workers/bridge |
+| UX-06 | P1 | Automation & scheduling (pause/resume/edit/delete/history), in-app only | Tests | pytest | OR-01 | done | tests/test_automations.py (6 tests: validation, schedule, pause/resume/edit/delete/run now, history, event trigger without replay, permission re-check) + e2e/workspace.spec.ts |
 
 ## M15 — Final Integration (weight 3%, 0%) — spec Phases 25, 26, F
 

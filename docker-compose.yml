@@ -11,6 +11,7 @@ x-backend-env: &backend-env
   SANDBOX_CPU_LIMIT: ${SANDBOX_CPU_LIMIT:-1.0}
   SANDBOX_MEMORY_LIMIT: ${SANDBOX_MEMORY_LIMIT:-1g}
   SANDBOX_TIMEOUT_SECONDS: ${SANDBOX_TIMEOUT_SECONDS:-900}
+  REDIS_URL: redis://redis:6379/0
   BROWSER_BRIDGE_URL: http://browser-bridge:8100
   SKILLS_DIR: /data/skills
 
@@ -46,6 +47,17 @@ services:
       timeout: 10s
       retries: 30
 
+  # Live updates (pub/sub) and service heartbeats. Nothing durable is stored here (FND-14).
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
   # Applies Alembic migrations once, then exits. api/worker wait for it.
   migrate:
     build: ./backend
@@ -70,6 +82,8 @@ services:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 5s
@@ -88,6 +102,8 @@ services:
       migrate:
         condition: service_completed_successfully
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   # Browser Bridge (EXPERIMENTAL, disabled in the UI by default — ADR-005/025). Owns the headless browsers; not

@@ -42,7 +42,7 @@ export function useProjectActions() {
 
 // ---------------- teams ----------------
 export type Team = {
-  id: number; name: string; description: string; lead_agent_id: number | null; agent_ids: number[]; user_ids: number[];
+  id: number; name: string; description: string; lead_agent_id: number | null; agent_ids: number[]; user_ids: number[]; policies: Record<string, unknown>;
   project_ids: number[]; created_at: string;
 };
 const getTeams = () => api<Team[]>("/api/teams");

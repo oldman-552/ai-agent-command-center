@@ -29,6 +29,7 @@ from app.models.governance import (
                                ApprovalStatus,
                                AuditLog,
                                Automation,
+    AutomationRun,
                                Budget,
                                CostRecord,
                                EvaluationResult,

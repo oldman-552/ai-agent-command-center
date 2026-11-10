@@ -360,3 +360,25 @@ leads are cleared), projects can belong to a team, membership is tenant-checked 
 workspace with the hardened git (askpass, no hooks); `/analyze` stores a static map (languages, frameworks,
 infrastructure, architecture roles, dependencies, tests, technical debt) — nothing is executed. Planning for
 `existing`/`maintenance` projects includes the map, fenced as data.
+
+## ADR-028 — Redis for live updates and heartbeats; OpenTelemetry; in-app automations; 20-item navigation (2026-11-10)
+**Redis (FND-14):** used only for ephemeral data — pub/sub of live updates and service heartbeats (TTL 45 s).
+Nothing durable lives there; losing Redis degrades to polling.
+**Live updates (UX-02):** `log_activity` and execution events queue `{topic, ids}` on the SQLAlchemy session; an
+`after_commit` hook publishes them to `acc:live:<org>` (rolled-back work publishes nothing). `GET /api/ws` (through the
+Next.js proxy) authenticates with the session cookie, requires the CSRF cookie value as the first message
+(cross-site WebSocket hijacking), and relays only the user's organization channel. Messages carry no content; the
+browser refetches through the normal permission-checked API. Bursts are coalesced; reconnect with backoff.
+**Observability (UX-05):** JSON logs with trace/span ids and redaction (`LOG_FORMAT=text` for local); OpenTelemetry
+spans for HTTP requests (FastAPI instrumentation), `execution.run` and `bus.consume`; OTLP/HTTP export when
+`OTEL_EXPORTER_OTLP_ENDPOINT` is set. `/api/health` reports database, RabbitMQ, Redis, worker heartbeats (with roles)
+and the Browser Bridge; 503 only when the database is down, otherwise `degraded` names what is missing. Trace context is
+not yet propagated through RabbitMQ envelopes (each consumer starts a new trace) — documented limitation.
+**Automations (UX-06):** `automations` + `automation_runs`; triggers cron (UTC, croniter, ≥ 5 min), interval (≥ 5
+min) and audit events (cursor, no replay of history, no automation→automation loops); actions submit an objective or
+re-analyze the repository. Run by the worker role `automations` (advisory-lock leader). The creator's (last editor's)
+permissions are re-checked at run time. Pause/resume (no catch-up storm)/edit/run now/delete/history. Never installs
+anything into the operating system.
+**Navigation (UX-01):** the spec's 20 items, each a working page (new: Projects, Agent Teams, Orchestration,
+Executions with timeline, MCP & A2A, Agent Runtime, Skills, Analytics with budgets, Settings with users). Templates are
+reached from Agents and Settings.

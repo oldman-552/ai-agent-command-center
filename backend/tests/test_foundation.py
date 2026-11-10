@@ -18,7 +18,9 @@ from tests.conftest import ADMIN_PW
 def test_health(client):
     r = client.get("/api/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok", "database": "ok"}
+    body = r.json()
+    assert body["database"] == "ok" and body["status"] in ("ok", "degraded")  # degraded = no worker heartbeat
+    assert {"database", "rabbitmq", "redis", "workers", "browser_bridge"} <= set(body["services"])
 
 
 def test_bootstrap_creates_single_super_admin_roles_and_18_templates(client, db):

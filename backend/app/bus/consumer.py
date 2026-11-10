@@ -154,8 +154,12 @@ class Consumer:
         async def cb(msg: AbstractIncomingMessage) -> None:
             task = asyncio.current_task()
             self.inflight.add(task)
+            from app.observability.tracing import tracer
             try:
-                await self.on_message(msg, channel)
+                with tracer().start_as_current_span("bus.consume", attributes={
+                        "messaging.system": "rabbitmq", "messaging.destination.name": self.queue,
+                        "messaging.message.id": str(msg.message_id or ""), "acc.consumer": self.name}):
+                    await self.on_message(msg, channel)
             finally:
                 self.inflight.discard(task)
         self._queue, self._tag = queue, await queue.consume(cb)

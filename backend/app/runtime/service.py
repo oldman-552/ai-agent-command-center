@@ -96,6 +96,9 @@ def _next_seq(db: Session, ex: Execution) -> int:
 def _event(db: Session, ex: Execution, type_: str, payload: dict[str, Any]) -> None:
     db.add(ExecutionEvent(execution_id=ex.id, seq=_next_seq(db, ex), type=type_, payload=redact_obj(payload)))
     db.flush()
+    if type_ != "output_delta":  # streaming chunks are polled by the open timeline; state changes are pushed
+        from app.observability.live import notify
+        notify(db, ex.organization_id, "execution", execution_id=ex.id, task_id=ex.task_id, event=type_)
 
 
 def set_status(db: Session, ex: Execution, to: X, reason: str = "") -> None:
@@ -135,9 +138,13 @@ def request_cancel(db: Session, ex: Execution, actor: str) -> None:
 # ---------------- execution ----------------
 async def run_execution(execution_id: str) -> str:
     """Run (or resume) an execution to a terminal/failed state. Safe to call again after a crash."""
+    from app.observability.tracing import tracer
     db = session_factory()()
     try:
-        return await _run(db, execution_id)
+        with tracer().start_as_current_span("execution.run", attributes={"acc.execution_id": execution_id}) as span:
+            status_ = await _run(db, execution_id)
+            span.set_attribute("acc.status", status_)
+            return status_
     finally:
         db.close()
 

@@ -159,8 +159,8 @@
           "depends": [
             "FND-13"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "redis service in docker-compose (+healthcheck, compose config OK) + dev-up; /api/health reports redis; tests/test_observability.py::test_health_reports_every_service"
         },
         {
           "id": "FND-15",
@@ -1316,8 +1316,8 @@
           "acceptance": "E2E visits each page",
           "verification": "Playwright",
           "depends": [],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "frontend/e2e/navigation.spec.ts ar+en: nav has exactly the 20 spec items, each page renders an h1, no console errors, no 5xx, axe WCAG 2.2 AA; workspace.spec.ts exercises the new pages' actions"
         },
         {
           "id": "UX-02",
@@ -1328,8 +1328,8 @@
           "depends": [
             "RT-04"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_observability.py (publish after commit only, WS needs session+CSRF, org isolation, anonymous 4401) + frontend/e2e/live.spec.ts (execution created in another tab appears on the non-polling executions list via WebSocket through the Next proxy)"
         },
         {
           "id": "UX-03",
@@ -1340,8 +1340,8 @@
           "depends": [
             "RT-02"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "frontend/e2e/workspace.spec.ts: /executions timeline (state/tool/log/usage events, live refetch) ar+en with axe"
         },
         {
           "id": "UX-04",
@@ -1352,8 +1352,8 @@
           "depends": [
             "GW-05"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_routing_budgets_teams.py::test_analytics_groups_real_usage_and_never_invents_cost + e2e/workspace.spec.ts analytics table and budgets"
         },
         {
           "id": "UX-05",
@@ -1362,8 +1362,8 @@
           "acceptance": "Health endpoint covers all; traces exported",
           "verification": "pytest",
           "depends": [],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_observability.py: JSON logs with trace ids + redaction, HTTP + execution.run spans exported (in-memory exporter), health of database/rabbitmq/redis/workers/bridge"
         },
         {
           "id": "UX-06",
@@ -1374,8 +1374,8 @@
           "depends": [
             "OR-01"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "tests/test_automations.py (6 tests: validation, schedule, pause/resume/edit/delete/run now, history, event trigger without replay, permission re-check) + e2e/workspace.spec.ts"
         }
       ]
     },

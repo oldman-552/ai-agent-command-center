@@ -38,6 +38,9 @@ def log_activity(
         cost_usd=Decimal(str(cost_usd)) if cost_usd is not None else None,
     )
     db.add(entry)
+    from app.observability.live import notify  # UX-02: live update after the commit (topic = category)
+    notify(db, organization_id, category, action=action, project_id=project_id, task_id=task_id,
+           agent_id=agent_id, execution_id=execution_id)
     if commit:
         db.commit()
     return entry

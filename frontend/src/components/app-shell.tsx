@@ -1,5 +1,5 @@
 "use client";
-import { Activity, Bot, Brain, Globe, Puzzle, Gauge, GitBranch, KanbanSquare, ScrollText, ShieldCheck, LayoutDashboard, LayoutTemplate, LogOut, Menu, Plug, X, type LucideIcon } from "lucide-react";
+import { Activity, BarChart3, Bot, Brain, Cpu, FolderKanban, Gauge, GitBranch, Globe, KanbanSquare, LayoutDashboard, ListTree, LogOut, Menu, Network, Plug, Puzzle, ScrollText, Settings, ShieldCheck, Users, Workflow, X, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -11,23 +11,35 @@ import { Toaster } from "@/components/toaster";
 import { Button } from "@/components/ui/button";
 import { api, type User } from "@/lib/api";
 import { useApprovals } from "@/lib/approvals";
+import { useLiveUpdates } from "@/lib/live";
 import { cn } from "@/lib/utils";
 
-// Only pages that actually exist are listed. New pages are added here as they are built.
-const NAV: { href: string; key: "dashboard" | "tasks" | "supervisor" | "evaluations" | "github" | "approvals" | "audit" | "memory" | "integrations" | "bridge" | "agents" | "templates" | "providers"; icon: LucideIcon; perm?: string }[] = [
+// The 20-item main navigation of the spec (Phase 23). Items are hidden when the user lacks the permission;
+// the backend enforces every permission regardless.
+type NavKey = "dashboard" | "projects" | "agents" | "teams" | "tasks" | "orchestration" | "supervisor" | "executions" |
+  "bridge" | "integrations" | "providers" | "runtime" | "memory" | "skills" | "github" | "approvals" | "evaluations" |
+  "analytics" | "audit" | "settings";
+const NAV: { href: string; key: NavKey; icon: LucideIcon; perm?: string }[] = [
   { href: "/", key: "dashboard", icon: LayoutDashboard },
+  { href: "/projects", key: "projects", icon: FolderKanban, perm: "projects.read" },
+  { href: "/agents", key: "agents", icon: Bot },
+  { href: "/teams", key: "teams", icon: Users, perm: "teams.read" },
   { href: "/tasks", key: "tasks", icon: KanbanSquare },
+  { href: "/orchestration", key: "orchestration", icon: Workflow, perm: "tasks.read" },
   { href: "/supervisor", key: "supervisor", icon: Activity, perm: "agents.read" },
-  { href: "/evaluations", key: "evaluations", icon: Gauge, perm: "tasks.read" },
+  { href: "/executions", key: "executions", icon: ListTree, perm: "executions.read" },
+  { href: "/browser-bridge", key: "bridge", icon: Globe, perm: "providers.read" },
+  { href: "/integrations", key: "integrations", icon: Network, perm: "agents.read" },
+  { href: "/providers", key: "providers", icon: Plug },
+  { href: "/runtime", key: "runtime", icon: Cpu, perm: "executions.read" },
+  { href: "/memory", key: "memory", icon: Brain, perm: "memory.read" },
+  { href: "/skills", key: "skills", icon: Puzzle, perm: "agents.read" },
   { href: "/github", key: "github", icon: GitBranch, perm: "github.read" },
   { href: "/approvals", key: "approvals", icon: ShieldCheck, perm: "approvals.read" },
+  { href: "/evaluations", key: "evaluations", icon: Gauge, perm: "tasks.read" },
+  { href: "/analytics", key: "analytics", icon: BarChart3, perm: "dashboard.read" },
   { href: "/audit", key: "audit", icon: ScrollText, perm: "audit.read" },
-  { href: "/memory", key: "memory", icon: Brain, perm: "memory.read" },
-  { href: "/agents", key: "agents", icon: Bot },
-  { href: "/templates", key: "templates", icon: LayoutTemplate },
-  { href: "/providers", key: "providers", icon: Plug },
-  { href: "/integrations", key: "integrations", icon: Puzzle, perm: "agents.read" },
-  { href: "/browser-bridge", key: "bridge", icon: Globe, perm: "providers.read" },
+  { href: "/settings", key: "settings", icon: Settings },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
@@ -98,7 +110,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
     <AppProviders user={user}>
     <div className="flex min-h-dvh">
       {/* Desktop sidebar — on the start side (right in Arabic, left in English) */}
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 border-e bg-card p-4 lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 overflow-y-auto border-e bg-card p-4 lg:flex">
         <Brand />
         <nav aria-label={t("nav.label")}>
           <NavLinks />
@@ -117,7 +129,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
             role="dialog"
             aria-modal="true"
             aria-label={t("nav.label")}
-            className="absolute inset-y-0 start-0 flex w-72 max-w-[85vw] flex-col gap-6 bg-card p-4 shadow-xl"
+            className="absolute inset-y-0 start-0 flex w-72 max-w-[85vw] flex-col gap-6 overflow-y-auto bg-card p-4 shadow-xl"
           >
             <div className="flex items-center justify-between">
               <Brand />
@@ -145,6 +157,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
             <Menu aria-hidden />
           </Button>
           <div className="flex-1" />
+          <LiveIndicator />
           <ThemeToggle />
           <LanguageSwitcher signedIn />
           <div className="hidden flex-col items-end leading-tight sm:flex" data-testid="current-user">
@@ -162,5 +175,18 @@ export function AppShell({ user, children }: { user: User; children: React.React
       <Toaster />
     </div>
     </AppProviders>
+  );
+}
+
+
+/** UX-02: shows whether live updates are flowing; the views refresh themselves either way. */
+function LiveIndicator() {
+  const t = useTranslations("live");
+  const state = useLiveUpdates();
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2 text-xs text-muted-foreground" data-testid="live-state" data-state={state} title={t(state)}>
+      <span aria-hidden className={cn("size-2 rounded-full", state === "live" ? "bg-success" : state === "offline" ? "bg-warning" : "bg-muted-foreground")} />
+      <span className="sr-only sm:not-sr-only">{t(state)}</span>
+    </span>
   );
 }
