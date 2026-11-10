@@ -136,9 +136,9 @@ def on_status_change(db: Session, ex: Execution) -> None:
                                                      A2APushConfig.disabled_at.is_(None))).all()
     if not configs:
         return
-    from app.connectivity.a2a.server import FINAL, X, task_json
+    from app.connectivity.a2a.server import is_final, task_json
     task = task_json(ex)
-    payload = {"task": task} if X(ex.status) in FINAL else {
+    payload = {"task": task} if is_final(ex) else {
         "statusUpdate": {"taskId": ex.id, "contextId": task["contextId"], "status": task["status"],
                          "metadata": task["metadata"]}}
     now = datetime.now(UTC)

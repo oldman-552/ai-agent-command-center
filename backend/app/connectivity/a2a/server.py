@@ -195,10 +195,30 @@ def extended_card(db: Session, key: A2AAccessKey, agent: Agent, base_url: str) -
     return card
 
 
+def _question(ex: Execution) -> str | None:
+    """The pending question of a task waiting for input; None once answered (it is then about to resume)."""
+    from sqlalchemy.orm import object_session
+    db = object_session(ex)
+    q = service.pending_question(db, ex) if db is not None else None
+    return q["question"] if q else None
+
+
+def is_final(ex: Execution) -> bool:
+    st = X(ex.status)
+    if st == X.WAITING_FOR_INPUT:
+        return _question(ex) is not None
+    return st in FINAL
+
+
 def task_json(ex: Execution) -> dict[str, Any]:
     meta = (ex.input_context or {}).get("a2a", {})
     st = X(ex.status)
-    status_obj: dict[str, Any] = {"state": STATE[st], "timestamp": (ex.updated_at or ex.created_at).isoformat()}
+    question = _question(ex) if st == X.WAITING_FOR_INPUT else None
+    state = STATE[st] if st != X.WAITING_FOR_INPUT or question else "TASK_STATE_WORKING"
+    status_obj: dict[str, Any] = {"state": state, "timestamp": (ex.updated_at or ex.created_at).isoformat()}
+    if question:  # §3.4.3 input-required: the agent's question is the status message
+        status_obj["message"] = {"messageId": f"{ex.id}-question-{ex.latest_checkpoint_seq}", "role": "ROLE_AGENT",
+                                 "taskId": ex.id, "contextId": meta.get("context_id"), "parts": [{"text": question}]}
     if st == X.FAILED:
         status_obj["message"] = {"messageId": f"{ex.id}-status", "role": "ROLE_AGENT", "taskId": ex.id,
                                  "contextId": meta.get("context_id"),
@@ -254,6 +274,12 @@ def _with_history(db: Session, key: A2AAccessKey, agent: Agent, context_id: str,
             + "\n\n".join(blocks) + f"\n<<<END UNTRUSTED DATA {nonce}>>>\n\nCurrent message:\n{text}")
 
 
+def _answer(db: Session, key: A2AAccessKey, ex: Execution, text: str, run_inline) -> Execution:
+    service.answer_input(db, ex, text, f"a2a:key:{key.id}", run_inline=run_inline)
+    db.refresh(ex)
+    return ex
+
+
 def _start(db: Session, key: A2AAccessKey, agent: Agent, params: SendParams, run_inline) -> Execution:
     """Create (or, for a retried messageId, find) the platform execution behind an A2A task and dispatch it."""
     msg = params.message
@@ -269,6 +295,8 @@ def _start(db: Session, key: A2AAccessKey, agent: Agent, params: SendParams, run
         prev_ctx = (prev.input_context or {}).get("a2a", {}).get("context_id")
         if msg.contextId and msg.contextId != prev_ctx:
             raise RpcError(INVALID_PARAMS, "contextId does not match the task's contextId")
+        if X(prev.status) == X.WAITING_FOR_INPUT and _question(prev) is not None:
+            return _answer(db, key, prev, text, run_inline)  # §3.4.3: the reply to an input-required task
         if X(prev.status) not in DONE:
             raise RpcError(UNSUPPORTED_OPERATION, "the task is still running; wait for it to finish or cancel it")
         context_id = prev_ctx or context_id
@@ -309,7 +337,7 @@ async def _send(db: Session, key: A2AAccessKey, agent: Agent, params: SendParams
     ex = _start(db, key, agent, params, bg.add_task)
     if not params.configuration.returnImmediately:
         deadline = asyncio.get_running_loop().time() + min(float(agent.timeout_seconds), BLOCKING_WAIT_MAX_S)
-        while X(ex.status) not in FINAL and asyncio.get_running_loop().time() < deadline:
+        while not is_final(ex) and asyncio.get_running_loop().time() < deadline:
             if bg.tasks:  # inline mode: run it here instead of after the response
                 for t in list(bg.tasks):
                     await t()
@@ -435,7 +463,7 @@ def _open_stream(db: Session, key: A2AAccessKey, agent: Agent, method: str, para
         ex = _own_task(db, key, agent, TaskIdParams.model_validate(params or {}).id)
     except ValidationError as e:
         raise RpcError(INVALID_PARAMS, "invalid params", e.errors(include_url=False, include_input=False)) from e
-    if X(ex.status) in FINAL:
+    if X(ex.status) in FINAL and X(ex.status) != X.WAITING_FOR_INPUT:
         raise RpcError(UNSUPPORTED_OPERATION, f"task is {STATE[X(ex.status)]}; nothing to subscribe to")
     return ex.id, inline
 
@@ -476,11 +504,12 @@ async def _events(request: Request, id_: Any, task_id: str, inline: list) -> Asy
                         "taskId": task_id, "contextId": ctx_id, "append": chunks > 0, "lastChunk": True,
                         "artifact": {"artifactId": f"{task_id}-output", "name": "output",
                                      "parts": [{"text": "" if chunks else str((ex.output or {}).get("text") or "")}]}}})
-                if task["status"]["state"] != last_state or st in FINAL:
+                final = is_final(ex)
+                if task["status"]["state"] != last_state or final:
                     last_state = task["status"]["state"]
                     yield frame({"statusUpdate": {"taskId": task_id, "contextId": ctx_id, "status": task["status"],
                                                   "metadata": task["metadata"]}})
-                if st in FINAL:
+                if final:
                     return
             if await request.is_disconnected() or loop.time() > deadline:
                 return

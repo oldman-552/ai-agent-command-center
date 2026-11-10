@@ -114,3 +114,41 @@ for (const lang of ["ar", "en"] as const) {
     await axe(page);
   });
 }
+
+test("an agent asks a question; the answer in the execution timeline resumes it (English)", async ({ page }) => {
+  await login(page, "en");
+  const csrf = (await page.context().cookies()).find((c) => c.name === "acc_csrf")?.value ?? "";
+  const post = async (path: string, data: unknown) => {
+    const r = await page.request.post(path, { data, headers: { "X-CSRF-Token": csrf } });
+    expect(r.status(), await r.text()).toBeLessThan(300);
+    return r.json();
+  };
+  const s = Date.now();
+  const mock = (await (await page.request.get("/api/providers")).json()).find((p: { kind: string }) => p.kind === "mock");
+  const agent = await post("/api/agents", { name: `Asker ${s}`, identifier: `asker-${s}`, role: "backend",
+    provider_id: mock.id, model: "mock-model", execution_engine: "api", tool_permissions: ["ask.human"] });
+  const pm = await post("/api/agents", { name: `Ask PM ${s}`, identifier: `ask-pm-${s}`, role: "project_manager",
+    provider_id: mock.id, model: "mock-model", execution_engine: "api", security_profile: "manager", tool_permissions: ["tasks.plan"] });
+  const proj = await post("/api/projects", { name: `Ask ${s}`, agent_ids: [pm.id, agent.id] });
+  const wf = await post("/api/workflows", { project_id: proj.id, title: `Ask ${s}`,
+    objective: '1. Pick a database [backend] [[mock:call ask.human {"question": "Postgres or SQLite?"}]]' });
+  let exId = "";
+  await expect.poll(async () => {
+    const w = await (await page.request.get(`/api/workflows/${wf.id}`)).json();
+    const task = w.tasks[0] && await (await page.request.get(`/api/tasks/${w.tasks[0].id}`)).json();
+    exId = task?.executions?.[0]?.id ?? "";
+    return exId ? (await (await page.request.get(`/api/executions/${exId}`)).json()).status : "none";
+  }, { timeout: 60_000 }).toBe("WAITING_FOR_INPUT");
+  await page.goto(`/executions?id=${exId}`);
+  const box = page.getByTestId("ex-question");
+  await expect(box.getByTestId("ex-question-text")).toHaveText("Postgres or SQLite?");
+  await expect(box.getByTestId("ex-answer")).toBeDisabled();
+  const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  expect(axe.violations.map((v) => v.id)).toEqual([]);
+  await box.locator("#q-answer").fill("Postgres, please");
+  await box.getByTestId("ex-answer").click();
+  await expect.poll(async () => (await (await page.request.get(`/api/executions/${exId}`)).json()).status,
+    { timeout: 60_000 }).toBe("COMPLETED");
+  await expect(page.getByTestId("ex-question")).toHaveCount(0);
+  await expect(page.getByTestId("ex-timeline")).toContainText("Answered");
+});

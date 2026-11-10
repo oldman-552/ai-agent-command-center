@@ -22,6 +22,21 @@ Full stack in Docker (dev env, registries blocked):
 ## Current state
 See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT_ACTION`.
 
+### Session 2026-11-10 (after 111/115) — what changed
+- Tracing across RabbitMQ; A2A streaming, push notifications (SSRF-guarded webhook outbox), extended card,
+  multi-turn and input-required; sign-in throttling in Redis + two-replica and nginx tests (`deploy/nginx/acc.conf`).
+- **Model tool calling in the `api` engine (ADR-030)** — before it, real-model agents could not use tools.
+  `gateway/toolspec.py` (offered tools), neutral history in `gateway/base.py`, per-adapter conversion in `adapters.py`,
+  bounded checkpointed loop in `gateway/service.py`. Mock marker: `[[mock:call <tool> {json}]]`.
+- `ask.human` → `InputRequired` → `WAITING_FOR_INPUT`; `service.answer_input`, `POST /api/executions/{id}/input`,
+  question box on the execution page; handlers skip parked executions unless answered.
+- Optional memory embedding model (`memory/semantic.py`, worker role `memory_index`), Memory page *Search mode* card.
+- Image hygiene: `scripts/check-image-updates.sh`, every Dockerfile upgrades OS packages; offline base gains security
+  suites. CLIs were installed and run in the sandbox (`docker/offline/cli.Dockerfile`); Gemini needs `--skip-trust`;
+  the CLI engine refuses workspaces with CLI project config unless allowed; CLI key/model come from the agent's provider.
+- Still owner-only: GW-10 (live key), FI-06 (real GitHub repo — creating one was blocked here), SEC-08 (Trivy),
+  FI-01 (Windows).
+
 ### Layout (spec v4, ADR-001)
 - `backend/app/models/` — schema per plane (identity, agents, work, runtime, connectivity, governance); `__init__` re-exports.
 - `backend/app/security/` — auth (JWT cookie + CSRF), rbac (roles/permissions as data), tenancy (`scoped`, `get_scoped`), crypto, audit.

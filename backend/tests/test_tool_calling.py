@@ -213,3 +213,60 @@ def test_a_resumed_execution_continues_the_conversation_without_rerunning_tools(
     done = db.get(Execution, ex.id)
     assert "memory_write -> {\"memory_id\": 42}" in done.output["text"]
     assert _events(db, ex.id, "tool_call") == []  # the tool from before the crash is not run again
+
+
+# ---- WAITING_FOR_INPUT: the agent asks a person ----
+ASK = '[[mock:call ask.human {"question": "Which database should I use?"}]]'
+
+
+def test_agent_question_parks_the_execution_until_a_person_answers(db, mock_provider, admin_client):
+    p = Project(organization_id=1, name=f"TC {uuid.uuid4().hex[:6]}")
+    db.add(p)
+    db.commit()
+    a = _agent(db, mock_provider, tool_permissions=["ask.human"])
+    status, ex = _run(db, a, f"set up storage {ASK}", p)
+    assert status == "WAITING_FOR_INPUT"
+    detail = admin_client.get(f"/api/executions/{ex.id}").json()
+    assert detail["status"] == "WAITING_FOR_INPUT" and detail["pending_question"] == "Which database should I use?"
+    assert [e.payload["question"] for e in _events(db, ex.id, "input_required")] == ["Which database should I use?"]
+    db.refresh(a)
+    assert a.state == "WAITING_FOR_INPUT"
+    r = admin_client.post(f"/api/executions/{ex.id}/input", json={"answer": "PostgreSQL 16"})
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    done = db.get(Execution, ex.id)
+    assert done.status == "COMPLETED", done.error
+    assert 'ask_human -> {"answer": "PostgreSQL 16"' in done.output["text"]
+    assert admin_client.get(f"/api/executions/{ex.id}").json()["pending_question"] is None
+    assert admin_client.post(f"/api/executions/{ex.id}/input", json={"answer": "again"}).status_code == 409
+    assert [e.type for e in _events(db, ex.id, "input_answered")] == ["input_answered"]
+
+
+def test_a_waiting_execution_can_be_cancelled_and_asking_needs_the_permission(db, mock_provider, admin_client):
+    p = Project(organization_id=1, name=f"TC {uuid.uuid4().hex[:6]}")
+    db.add(p)
+    db.commit()
+    a = _agent(db, mock_provider, tool_permissions=["ask.human"])
+    _, ex = _run(db, a, f"x {ASK}", p)
+    assert admin_client.post(f"/api/executions/{ex.id}/cancel").json()["status"] == "CANCELLED"
+    b = _agent(db, mock_provider, tool_permissions=[])  # not permitted: not offered, never parks
+    status, ex2 = _run(db, b, f"x {ASK}", p)
+    assert status == "COMPLETED" and _events(db, ex2.id, "input_required") == []  # no tools offered: just answers
+
+
+def test_a2a_input_required_and_reply_with_task_id(client, admin_client, db, mock_provider):
+    from tests.test_a2a import V, rpc
+    a = _agent(db, mock_provider, tool_permissions=["ask.human"])
+    a.security_profile = "developer"
+    db.commit()
+    token = admin_client.post("/api/a2a/keys", json={"name": "ask", "agent_ids": [a.id]}).json()["token"]
+    m = {"message": {"messageId": str(uuid.uuid4()), "role": "ROLE_USER", "parts": [{"text": f"plan it {ASK}"}]}}
+    t = rpc(client, a, token, "SendMessage", m)["result"]["task"]
+    assert t["status"]["state"] == "TASK_STATE_INPUT_REQUIRED"
+    assert t["status"]["message"]["parts"][0]["text"] == "Which database should I use?"
+    reply = {"message": {"messageId": str(uuid.uuid4()), "role": "ROLE_USER", "taskId": t["id"],
+                         "parts": [{"text": "SQLite is fine"}]}}
+    t2 = rpc(client, a, token, "SendMessage", reply)["result"]["task"]
+    assert t2["id"] == t["id"] and t2["status"]["state"] == "TASK_STATE_COMPLETED"  # the same task continued
+    assert '"answer": "SQLite is fine"' in t2["artifacts"][0]["parts"][0]["text"]
+    assert V

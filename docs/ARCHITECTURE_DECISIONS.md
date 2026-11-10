@@ -432,3 +432,6 @@ calls tools from a script.
 **Consequences:** Agents on Anthropic, OpenAI(-compatible) and Gemini models can read and write the worktree, run
 allow-listed tests/builds, commit, open PRs, propose memories and call MCP tools within their permissions.
 Verified with simulated streams and the mock model; live verification needs an API key (GW-10).
+Follow-up: `ask.human` parks the execution in `WAITING_FOR_INPUT` via `InputRequired` after a checkpoint that carries
+the pending question; `answer_input` appends the answer as that call's result in a new checkpoint and re-dispatches.
+A worker skips parked executions unless their question has been answered, so redelivery never resumes one early.

@@ -10,6 +10,7 @@ workers; this service is unchanged by that — workers call `run_execution`.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import socket
@@ -30,6 +31,7 @@ from app.runtime.contract import (
     TERMINAL,
     TRANSITIONS,
     EngineContext,
+    InputRequired,
     RetryableError,
     ToolDenied,
     get_engine,
@@ -51,6 +53,14 @@ _TOOLS: dict[str, ToolFn] = {}
 
 def register_tool(name: str, fn: ToolFn) -> None:
     _TOOLS[name] = fn
+
+
+async def _ask_human(ex: Execution, args: dict[str, Any]) -> dict[str, Any]:
+    """Permission-checked marker: the API engine parks the execution right after this call (InputRequired)."""
+    return {"status": "question recorded; the execution waits for the answer"}
+
+
+register_tool("ask.human", _ask_human)
 
 
 # ---------------- creation ----------------
@@ -126,12 +136,46 @@ def _agent_to(db: Session, agent: Agent | None, *path: AgentState, reason: str) 
             return
 
 
+def pending_question(db: Session, ex: Execution) -> dict[str, Any] | None:
+    if X(ex.status) != X.WAITING_FOR_INPUT:
+        return None
+    cp = db.scalar(select(Checkpoint).where(Checkpoint.execution_id == ex.id).order_by(Checkpoint.seq.desc()).limit(1))
+    return (cp.state or {}).get("pending_input") if cp else None
+
+
+def answer_input(db: Session, ex: Execution, answer: str, actor: str, run_inline=None) -> None:
+    """Record a person's answer as the result of the pending `ask.human` call and resume the execution. The answer
+    is untrusted data like any tool result. The wait does not count against the execution's timeout."""
+    pending = pending_question(db, ex)
+    if pending is None:
+        raise HTTPException(409, "not_waiting_for_input")
+    cp = db.scalar(select(Checkpoint).where(Checkpoint.execution_id == ex.id).order_by(Checkpoint.seq.desc()).limit(1))
+    state = dict(cp.state)
+    state["messages"] = [*state.get("messages", []), {
+        "role": "tool", "tool_call_id": pending["tool_call_id"], "name": pending["name"],
+        "content": json.dumps({"answer": redact(answer), "answered_by": "a person"}, ensure_ascii=False)}]
+    state.pop("pending_input", None)
+    seq = (ex.latest_checkpoint_seq or 0) + 1
+    db.add(Checkpoint(execution_id=ex.id, seq=seq, state=state, verified=True))
+    ex.latest_checkpoint_seq = seq
+    agent = db.get(Agent, ex.agent_id) if ex.agent_id else None
+    ex.deadline_at = datetime.now(UTC) + timedelta(seconds=agent.timeout_seconds if agent else 900)
+    _event(db, ex, "input_answered", {"by": actor, "chars": len(answer)})
+    _agent_to(db, agent, AgentState.RUNNING, reason=f"execution {ex.id} got its answer")
+    log_activity(db, "runtime.input_answered", category="runtime", organization_id=ex.organization_id,
+                 actor=actor, agent_id=ex.agent_id, execution_id=ex.id)
+    from app.runtime.dispatch import dispatch
+    db.commit()
+    dispatch(db, ex, actor, "input answered", run_inline=run_inline)
+    db.commit()
+
+
 def request_cancel(db: Session, ex: Execution, actor: str) -> None:
     if X(ex.status) in TERMINAL:
         return
     ex.cancel_requested = True
     # not currently running anywhere → cancel immediately; running ones observe the flag cooperatively
-    idle = (X.CREATED, X.FAILED, X.TERMINATED, X.CHECKPOINTED)
+    idle = (X.CREATED, X.FAILED, X.TERMINATED, X.CHECKPOINTED, X.WAITING_FOR_INPUT)
     if X(ex.status) in idle and X.CANCELLED in TRANSITIONS[X(ex.status)]:
         set_status(db, ex, X.CANCELLED, f"cancelled by {actor}")
         ex.ended_at = datetime.now(UTC)
@@ -165,7 +209,7 @@ async def _run(db: Session, execution_id: str) -> str:
     engine = get_engine(ex.engine)
     ex.runtime_id = RUNTIME_ID
 
-    resuming = X(ex.status) in (X.FAILED, X.TERMINATED, X.CHECKPOINTED)
+    resuming = X(ex.status) in (X.FAILED, X.TERMINATED, X.CHECKPOINTED, X.WAITING_FOR_INPUT)
     if resuming:
         set_status(db, ex, X.RECOVERING, "resuming from latest checkpoint")
     else:
@@ -245,6 +289,16 @@ async def _run(db: Session, execution_id: str) -> str:
             if agent:
                 circuit.record_success(db, "agent", agent.id, ex.organization_id)
             _agent_to(db, agent, AgentState.COMPLETED, AgentState.IDLE, reason=f"execution {ex.id} completed")
+            db.commit()
+            return ex.status
+        except InputRequired as q:  # parked until a person answers; not a failure, nothing to retry
+            _apply_usage(ex, usage)
+            ex.output = {"parts": output_parts, "text": "".join(output_parts)}
+            set_status(db, ex, X.WAITING_FOR_INPUT, "waiting for an answer")
+            _event(db, ex, "input_required", {"question": q.question})
+            log_activity(db, "runtime.input_required", category="runtime", organization_id=ex.organization_id,
+                         agent_id=ex.agent_id, execution_id=ex.id, details={"question": q.question[:500]})
+            _agent_to(db, agent, AgentState.WAITING_FOR_INPUT, reason=f"execution {ex.id} asked a question")
             db.commit()
             return ex.status
         except (asyncio.CancelledError, ToolDenied, RetryableError, TimeoutError, Exception) as e:

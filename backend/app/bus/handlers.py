@@ -41,7 +41,8 @@ async def handle_execution_run(env: Envelope) -> None:
         if ex.organization_id != env.organization_id:
             raise Fatal("organization mismatch")  # never act across tenants on a forged/mis-routed message
         st = X(ex.status)
-        if st in TERMINAL or st in _PARKED:
+        answered = st == X.WAITING_FOR_INPUT and service.pending_question(db, ex) is None  # resumes with the answer
+        if st in TERMINAL or (st in _PARKED and not answered):
             return
         if st == X.FAILED and not str(env.payload.get("reason", "")).startswith("resume"):
             last = db.scalar(select(ExecutionEvent.type).where(ExecutionEvent.execution_id == ex.id)

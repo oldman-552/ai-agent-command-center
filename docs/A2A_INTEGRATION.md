@@ -45,7 +45,11 @@ POST /api/a2a/agents/{identifier}                                   JSON-RPC 2.0
   agent). A message with `taskId` must reference an existing task of the key (`TaskNotFoundError` otherwise), its
   `contextId` must match (`InvalidParamsError`); a finished task is refined in a **new** task of the same context
   that references it, a running one answers `UnsupportedOperationError`. Other keys never see a conversation.
-- Not supported yet: `input-required` in the middle of a task (no engine asks for input), non-text parts.
+- **Input required**: when the agent asks a person (`ask.human`), the task is `TASK_STATE_INPUT_REQUIRED` with the
+  question as `status.message`; a message with that `taskId` is the answer and the **same** task continues (streams
+  and push notifications report it like any state). A task whose answer is in but which has not resumed yet reads as
+  `TASK_STATE_WORKING`.
+- Not supported yet: non-text parts.
 
 ## Using remote agents (client + `a2a` engine)
 

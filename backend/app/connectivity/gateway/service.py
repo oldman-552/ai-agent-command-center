@@ -22,7 +22,14 @@ from app.context.assembler import system_message
 from app.db import session_factory
 from app.models import Agent, CostRecord, Execution, ModelInfo, Provider, Task, UsageRecord
 from app.runtime import circuit
-from app.runtime.contract import EngineContext, EngineEvent, RetryableError, ToolDenied, register_engine
+from app.runtime.contract import (
+    EngineContext,
+    EngineEvent,
+    InputRequired,
+    RetryableError,
+    ToolDenied,
+    register_engine,
+)
 from app.security.audit import log_activity
 from app.security.crypto import decrypt_secret
 
@@ -193,8 +200,21 @@ class ApiEngine:
                     raise ProviderError(f"the model kept calling tools after {max_rounds} rounds; stopped "
                                         "(context_policy.max_tool_rounds)")
                 messages.append({"role": "assistant", "content": "".join(text_parts), "tool_calls": calls})
+                question = None
                 for c in calls:
                     spec = by_name.get(c.get("name", ""))
+                    if spec is not None and spec.key == "ask.human" and question is None:
+                        # permission checked like any tool; then park — the answer becomes this call's result
+                        try:
+                            await ctx.call_tool(spec.key, c.get("arguments") or {})
+                        except ToolDenied:
+                            messages.append({"role": "tool", "tool_call_id": c.get("id", ""), "name": c.get("name", ""),
+                                             "content": json.dumps({"error": "permission_denied"})})
+                            continue
+                        question = {"question": str((c.get("arguments") or {}).get("question", ""))[:4000].strip()
+                                    or "(the agent asked for input without a question)",
+                                    "tool_call_id": c.get("id", ""), "name": c.get("name", "")}
+                        continue
                     if spec is None:  # a tool the agent was not offered: never run, answered to the model
                         result: dict[str, Any] = {"error": "unknown_tool", "reason": "this tool is not available"}
                     else:
@@ -209,8 +229,10 @@ class ApiEngine:
                                      "content": content})
                 rounds += 1
                 routes = [used]
-                await ctx.checkpoint({"messages": messages, "tool_rounds": rounds,
-                                      "route": [used[0].id, used[1]]})
+                await ctx.checkpoint({"messages": messages, "tool_rounds": rounds, "route": [used[0].id, used[1]],
+                                      **({"pending_input": question} if question else {})})
+                if question:
+                    raise InputRequired(question["question"])
         finally:
             db.close()
 

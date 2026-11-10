@@ -88,7 +88,7 @@ export type Execution = {
   id: string; agent_id: number | null; project_id: number | null; task_id: number | null; provider: string | null; model: string | null;
   engine: string; status: string; started_at: string | null; ended_at: string | null; output: { text?: string } | null;
   input_tokens: number; output_tokens: number; cost_usd: string | null; error: string | null; error_category: string | null;
-  attempt: number; is_mock: boolean; created_at: string;
+  attempt: number; is_mock: boolean; created_at: string; pending_question?: string | null;
 };
 export type ExecEvent = { seq: number; ts: string; type: string; payload: Record<string, unknown> };
 const getRuntime = () => api<RuntimeOverview>("/api/runtime/overview");
@@ -98,6 +98,13 @@ const getEvents = (id: string) => api<ExecEvent[]>(`/api/executions/${id}/events
 export const useRuntime = () => useQuery({ queryKey: ["runtime"], queryFn: getRuntime, refetchInterval: 10_000 });
 export const useExecutions = (status?: string) => useQuery({ queryKey: ["executions", status], queryFn: () => getExecutions(status) });
 export const useExecution = (id?: string) => useQuery({ queryKey: ["execution", id], queryFn: () => getExecution(id!), enabled: !!id });
+export function useAnswerInput(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (answer: string) => api<Execution>(`/api/executions/${id}/input`, { method: "POST", body: JSON.stringify({ answer }) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["execution", id] }); qc.invalidateQueries({ queryKey: ["exec-events", id] }); },
+  });
+}
 export const useExecEvents = (id?: string, live = false) =>
   useQuery({ queryKey: ["exec-events", id], queryFn: () => getEvents(id!), enabled: !!id, refetchInterval: live ? 1_500 : false });
 

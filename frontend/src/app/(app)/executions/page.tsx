@@ -1,14 +1,18 @@
 "use client";
-import { Activity, AlertTriangle, CircleCheck, Clock, FileText, Wrench } from "lucide-react";
+import { Activity, AlertTriangle, CircleCheck, CircleHelp, Clock, FileText, Wrench } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
+import { useCan } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { ApiError } from "@/lib/api";
+import { useToasts } from "@/lib/toast";
 import { NativeSelect } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { type ExecEvent, useExecEvents, useExecution, useExecutions } from "@/lib/admin";
+import { type ExecEvent, useAnswerInput, useExecEvents, useExecution, useExecutions } from "@/lib/admin";
 import { useAgents } from "@/lib/agents";
 import { cn } from "@/lib/utils";
 
@@ -74,7 +78,7 @@ function ExecutionsPage() {
   );
 }
 
-const ICON: Record<string, typeof Activity> = { state: Activity, tool_call: Wrench, tool_result: Wrench, log: FileText, error: AlertTriangle, output_delta: FileText, usage: CircleCheck, checkpoint: Clock };
+const ICON: Record<string, typeof Activity> = { state: Activity, tool_call: Wrench, tool_result: Wrench, log: FileText, error: AlertTriangle, output_delta: FileText, usage: CircleCheck, checkpoint: Clock, input_required: CircleHelp, input_answered: CircleCheck };
 
 function summarize(e: ExecEvent): string {
   const p = e.payload as Record<string, unknown>;
@@ -83,6 +87,8 @@ function summarize(e: ExecEvent): string {
   if (e.type === "tool_result") return `${p.tool}: ${JSON.stringify(p.result ?? {}).slice(0, 160)}`;
   if (e.type === "usage") return `${p.input_tokens ?? 0} in / ${p.output_tokens ?? 0} out${p.cost_usd ? ` · $${p.cost_usd}` : ""}`;
   if (e.type === "log" || e.type === "error") return String(p.message ?? JSON.stringify(p)).slice(0, 300);
+  if (e.type === "input_required") return String(p.question ?? "");
+  if (e.type === "input_answered") return String(p.by ?? "");
   return JSON.stringify(p).slice(0, 200);
 }
 
@@ -119,6 +125,7 @@ function Timeline({ id }: { id: string }) {
         </dl>
       )}
       {ex.data?.error && <p role="alert" className="text-sm"><span className="font-medium">{t("error")}:</span> <span dir="auto">{ex.data.error}</span></p>}
+      {ex.data?.pending_question && <QuestionBox id={id} question={ex.data.pending_question} />}
       {events.isLoading && <Skeleton className="h-32" aria-busy="true" />}
       <ol className="relative flex flex-col gap-3 border-s ps-5" aria-label={t("timeline")}>
         {rows.map((e) => {
@@ -146,5 +153,36 @@ function Timeline({ id }: { id: string }) {
       )}
       <Button variant="ghost" size="sm" className="self-start" onClick={() => events.refetch()}>{t("refresh")}</Button>
     </Card>
+  );
+}
+
+/** WAITING_FOR_INPUT: the agent asked a person; the answer resumes the execution. */
+function QuestionBox({ id, question }: { id: string; question: string }) {
+  const t = useTranslations("executions.question");
+  const tc = useTranslations("common");
+  const can = useCan();
+  const [answer, setAnswer] = useState("");
+  const send = useAnswerInput(id);
+  const toast = useToasts((s) => s.push);
+  return (
+    <section className="flex flex-col gap-3 rounded-md border border-primary/40 bg-primary/5 p-3" aria-labelledby="q-h" data-testid="ex-question">
+      <h3 id="q-h" className="flex items-center gap-2 text-sm font-semibold"><CircleHelp className="size-4" aria-hidden />{t("title")}</h3>
+      <p className="whitespace-pre-wrap text-sm" dir="auto" data-testid="ex-question-text">{question}</p>
+      {can("executions.control") ? (
+        <form className="flex flex-col gap-2" onSubmit={(e) => {
+          e.preventDefault();
+          send.mutate(answer.trim(), {
+            onSuccess: () => { setAnswer(""); toast("success", t("sent")); },
+            onError: (err) => toast("error", tc("requestFailed", { code: err instanceof ApiError ? err.code : "error" })),
+          });
+        }}>
+          <Label htmlFor="q-answer">{t("answer")}</Label>
+          <Textarea id="q-answer" value={answer} onChange={(e) => setAnswer(e.target.value)} maxLength={20000} rows={3}
+            aria-describedby="q-help" dir="auto" />
+          <p id="q-help" className="text-xs text-muted-foreground">{t("help")}</p>
+          <div><Button type="submit" disabled={!answer.trim() || send.isPending} data-testid="ex-answer">{t("send")}</Button></div>
+        </form>
+      ) : <p className="text-xs text-muted-foreground">{t("noPermission")}</p>}
+    </section>
   );
 }

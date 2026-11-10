@@ -19,6 +19,7 @@ TOOLS: dict[str, str] = {
     "tasks.assign": "Propose task assignments",
     "web.read": "Read public web pages through the platform fetcher",
     "memory.write": "Propose memories (stored as unverified until confirmed)",
+    "ask.human": "Ask a person a question and wait for the answer (the execution waits for input)",
 }
 
 # JSON Schemas offered to models for the tools the runtime implements (gateway/toolspec.py). A tool without a schema
@@ -43,17 +44,20 @@ TOOL_SCHEMAS: dict[str, dict] = {
     "git.commit": {"type": "object", "properties": {"message": {**_STR, "description": "Commit message"}},
                    "required": ["message"]},
     "pr.create": {"type": "object", "properties": {}},
+    "ask.human": {"type": "object", "properties": {"question": {**_STR, "description": "One clear question for "
+                  "a person; the task waits until it is answered, so ask only what you cannot decide yourself"}},
+                  "required": ["question"]},
     "memory.write": {"type": "object", "properties": {
         "type": {"type": "string", "enum": ["lesson", "technical_decision", "codebase", "project", "task", "execution"]},
         "title": _STR, "content": _STR}, "required": ["type", "title", "content"]},
 }
 
 PROFILE_CEILING: dict[str, set[str]] = {
-    "read_only": {"repo.read", "web.read"},
-    "reviewer": {"repo.read", "web.read", "shell.test", "pr.review", "memory.write"},
+    "read_only": {"repo.read", "web.read", "ask.human"},
+    "reviewer": {"repo.read", "web.read", "shell.test", "pr.review", "memory.write", "ask.human"},
     "developer": {"repo.read", "web.read", "files.write", "shell.test", "shell.build", "git.branch", "git.commit",
-                  "pr.create", "memory.write"},
-    "manager": {"repo.read", "web.read", "tasks.plan", "tasks.assign", "pr.review", "memory.write"},
+                  "pr.create", "memory.write", "ask.human"},
+    "manager": {"repo.read", "web.read", "tasks.plan", "tasks.assign", "pr.review", "memory.write", "ask.human"},
 }
 
 

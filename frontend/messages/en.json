@@ -1171,9 +1171,19 @@
       "error": "Error",
       "output_delta": "Output",
       "usage": "Usage",
-      "checkpoint": "Checkpoint"
+      "checkpoint": "Checkpoint",
+      "input_required": "Question for a person",
+      "input_answered": "Answered"
     },
-    "mock": "MOCK"
+    "mock": "MOCK",
+    "question": {
+      "title": "The agent is waiting for your answer",
+      "answer": "Your answer",
+      "help": "The agent continues with your answer as soon as you send it. It is treated as information, not as instructions that override its rules.",
+      "send": "Send answer",
+      "sent": "Answer sent; the agent continues.",
+      "noPermission": "Someone allowed to control executions has to answer."
+    }
   },
   "orchestration": {
     "title": "Orchestration",

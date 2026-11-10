@@ -35,6 +35,13 @@ FAILED | TERMINATED → RECOVERING → RUNNING     (resume from the latest check
   instead of failing the run. Tool results are capped at 20 000 characters. After each round a checkpoint stores the
   conversation and the model used, so a resumed execution continues it on the same model without re-running tools;
   once tools have run, a provider error is not "fixed" by switching to the fallback model mid-conversation.
+- **Asking a person (`WAITING_FOR_INPUT`).** With the `ask.human` tool (allowed in every security profile, granted per
+  agent) a model can ask one question. The engine checkpoints the conversation with the pending question and the
+  execution parks in `WAITING_FOR_INPUT` (the agent shows *waiting for input*; the timeline shows the question). A
+  person answers on the execution page or with `POST /api/executions/{id}/input` (`executions.control`); an A2A
+  client answers by sending a message with the task's `taskId`. The answer becomes the tool's result (untrusted data,
+  secret-redacted), the deadline restarts so the wait does not count as run time, and the execution resumes from the
+  checkpoint on any worker. A waiting execution can be cancelled at once.
 - Failures are categorised (`transient`, `timeout`, `provider`, `policy`, `error`); only transient ones are retried
   automatically (5 s / 30 s / 300 s tiers, then the DLQ). The recovery report records what was tried.
 - Circuit breakers per agent and per provider open after 5 consecutive failures and allow one trial after 300 s.

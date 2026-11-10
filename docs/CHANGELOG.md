@@ -6,6 +6,8 @@ to `docs/requirements.json`.
 ## Unreleased — 2026-11-10
 
 ### Added
+- **Agents can ask a person** (`ask.human`): the execution waits in `WAITING_FOR_INPUT`, the question appears in the
+  execution timeline with an answer box, A2A clients answer with `taskId`; the run resumes from its checkpoint.
 - **Model tool calling** in the `api` engine for Anthropic, OpenAI/compatible and Gemini: permitted platform and MCP
   tools are offered with schemas, run through the runtime's permission check, and fed back in a bounded, checkpointed
   loop. Previously only mock scripts and CLIs could use tools.

@@ -71,7 +71,23 @@ def list_executions(db: DB, user: User = Depends(require("executions.read")), ag
 
 @router.get("/executions/{execution_id}")
 def get_execution(execution_id: str, db: DB, user: User = Depends(require("executions.read"))) -> dict:
-    return execution_out(get_scoped(db, Execution, execution_id, user))
+    ex = get_scoped(db, Execution, execution_id, user)
+    q = service.pending_question(db, ex)
+    return {**execution_out(ex), "pending_question": q["question"] if q else None}
+
+
+class InputIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    answer: str = Field(min_length=1, max_length=20_000)
+
+
+@router.post("/executions/{execution_id}/input")
+def answer(execution_id: str, body: InputIn, bg: BackgroundTasks, db: DB,
+           user: User = Depends(require("executions.control"))) -> dict:
+    """Answer the question an agent asked (WAITING_FOR_INPUT); the execution resumes with the answer."""
+    ex = get_scoped(db, Execution, execution_id, user)
+    service.answer_input(db, ex, body.answer, f"user:{user.id}", run_inline=bg.add_task)
+    return execution_out(ex)
 
 
 @router.get("/executions/{execution_id}/events")

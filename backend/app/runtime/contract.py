@@ -21,7 +21,7 @@ TRANSITIONS: dict[X, set[X]] = {
                 X.FAILED, X.CANCELLED, X.TERMINATED},
     X.WAITING_FOR_TOOL: {X.RUNNING, X.FAILED, X.CANCELLED, X.TERMINATED},
     X.WAITING_FOR_APPROVAL: {X.RUNNING, X.FAILED, X.CANCELLED},
-    X.WAITING_FOR_INPUT: {X.RUNNING, X.FAILED, X.CANCELLED},
+    X.WAITING_FOR_INPUT: {X.RUNNING, X.RECOVERING, X.FAILED, X.CANCELLED},  # RECOVERING: answered, resumes
     X.CHECKPOINTED: {X.RUNNING, X.RECOVERING, X.CANCELLED, X.FAILED, X.TERMINATED},
     X.RECOVERING: {X.RUNNING, X.FAILED, X.CANCELLED},
     X.FAILED: {X.RECOVERING, X.CANCELLED},  # retry/resume from checkpoint, or give up
@@ -34,6 +34,15 @@ TERMINAL = {X.COMPLETED, X.CANCELLED}
 
 class ToolDenied(Exception):
     """Raised when an engine requests a tool outside the execution's permissions."""
+
+
+class InputRequired(Exception):
+    """Raised by an engine that needs a person's answer. The engine has checkpointed its state (with the pending
+    question); the runtime parks the execution in WAITING_FOR_INPUT until someone answers (answer_input)."""
+
+    def __init__(self, question: str):
+        super().__init__(question)
+        self.question = question
 
 
 class RetryableError(Exception):
