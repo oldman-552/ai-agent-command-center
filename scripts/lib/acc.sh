@@ -40,6 +40,11 @@ PY
     rm -f "$f.bak"
     return 0
   fi
+  if ! grep -qE "^$key=" "$f"; then  # missing entirely (a hand-made or partial .env): add it
+    [ -s "$f" ] && [ -n "$(tail -c1 "$f")" ] && echo >> "$f"
+    echo "$key=$val" >> "$f"
+    return 0
+  fi
   return 1
 }
 

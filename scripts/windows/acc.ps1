@@ -52,6 +52,11 @@ function Set-IfEmpty([string]$Key, [string]$Value) {
     [System.IO.File]::WriteAllLines($EnvFile, $lines, (New-Object System.Text.UTF8Encoding($false)))
     return $true
   }
+  if (-not ($lines | Where-Object { $_ -like "$Key=*" })) {  # missing entirely (hand-made or partial .env): add it
+    $lines = @($lines) + "$Key=$Value"
+    [System.IO.File]::WriteAllLines($EnvFile, $lines, (New-Object System.Text.UTF8Encoding($false)))
+    return $true
+  }
   return $false
 }
 
