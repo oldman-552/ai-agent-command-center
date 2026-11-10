@@ -11,18 +11,25 @@ import httpx2 as httpx  # the official SDKs use httpx2; one HTTP stack for the w
 
 @dataclass
 class ChatRequest:
+    """`messages` use one provider-neutral format that each adapter converts:
+    {"role": "user", "content": str}
+    {"role": "assistant", "content": str, "tool_calls": [{"id": str, "name": str, "arguments": dict}]}
+    {"role": "tool", "tool_call_id": str, "name": str, "content": str}
+    `tools` are gateway.toolspec.ToolSpec objects (model-facing name, description, JSON Schema)."""
     model: str
-    messages: list[dict[str, str]]          # [{"role": "user"|"assistant", "content": "..."}]
+    messages: list[dict[str, Any]]
     system: str = ""
     max_tokens: int = 4096
     temperature: float | None = None
+    tools: list[Any] = field(default_factory=list)
 
 
 @dataclass
 class GatewayEvent:
-    type: str  # "delta" | "usage"
+    type: str  # "delta" | "usage" | "tool_call"
     text: str = ""
     usage: dict[str, int] = field(default_factory=dict)
+    call: dict[str, Any] = field(default_factory=dict)  # tool_call: {"id", "name", "arguments": dict}
 
 
 @dataclass

@@ -21,6 +21,87 @@ from app.connectivity.gateway.base import (
 )
 
 
+def _args(raw: Any) -> dict[str, Any]:
+    """Tool-call arguments as a dict, whatever the provider sent (object, JSON text, nothing)."""
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str) and raw.strip():
+        try:
+            v = json.loads(raw)
+            return v if isinstance(v, dict) else {"value": v}
+        except ValueError:
+            return {"_unparsed": raw[:2000]}
+    return {}
+
+
+def _anthropic_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for m in messages:
+        if m["role"] == "tool":
+            block = {"type": "tool_result", "tool_use_id": m["tool_call_id"], "content": m["content"]}
+            if out and out[-1]["role"] == "user" and isinstance(out[-1]["content"], list):
+                out[-1]["content"].append(block)  # consecutive results go in one user turn
+            else:
+                out.append({"role": "user", "content": [block]})
+        elif m["role"] == "assistant" and m.get("tool_calls"):
+            blocks: list[dict[str, Any]] = [{"type": "text", "text": m["content"]}] if m.get("content") else []
+            blocks += [{"type": "tool_use", "id": c["id"], "name": c["name"], "input": c["arguments"]}
+                       for c in m["tool_calls"]]
+            out.append({"role": "assistant", "content": blocks})
+        else:
+            out.append({"role": m["role"], "content": m.get("content") or ""})
+    return out
+
+
+def _openai_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for m in messages:
+        if m["role"] == "tool":
+            out.append({"role": "tool", "tool_call_id": m["tool_call_id"], "content": m["content"]})
+        elif m["role"] == "assistant" and m.get("tool_calls"):
+            out.append({"role": "assistant", "content": m.get("content") or None, "tool_calls": [
+                {"id": c["id"], "type": "function",
+                 "function": {"name": c["name"], "arguments": json.dumps(c["arguments"])}} for c in m["tool_calls"]]})
+        else:
+            out.append({"role": m["role"], "content": m.get("content") or ""})
+    return out
+
+
+_GEMINI_SCHEMA_KEYS = {"type", "description", "properties", "required", "items", "enum", "format", "nullable"}
+
+
+def _gemini_schema(s: Any) -> Any:
+    """Gemini accepts an OpenAPI subset: drop keywords it rejects (additionalProperties, $schema, oneOf…)."""
+    if isinstance(s, dict):
+        out = {k: _gemini_schema(v) for k, v in s.items() if k in _GEMINI_SCHEMA_KEYS}
+        if "properties" in s and isinstance(s["properties"], dict):
+            out["properties"] = {k: _gemini_schema(v) for k, v in s["properties"].items()}
+        if out.get("type") == "object" and not out.get("properties"):
+            out.pop("properties", None)
+        return out
+    if isinstance(s, list):
+        return [_gemini_schema(x) for x in s]
+    return s
+
+
+def _gemini_contents(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for m in messages:
+        if m["role"] == "tool":
+            part = {"functionResponse": {"name": m["name"], "response": {"result": m["content"]}}}
+            if out and out[-1]["role"] == "user" and "functionResponse" in out[-1]["parts"][0]:
+                out[-1]["parts"].append(part)
+            else:
+                out.append({"role": "user", "parts": [part]})
+        elif m["role"] == "assistant":
+            parts: list[dict[str, Any]] = [{"text": m["content"]}] if m.get("content") else []
+            parts += [{"functionCall": {"name": c["name"], "args": c["arguments"]}} for c in m.get("tool_calls") or []]
+            out.append({"role": "model", "parts": parts or [{"text": ""}]})
+        else:
+            out.append({"role": "user", "parts": [{"text": m.get("content") or ""}]})
+    return out
+
+
 class AnthropicAdapter:
     kind, is_mock = "anthropic", False
 
@@ -39,16 +120,23 @@ class AnthropicAdapter:
         return e
 
     async def stream(self, req: ChatRequest) -> AsyncIterator[GatewayEvent]:
-        kw: dict[str, Any] = {"model": req.model, "max_tokens": req.max_tokens, "messages": req.messages}
+        kw: dict[str, Any] = {"model": req.model, "max_tokens": req.max_tokens,
+                              "messages": _anthropic_messages(req.messages)}
         if req.system:
             kw["system"] = req.system
         if req.temperature is not None:
             kw["temperature"] = req.temperature
+        if req.tools:
+            kw["tools"] = [{"name": t.name, "description": t.description, "input_schema": t.parameters}
+                           for t in req.tools]
         try:
             async with self.client.messages.stream(**kw) as s:
                 async for text in s.text_stream:
                     yield GatewayEvent("delta", text=text)
                 final = await s.get_final_message()
+            for b in final.content:
+                if getattr(b, "type", None) == "tool_use":
+                    yield GatewayEvent("tool_call", call={"id": b.id, "name": b.name, "arguments": _args(b.input)})
             u = final.usage
             yield GatewayEvent("usage", usage={"input_tokens": u.input_tokens, "output_tokens": u.output_tokens,
                                                "cached_tokens": u.cache_read_input_tokens or 0})
@@ -87,16 +175,27 @@ class OpenAIAdapter:
         return e
 
     async def stream(self, req: ChatRequest) -> AsyncIterator[GatewayEvent]:
-        messages = ([{"role": "system", "content": req.system}] if req.system else []) + req.messages
+        messages = ([{"role": "system", "content": req.system}] if req.system else []) + _openai_messages(req.messages)
         kw: dict[str, Any] = {"model": req.model, "messages": messages, "stream": True,
                               "stream_options": {"include_usage": True}, "max_completion_tokens": req.max_tokens}
         if req.temperature is not None:
             kw["temperature"] = req.temperature
+        if req.tools:
+            kw["tools"] = [{"type": "function", "function": {"name": t.name, "description": t.description,
+                                                             "parameters": t.parameters}} for t in req.tools]
+        calls: dict[int, dict[str, Any]] = {}  # tool calls arrive in fragments, keyed by index
         try:
             stream = await self.client.chat.completions.create(**kw)
             async for chunk in stream:
-                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                    yield GatewayEvent("delta", text=chunk.choices[0].delta.content)
+                delta = chunk.choices[0].delta if chunk.choices else None
+                if delta and delta.content:
+                    yield GatewayEvent("delta", text=delta.content)
+                for tc in (getattr(delta, "tool_calls", None) or []) if delta else []:
+                    c = calls.setdefault(tc.index, {"id": "", "name": "", "arguments": ""})
+                    c["id"] = tc.id or c["id"]
+                    if tc.function:
+                        c["name"] += tc.function.name or ""
+                        c["arguments"] += tc.function.arguments or ""
                 if getattr(chunk, "usage", None):
                     u = chunk.usage
                     cached = getattr(getattr(u, "prompt_tokens_details", None), "cached_tokens", 0) or 0
@@ -104,6 +203,11 @@ class OpenAIAdapter:
                                                        "output_tokens": u.completion_tokens, "cached_tokens": cached})
         except (openai.APIConnectionError, openai.APIStatusError) as e:
             raise self._map(e) from e
+        for i in sorted(calls):
+            c = calls[i]
+            if c["name"]:
+                yield GatewayEvent("tool_call", call={"id": c["id"] or f"call_{i}", "name": c["name"],
+                                                      "arguments": _args(c["arguments"])})
 
     async def list_models(self) -> list[DiscoveredModel]:
         try:
@@ -144,15 +248,19 @@ class GoogleAdapter:
             raise classify_status(r.status_code, body)
 
     async def stream(self, req: ChatRequest) -> AsyncIterator[GatewayEvent]:
-        body: dict[str, Any] = {
-            "contents": [{"role": "model" if m["role"] == "assistant" else "user", "parts": [{"text": m["content"]}]}
-                         for m in req.messages],
-            "generationConfig": {"maxOutputTokens": req.max_tokens}}
+        body: dict[str, Any] = {"contents": _gemini_contents(req.messages),
+                                "generationConfig": {"maxOutputTokens": req.max_tokens}}
+        if req.tools:
+            body["tools"] = [{"functionDeclarations": [
+                {"name": t.name, "description": t.description, "parameters": _gemini_schema(t.parameters)}
+                if (t.parameters or {}).get("properties") else {"name": t.name, "description": t.description}
+                for t in req.tools]}]
         if req.system:
             body["systemInstruction"] = {"parts": [{"text": req.system}]}
         if req.temperature is not None:
             body["generationConfig"]["temperature"] = req.temperature
         usage: dict[str, int] = {}
+        n_calls = 0
         try:
             async with self.http.stream("POST", f"{self.base}/models/{req.model}:streamGenerateContent",
                                         params={"alt": "sse"}, headers=self.headers, json=body) as r:
@@ -165,6 +273,11 @@ class GoogleAdapter:
                         for p in (c.get("content") or {}).get("parts", []):
                             if p.get("text"):
                                 yield GatewayEvent("delta", text=p["text"])
+                            if fc := p.get("functionCall"):
+                                n_calls += 1
+                                yield GatewayEvent("tool_call", call={
+                                    "id": fc.get("id") or f"gemini-{n_calls}-{fc.get('name')}",
+                                    "name": fc.get("name", ""), "arguments": _args(fc.get("args"))})
                     if um := data.get("usageMetadata"):
                         usage = {"input_tokens": um.get("promptTokenCount", 0),
                                  "output_tokens": um.get("candidatesTokenCount", 0),
@@ -188,6 +301,9 @@ class GoogleAdapter:
     async def test_connection(self) -> dict[str, Any]:
         return {"ok": True, "models": len(await self.list_models())}
 
+
+# TEST ONLY: `[[mock:call repo.read {"path": "."}]]` in the prompt makes the mock model request that tool.
+MOCK_CALL = re.compile(r"\[\[mock:call ([\w.:-]+)\s*(\{.*?\})?\]\]")
 
 PLAN_MARKER = "ACC_PLAN_JSON_V1"
 _PLAN_LINE = re.compile(r"^\s*(\d+)[.)]\s*(.+?)\s*(?:\[([\w,\s-]+)\])?\s*(?:\(after\s*([\d,\s]+)\))?"
@@ -251,6 +367,27 @@ class MockAdapter:
             yield GatewayEvent("delta", text=text)
             yield GatewayEvent("usage", usage={"input_tokens": len(last.split()), "output_tokens": len(text.split()),
                                                "cached_tokens": 0})
+            return
+        if req.messages and req.messages[-1]["role"] == "tool":  # TEST ONLY: report what the tools returned
+            results = []
+            for m in reversed(req.messages):
+                if m["role"] != "tool":
+                    break
+                results.insert(0, f"{m['name']} -> {str(m['content'])[:300]}")
+            text = f"{self.PREFIX}tool results: " + " | ".join(results)
+            yield GatewayEvent("delta", text=text)
+            yield GatewayEvent("usage", usage={"input_tokens": 1, "output_tokens": len(text.split()), "cached_tokens": 0})
+            return
+        marks = MOCK_CALL.findall(last) if req.tools else []
+        if marks and not any(m["role"] == "tool" for m in req.messages):  # TEST ONLY: request tools by marker
+            by_key = {t.key: t for t in req.tools}
+            for i, (key, raw) in enumerate(marks):
+                if key in by_key:
+                    yield GatewayEvent("tool_call", call={"id": f"mock-call-{i}", "name": by_key[key].name,
+                                                          "arguments": _args(raw)})
+                else:
+                    yield GatewayEvent("delta", text=f"{self.PREFIX}tool {key} is not offered to this agent. ")
+            yield GatewayEvent("usage", usage={"input_tokens": len(last.split()), "output_tokens": 1, "cached_tokens": 0})
             return
         if "[[mock:unavailable]]" in last:
             raise ProviderUnavailable("mock provider unavailable (requested by test marker)")

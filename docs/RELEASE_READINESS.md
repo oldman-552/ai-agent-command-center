@@ -13,7 +13,7 @@ below with exactly what is missing; none of them is hidden behind a mock.
 
 | Suite | Result | Command |
 |---|---|---|
-| Backend (pytest, real PostgreSQL, RabbitMQ, Redis, Docker sandbox, headless Chromium) | **309 / 309 passed** | `cd backend && uv run pytest -q` |
+| Backend (pytest, real PostgreSQL, RabbitMQ, Redis, Docker sandbox, headless Chromium) | **318 / 318 passed** | `cd backend && uv run pytest -q` |
 | Lint | clean | `uv run ruff check app tests` |
 | Frontend type check + i18n guard (1 081 keys, ar = en) | clean | `npm run check` |
 | Design-token contrast (WCAG) | all pass | `node scripts/check-contrast.mjs` |
@@ -58,6 +58,8 @@ below with exactly what is missing; none of them is hidden behind a mock.
   `docker/cli/Dockerfile` (node base image) was not built here.
 - **Sandbox access to Docker**: compose does not mount the Docker socket by default (root-equivalent); without a
   daemon the shell tools and CLI engine report "sandbox unavailable".
+- **Tool calling with real models** (fixed 2026-11-10: before, API-engine agents could not call tools at all) is
+  verified with simulated provider streams and the mock model only; the first live check comes with your API key.
 - **Prompt-injection defences** are mitigations; enforcement lives in permissions and approvals.
 - **Memory retrieval** uses a local hashed embedding by default (good for overlap in wording, weaker for paraphrases);
   an OpenAI/OpenAI-compatible embedding model can be added and was tested only against a simulated provider.

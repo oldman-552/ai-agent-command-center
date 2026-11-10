@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-10 17:24",
+  "date": "2026-11-10 17:34",
   "spec_version": "4.0",
   "current_phase": "Phases 16, 17, 22",
   "current_milestone": {
@@ -246,11 +246,17 @@
     "SEC-08"
   ],
   "files_changed": [
-    "backend/tests/test_replicas.py",
+    "backend/app/connectivity/gateway/adapters.py",
+    "backend/app/connectivity/gateway/base.py",
+    "backend/app/connectivity/gateway/service.py",
+    "backend/app/runtime/tools.py",
+    "docs/AGENT_RUNTIME.md",
+    "docs/ARCHITECTURE_DECISIONS.md",
     "docs/CHANGELOG.md",
-    "docs/DEPLOYMENT.md",
+    "docs/PROVIDER_INTEGRATION.md",
     "docs/RELEASE_READINESS.md",
-    "deploy/"
+    "backend/app/connectivity/gateway/toolspec.py",
+    "backend/tests/test_tool_calling.py"
   ],
   "tests": {
     "passed": [

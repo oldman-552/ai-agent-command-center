@@ -415,3 +415,20 @@ CRLF); Linux/macOS scripts share `scripts/lib/acc.sh`. Both only drive Docker Co
 with generated secrets (asking for the Super Admin password; never a fake credential), build, start, wait for health,
 open the browser, log to `logs/`. Stop never removes volumes; reset requires typing `RESET`. `docker-compose.prod.yml`
 adds restart policies, limits, secure cookies and loopback-only ports for a reverse proxy.
+
+## ADR-030 — Model tool calling in the API engine (2026-11-10)
+**Context:** The data plane must invoke tools (spec: Data Plane → Tool invocation). The `api` engine ran a single chat
+turn, so agents on real models could not use their permitted tools; tests had not shown it because the mock engine
+calls tools from a script.
+**Decision:**
+- One provider-neutral conversation format (user / assistant with `tool_calls` / tool results) kept by the engine;
+  each adapter converts it to its API and parses tool calls from its stream. Tool names are encoded for the
+  strictest provider rule. Gemini schemas are reduced to its supported subset.
+- Offered tools = permitted ∩ implemented-with-schema, plus enabled tools of assigned MCP servers that are permitted.
+  Being offered grants nothing: calls go through `service.call_tool` (permission check, policy, audit,
+  `WAITING_FOR_TOOL`). Denials and unknown tools become error results for the model.
+- Bounded loop (`max_tool_rounds`, result size cap), checkpoint per round with the conversation and the model;
+  resumption continues on that model and never re-runs finished tool calls; no fallback switch after tools ran.
+**Consequences:** Agents on Anthropic, OpenAI(-compatible) and Gemini models can read and write the worktree, run
+allow-listed tests/builds, commit, open PRs, propose memories and call MCP tools within their permissions.
+Verified with simulated streams and the mock model; live verification needs an API key (GW-10).

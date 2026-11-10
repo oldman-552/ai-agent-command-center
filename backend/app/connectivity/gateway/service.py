@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import json
 import time
 from collections.abc import AsyncIterator
 from decimal import Decimal
@@ -15,12 +16,13 @@ import httpx2 as httpx  # the official SDKs use httpx2; one HTTP stack for the w
 from sqlalchemy import select
 
 from app.connectivity.gateway import adapters as _adapters  # noqa: F401  (registers adapters)
+from app.connectivity.gateway import toolspec
 from app.connectivity.gateway.base import ChatRequest, ProviderError, ProviderUnavailable, adapter_for
 from app.context.assembler import system_message
 from app.db import session_factory
 from app.models import Agent, CostRecord, Execution, ModelInfo, Provider, Task, UsageRecord
 from app.runtime import circuit
-from app.runtime.contract import EngineContext, EngineEvent, RetryableError, register_engine
+from app.runtime.contract import EngineContext, EngineEvent, RetryableError, ToolDenied, register_engine
 from app.security.audit import log_activity
 from app.security.crypto import decrypt_secret
 
@@ -75,8 +77,15 @@ def _routes(db, agent: Agent) -> list[tuple[Provider, str]]:
     return routes
 
 
+MAX_TOOL_ROUNDS = 8
+MAX_TOOL_RESULT_CHARS = 20_000
+
+
 class ApiEngine:
-    """Official-API execution engine: runs one chat turn through the gateway with fallback."""
+    """Official-API execution engine: a chat turn through the gateway with fallback, and — when the agent has
+    tools — a tool loop: the model asks, the runtime checks permissions and runs the tool, the result goes back to
+    the model, until it answers without tool calls (at most `max_tool_rounds`). A checkpoint after every round
+    lets a resumed execution continue the same conversation on the same model."""
 
     kind, is_mock = "api", False
 
@@ -103,59 +112,105 @@ class ApiEngine:
                 routes = [(c.provider, c.model.name) for c in ranked[:3]]
             else:
                 routes = _routes(db, agent)
-            messages = ctx.input.get("messages") or [{"role": "user", "content": str(ctx.input.get("prompt", ""))}]
-            last_error: Exception | None = None
-            for i, (provider, model) in enumerate(routes):
-                if not circuit.allows(db, "provider", provider.id):  # EV-03: skip a provider whose circuit is open
-                    log_activity(db, "gateway.circuit_skip", category="runtime", level="warning",
-                                 organization_id=provider.organization_id, agent_id=agent.id, execution_id=ex.id,
-                                 details={"provider": provider.name})
-                    db.commit()
-                    last_error = ProviderUnavailable(f"provider {provider.name} circuit open")
-                    continue
-                if i > 0:
-                    log_activity(db, "gateway.fallback", category="runtime", level="warning",
-                                 organization_id=provider.organization_id, agent_id=agent.id, execution_id=ex.id,
-                                 details={"to_provider": provider.name, "to_model": model, "reason": str(last_error)})
-                    db.commit()
-                    yield EngineEvent("log", {"message": f"fallback to {provider.name}/{model}"})
-                ex.provider, ex.model, ex.is_mock = provider.kind, model, provider.is_mock
-                db.commit()
-                req = ChatRequest(model=model, messages=messages, system=system_message(agent.system_instructions),
-                                  max_tokens=int(agent.context_policy.get("max_output_tokens", 4096)),
-                                  temperature=agent.context_policy.get("temperature"))
-                started, usage, produced = time.monotonic(), {}, False
-                try:
-                    async for ev in build_adapter(provider).stream(req):
-                        if ev.type == "delta":
-                            produced = True
-                            yield EngineEvent("output_delta", {"text": ev.text})
-                        elif ev.type == "usage":
-                            usage = ev.usage
-                except (ProviderUnavailable, ProviderError) as e:
-                    last_error = e
-                    if isinstance(e, ProviderUnavailable):
-                        circuit.record_failure(db, "provider", provider.id, provider.organization_id, str(e))
+            state = dict(ctx.resume_state or {})
+            messages = list(state.get("messages") or ctx.input.get("messages")
+                            or [{"role": "user", "content": str(ctx.input.get("prompt", ""))}])
+            tools = toolspec.for_execution(db, ex, agent)
+            by_name = {t.name: t for t in tools}
+            rounds = int(state.get("tool_rounds", 0))
+            max_rounds = int((agent.context_policy or {}).get("max_tool_rounds", MAX_TOOL_ROUNDS))
+            if state.get("route"):  # a conversation with tool calls stays on the model that started it
+                pid, model = state["route"]
+                pinned = db.get(Provider, int(pid))
+                routes = [(pinned, model)] if pinned is not None else routes
+            while True:
+                text_parts: list[str] = []
+                calls: list[dict[str, Any]] = []
+                last_error: Exception | None = None
+                used = None
+                for i, (provider, model) in enumerate(routes):
+                    if not circuit.allows(db, "provider", provider.id):  # EV-03: skip a provider whose circuit is open
+                        log_activity(db, "gateway.circuit_skip", category="runtime", level="warning",
+                                     organization_id=provider.organization_id, agent_id=agent.id, execution_id=ex.id,
+                                     details={"provider": provider.name})
                         db.commit()
-                    if produced:  # partial output already streamed — don't splice another model's answer in
+                        last_error = ProviderUnavailable(f"provider {provider.name} circuit open")
+                        continue
+                    if i > 0:
+                        log_activity(db, "gateway.fallback", category="runtime", level="warning",
+                                     organization_id=provider.organization_id, agent_id=agent.id, execution_id=ex.id,
+                                     details={"to_provider": provider.name, "to_model": model,
+                                              "reason": str(last_error)})
+                        db.commit()
+                        yield EngineEvent("log", {"message": f"fallback to {provider.name}/{model}"})
+                    ex.provider, ex.model, ex.is_mock = provider.kind, model, provider.is_mock
+                    db.commit()
+                    req = ChatRequest(model=model, messages=messages, system=system_message(agent.system_instructions),
+                                      max_tokens=int(agent.context_policy.get("max_output_tokens", 4096)),
+                                      temperature=agent.context_policy.get("temperature"), tools=tools)
+                    started, usage, produced = time.monotonic(), {}, False
+                    text_parts, calls = [], []
+                    try:
+                        async for ev in build_adapter(provider).stream(req):
+                            if ev.type == "delta":
+                                produced = True
+                                text_parts.append(ev.text)
+                                yield EngineEvent("output_delta", {"text": ev.text})
+                            elif ev.type == "tool_call":
+                                produced = True
+                                calls.append(ev.call)
+                            elif ev.type == "usage":
+                                usage = ev.usage
+                    except (ProviderUnavailable, ProviderError) as e:
+                        last_error = e
                         if isinstance(e, ProviderUnavailable):
-                            raise RetryableError(str(e)) from e
-                        raise
-                    continue
-                circuit.record_success(db, "provider", provider.id, provider.organization_id)
-                cost = record_usage(db, provider=provider, model=model, usage=usage,
-                                    duration_ms=int((time.monotonic() - started) * 1000), agent_id=agent.id,
-                                    project_id=ex.project_id, task_id=ex.task_id, execution_id=ex.id,
-                                    retry_count=ex.attempt - 1)
-                if cost is not None:
-                    ex.cost_usd = (ex.cost_usd or Decimal(0)) + cost
-                db.commit()
-                yield EngineEvent("usage", {**usage, "provider": provider.kind, "model": model,
-                                            "cost_usd": str(cost) if cost is not None else None})
-                return
-            if isinstance(last_error, ProviderUnavailable):
-                raise RetryableError(str(last_error)) from last_error
-            raise last_error or ProviderError("no route succeeded")
+                            circuit.record_failure(db, "provider", provider.id, provider.organization_id, str(e))
+                            db.commit()
+                        if produced or rounds:  # output or tool work already happened — don't splice another model in
+                            if isinstance(e, ProviderUnavailable):
+                                raise RetryableError(str(e)) from e
+                            raise
+                        continue
+                    circuit.record_success(db, "provider", provider.id, provider.organization_id)
+                    cost = record_usage(db, provider=provider, model=model, usage=usage,
+                                        duration_ms=int((time.monotonic() - started) * 1000), agent_id=agent.id,
+                                        project_id=ex.project_id, task_id=ex.task_id, execution_id=ex.id,
+                                        retry_count=ex.attempt - 1)
+                    if cost is not None:
+                        ex.cost_usd = (ex.cost_usd or Decimal(0)) + cost
+                    db.commit()
+                    yield EngineEvent("usage", {**usage, "provider": provider.kind, "model": model,
+                                                "cost_usd": str(cost) if cost is not None else None})
+                    used = (provider, model)
+                    break
+                if used is None:
+                    if isinstance(last_error, ProviderUnavailable):
+                        raise RetryableError(str(last_error)) from last_error
+                    raise last_error or ProviderError("no route succeeded")
+                if not calls:
+                    return
+                if rounds >= max_rounds:
+                    raise ProviderError(f"the model kept calling tools after {max_rounds} rounds; stopped "
+                                        "(context_policy.max_tool_rounds)")
+                messages.append({"role": "assistant", "content": "".join(text_parts), "tool_calls": calls})
+                for c in calls:
+                    spec = by_name.get(c.get("name", ""))
+                    if spec is None:  # a tool the agent was not offered: never run, answered to the model
+                        result: dict[str, Any] = {"error": "unknown_tool", "reason": "this tool is not available"}
+                    else:
+                        try:
+                            result = await ctx.call_tool(spec.key, c.get("arguments") or {})
+                        except ToolDenied:
+                            result = {"error": "permission_denied", "reason": f"the agent may not use {spec.key}"}
+                    content = json.dumps(result, default=str, ensure_ascii=False)
+                    if len(content) > MAX_TOOL_RESULT_CHARS:
+                        content = content[:MAX_TOOL_RESULT_CHARS] + " …[truncated]"
+                    messages.append({"role": "tool", "tool_call_id": c.get("id", ""), "name": c.get("name", ""),
+                                     "content": content})
+                rounds += 1
+                routes = [used]
+                await ctx.checkpoint({"messages": messages, "tool_rounds": rounds,
+                                      "route": [used[0].id, used[1]]})
         finally:
             db.close()
 

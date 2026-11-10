@@ -27,6 +27,14 @@ FAILED | TERMINATED → RECOVERING → RUNNING     (resume from the latest check
 - Tools: the engine asks; the runtime checks the agent's tool permissions and runs the registered tool
   (`files.write`, `repo.read`, `git.branch`, `git.commit`, `pr.create`, `shell.test`, `shell.build`, `memory.write`,
   `mcp:<server>:<tool>`, …). Denials are policy errors, audited, and never retried.
+- **Tool calling with real models (`api` engine).** The agent's permitted tools that the runtime implements (plus the
+  enabled tools of its assigned MCP servers) are offered to the model with JSON Schemas. When the model asks for a
+  tool, the runtime runs it through the same permission check, policy and audit, and sends the result back; the loop
+  ends when the model answers without tool calls, or after `context_policy.max_tool_rounds` rounds (default 8, then
+  the execution fails with that reason). A denied or unknown tool is answered to the model as an error result
+  instead of failing the run. Tool results are capped at 20 000 characters. After each round a checkpoint stores the
+  conversation and the model used, so a resumed execution continues it on the same model without re-running tools;
+  once tools have run, a provider error is not "fixed" by switching to the fallback model mid-conversation.
 - Failures are categorised (`transient`, `timeout`, `provider`, `policy`, `error`); only transient ones are retried
   automatically (5 s / 30 s / 300 s tiers, then the DLQ). The recovery report records what was tried.
 - Circuit breakers per agent and per provider open after 5 consecutive failures and allow one trial after 300 s.

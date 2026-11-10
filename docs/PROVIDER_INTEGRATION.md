@@ -22,6 +22,11 @@ How the platform reaches AI models, what is supported, and — just as important
 | `a2a` | A2A engine | A2A v1.0 JSON-RPC | SSE when the card offers it, else polling | agent card | remote agents, see A2A_INTEGRATION.md |
 | `mock` | `MockAdapter` | none | yes | fixed list | output prefixed `[MOCK — not real AI]`; tests and demos only |
 
+**Tool calling** (all adapters): Anthropic `tools` / `tool_use` / `tool_result`, OpenAI and OpenAI-compatible
+`tools` / streamed `tool_calls` fragments / `role: tool`, Gemini `functionDeclarations` (JSON Schema reduced to the
+supported subset) / `functionCall` / `functionResponse`. Tool names are encoded to `^[A-Za-z0-9_-]{1,64}$`. Verified
+against each provider's streaming format simulated at the HTTP layer, not yet against the live APIs (GW-10).
+
 Errors are classified: 429, 5xx and network errors → `ProviderUnavailable` (retried, counts for the provider's
 circuit); every other HTTP error (400/401/403/404…) → `ProviderError` (configuration; not retried). An agent has a primary and an optional
 fallback provider/model; a failed primary is skipped to the fallback before any output is streamed (audited

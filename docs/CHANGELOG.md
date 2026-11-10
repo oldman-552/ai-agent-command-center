@@ -6,6 +6,9 @@ to `docs/requirements.json`.
 ## Unreleased — 2026-11-10
 
 ### Added
+- **Model tool calling** in the `api` engine for Anthropic, OpenAI/compatible and Gemini: permitted platform and MCP
+  tools are offered with schemas, run through the runtime's permission check, and fed back in a bounded, checkpointed
+  loop. Previously only mock scripts and CLIs could use tools.
 - **Reverse proxy for several API replicas**: `deploy/nginx/acc.conf` (TLS, WebSocket, streaming, `least_conn`),
   tested with a real nginx in front of two API processes.
 - **Memory search mode**: optional embedding model (OpenAI / OpenAI-compatible, e.g. local Ollama) next to the local
