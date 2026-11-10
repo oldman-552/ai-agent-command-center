@@ -87,7 +87,7 @@ def test_agent_card_requires_key_and_hides_unexposed_agents(admin_client, client
     iface = card["supportedInterfaces"][0]
     assert iface["protocolBinding"] == "JSONRPC" and iface["protocolVersion"] == "1.0"
     assert iface["url"].endswith(f"/api/a2a/agents/{a.identifier}")
-    assert card["capabilities"] == {"streaming": True, "pushNotifications": False, "extendedAgentCard": False}
+    assert card["capabilities"] == {"streaming": True, "pushNotifications": True, "extendedAgentCard": False}
     assert card["skills"][0]["id"] == "research"
 
 
@@ -155,7 +155,7 @@ def test_tasks_are_private_to_their_key(admin_client, client, db, exposed):
     ("Nope", {}, V, -32601),
     ("SendStreamingMessage", {}, V, -32602),
     ("SubscribeToTask", {"id": "does-not-exist"}, V, -32001),
-    ("CreateTaskPushNotificationConfig", {}, V, -32003),
+    ("CreateTaskPushNotificationConfig", {"taskId": "does-not-exist", "url": "https://example.com/h"}, V, -32001),
     ("GetExtendedAgentCard", {}, V, -32007),
     ("GetTask", {}, V, -32602),
     ("GetTask", {"id": "does-not-exist"}, V, -32001),

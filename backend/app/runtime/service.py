@@ -109,6 +109,9 @@ def set_status(db: Session, ex: Execution, to: X, reason: str = "") -> None:
         raise RuntimeError(f"illegal execution transition {cur.value} -> {to.value}")
     ex.status = to.value
     _event(db, ex, "state", {"from": cur.value, "to": to.value, "reason": reason})
+    if (ex.input_context or {}).get("a2a"):  # served over A2A: push notifications, same transaction
+        from app.connectivity.a2a.push import on_status_change
+        on_status_change(db, ex)
     db.commit()
 
 

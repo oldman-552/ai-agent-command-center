@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-10 14:14",
+  "date": "2026-11-10 16:58",
   "spec_version": "4.0",
   "current_phase": "Phases 16, 17, 22",
   "current_milestone": {
@@ -246,7 +246,22 @@
     "SEC-08"
   ],
   "files_changed": [
-    "docs/RELEASE_READINESS.md"
+    "backend/app/config.py",
+    "backend/app/connectivity/a2a/server.py",
+    "backend/app/models/__init__.py",
+    "backend/app/models/connectivity.py",
+    "backend/app/runtime/service.py",
+    "backend/app/worker.py",
+    "backend/tests/test_a2a.py",
+    "docs/A2A_INTEGRATION.md",
+    "docs/ARCHITECTURE_DECISIONS.md",
+    "docs/CHANGELOG.md",
+    "docs/DATABASE_SCHEMA.md",
+    "docs/PROVIDER_INTEGRATION.md",
+    "docs/RELEASE_READINESS.md",
+    "backend/alembic/versions/1c89a883381e_a2a_push_notifications.py",
+    "backend/app/connectivity/a2a/push.py",
+    "backend/tests/test_a2a_push.py"
   ],
   "tests": {
     "passed": [

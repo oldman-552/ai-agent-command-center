@@ -21,8 +21,23 @@ POST /api/a2a/agents/{identifier}                                   JSON-RPC 2.0
   cancelled or needs input. `SubscribeToTask` replays the output produced so far after the Task, then continues; on a
   task that is already final it answers `UnsupportedOperationError` (-32004) as plain JSON. Validation errors are
   plain JSON-RPC errors too, never a stream.
-- Not supported yet (answered with the spec's errors and advertised as `false` in the card): push notifications, the
-  extended agent card, multi-turn follow-ups.
+- **Push notifications** (card `capabilities.pushNotifications: true`): `CreateTaskPushNotificationConfig`,
+  `GetTaskPushNotificationConfig`, `ListTaskPushNotificationConfigs` (paged), `DeleteTaskPushNotificationConfig`, and
+  `configuration.taskPushNotificationConfig` in `SendMessage` (its `taskId` must be empty). Configs belong to the task
+  and to the key that created them; at most 10 per task. Every status change POSTs a StreamResponse to each config:
+  `statusUpdate` while the task runs and the full `task` (status and artifacts) once it is final, with
+  `Content-Type: application/a2a+json`, `Authorization: <scheme> <credentials>` from `authentication` and the config's
+  `token` as `X-A2A-Notification-Token`. Deliveries are written in the same transaction as the status change and sent
+  by the worker (role `a2a_push`) in order per config: 10 s timeout, redirects not followed, exponential backoff
+  (2 s … 10 min, 8 attempts), the config is disabled after 8 consecutive failures (shown as `metadata.disabledAt`).
+  Token and credentials are encrypted and never returned. Delivered rows are pruned after 7 days.
+- **Webhook SSRF guard** (spec §13.2): HTTPS only, no user/password in the URL, no `localhost`/`.local`/`.internal`,
+  and every address the host resolves to must be public (private, loopback, link-local incl. cloud metadata,
+  IPv4-mapped forms refused) — checked when the config is created and again before each delivery.
+  `A2A_PUSH_ALLOW_PRIVATE=true` relaxes this for local testing only. A host that changes its DNS between that check
+  and the connection (DNS rebinding) is a residual risk.
+- Not supported yet (answered with the spec's errors and advertised as `false` in the card): the extended agent card,
+  multi-turn follow-ups.
 
 ## Using remote agents (client + `a2a` engine)
 
@@ -40,3 +55,6 @@ executed. URLs must be http(s); deadlines, cancellation and retries are the runt
 `backend/tests/test_a2a.py`: card, auth (missing/wrong/revoked keys, unlisted agent 404), all four methods, streaming
 (event order, chunks, subscribe to a running task, errors), the client against the platform's own server (plain and
 streaming), the engine streaming and polling, crash-safe re-attachment without duplicated output.
+`backend/tests/test_a2a_push.py`: config methods (paging, ownership per key, final tasks), webhook payload and headers
+against a local receiver, write-only secrets, retries with backoff and per-config order, disabling after failures,
+pruning, and the SSRF guard (14 URL cases, plus refusal over RPC by default).

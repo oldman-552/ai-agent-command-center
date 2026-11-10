@@ -25,6 +25,46 @@ Inbound A2A access (A2A-01). Nothing is exposed by default: a key lists exactly 
 
 Constraints: `fk_a2a_access_keys_created_by_users`, `fk_a2a_access_keys_organization_id_organizations`, `uq_a2a_access_keys_key_hash`
 
+## `a2a_push_configs`
+
+A2A push notification config (spec §4.3.1) of one inbound task. The token and credentials are encrypted and write-only; deliveries stop after repeated failures (disabled_at).
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `id` | VARCHAR(64) | no | PK |
+| `execution_id` | VARCHAR(36) | no | FK → `executions.id` (CASCADE), indexed |
+| `access_key_id` | INTEGER | no | FK → `a2a_access_keys.id` (CASCADE) |
+| `url` | VARCHAR(2048) | no |  |
+| `token_encrypted` | TEXT | yes |  |
+| `auth_scheme` | VARCHAR(32) | yes |  |
+| `credentials_encrypted` | TEXT | yes |  |
+| `consecutive_failures` | INTEGER | no |  |
+| `last_error` | VARCHAR(500) | yes |  |
+| `last_delivered_at` | DATETIME | yes |  |
+| `disabled_at` | DATETIME | yes |  |
+| `created_at` | DATETIME | no |  |
+| `updated_at` | DATETIME | no |  |
+
+Constraints: `fk_a2a_push_configs_access_key_id_a2a_access_keys`, `fk_a2a_push_configs_execution_id_executions`
+
+## `a2a_push_deliveries`
+
+One webhook POST to make (transactional outbox: written with the status change, sent by a worker).
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `config_id` | VARCHAR(64) | no | FK → `a2a_push_configs.id` (CASCADE), indexed |
+| `payload` | JSONB | no |  |
+| `attempts` | INTEGER | no |  |
+| `next_attempt_at` | DATETIME | no | indexed |
+| `delivered_at` | DATETIME | yes |  |
+| `abandoned_at` | DATETIME | yes |  |
+| `last_status` | INTEGER | yes |  |
+| `created_at` | DATETIME | no |  |
+
+Constraints: `fk_a2a_push_deliveries_config_id_a2a_push_configs`
+
 ## `agent_config_versions`
 
 | Column | Type | Null | Notes |

@@ -180,6 +180,41 @@ class A2AAccessKey(TimestampMixin, Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class A2APushConfig(TimestampMixin, Base):
+    """A2A push notification config (spec §4.3.1) of one inbound task. The token and credentials are encrypted and
+    write-only; deliveries stop after repeated failures (disabled_at)."""
+
+    __tablename__ = "a2a_push_configs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    execution_id: Mapped[str] = mapped_column(ForeignKey("executions.id", ondelete="CASCADE"), index=True)
+    access_key_id: Mapped[int] = mapped_column(ForeignKey("a2a_access_keys.id", ondelete="CASCADE"))
+    url: Mapped[str] = mapped_column(String(2048))
+    token_encrypted: Mapped[str | None] = mapped_column(Text)
+    auth_scheme: Mapped[str | None] = mapped_column(String(32))
+    credentials_encrypted: Mapped[str | None] = mapped_column(Text)
+    consecutive_failures: Mapped[int] = mapped_column(Integer, default=0)
+    last_error: Mapped[str | None] = mapped_column(String(500))
+    last_delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class A2APushDelivery(Base):
+    """One webhook POST to make (transactional outbox: written with the status change, sent by a worker)."""
+
+    __tablename__ = "a2a_push_deliveries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    config_id: Mapped[str] = mapped_column(ForeignKey("a2a_push_configs.id", ondelete="CASCADE"), index=True)
+    payload: Mapped[dict] = mapped_column(JSONB)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    abandoned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_status: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class McpAccessKey(TimestampMixin, Base):
     """Inbound access to the platform's MCP server (MCP-02). A key lists exactly which platform tools it may call;
     only a SHA-256 of the token is stored and the token is shown once."""

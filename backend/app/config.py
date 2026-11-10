@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     supervisor_denials_threshold: int = 3
     # reversible actions the supervisor may take on its own (spec Phase 5); remove one to make it advisory only
     supervisor_actions: str = "stop_runaway,resume_stalled,isolate_agent,retry_task,reduce_concurrency"        # worker: let in-flight work finish before checkpoint-and-handoff
+    a2a_push_allow_private: bool = False  # A2A webhooks to private/loopback hosts and plain http: local tests only
     redis_url: str = "redis://localhost:6379/0"  # live updates (pub/sub) and service heartbeats
     browser_bridge_url: str = "http://127.0.0.1:8100"   # the Browser Bridge service (python -m app.browser.server)
     platform_internal_url: str = "http://127.0.0.1:8000"  # where the bridge finds the platform test page

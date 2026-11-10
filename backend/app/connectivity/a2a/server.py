@@ -12,8 +12,9 @@ Supported: SendMessage (blocking or returnImmediately), GetTask, ListTasks, Canc
 SendStreamingMessage / SubscribeToTask answer `text/event-stream`; every `data:` line is a JSON-RPC response with
 the request's id whose result is a StreamResponse (`task` first, then `statusUpdate` / `artifactUpdate` with
 `append`/`lastChunk` chunks of the output); the stream closes when the task is terminal or needs input.
-Not yet: push notifications, extended card, multi-turn follow-ups — answered with the spec's errors and advertised
-as false in the card.
+Push notifications (§3.1.7–3.1.10): the four config methods and `configuration.taskPushNotificationConfig` in
+SendMessage; deliveries are made by the worker (see push.py).
+Not yet: extended card, multi-turn follow-ups — answered with the spec's errors and advertised as false in the card.
 """
 from __future__ import annotations
 
@@ -32,8 +33,9 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.connectivity.a2a import push
 from app.db import session_factory
-from app.models import A2AAccessKey, Agent, Execution, ExecutionEvent
+from app.models import A2AAccessKey, A2APushConfig, Agent, Execution, ExecutionEvent
 from app.models import ExecutionStatus as X
 from app.runtime import service
 from app.runtime.contract import TERMINAL
@@ -48,6 +50,8 @@ BLOCKING_WAIT_MAX_S = 120.0
 STREAM_MAX_S = 3600.0
 STREAM_POLL_S = 0.25
 STREAMING = {"SendStreamingMessage", "SubscribeToTask"}
+PUSH_METHODS = {"CreateTaskPushNotificationConfig", "GetTaskPushNotificationConfig",
+                "ListTaskPushNotificationConfigs", "DeleteTaskPushNotificationConfig"}
 
 # ---- JSON-RPC / A2A error codes (spec §5.4) ----
 PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL_ERROR = -32700, -32600, -32601, -32602, -32603
@@ -92,6 +96,20 @@ class Message(BaseModel):
 class SendConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
     returnImmediately: bool = False
+    taskPushNotificationConfig: dict[str, Any] | None = None
+
+
+class PushConfigParams(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    taskId: str
+    id: str | None = None
+
+
+class PushListParams(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    taskId: str
+    pageSize: int = Field(default=50, ge=1, le=100)
+    pageToken: str = ""
 
 
 class SendParams(BaseModel):
@@ -144,7 +162,7 @@ def agent_card(agent: Agent, base_url: str) -> dict[str, Any]:
         "version": str(agent.config_version),
         "supportedInterfaces": [{"url": url, "protocolBinding": "JSONRPC", "protocolVersion": PROTOCOL_VERSION}],
         "provider": {"organization": "AI Agent Command Center", "url": base_url.rstrip("/")},
-        "capabilities": {"streaming": True, "pushNotifications": False, "extendedAgentCard": False},
+        "capabilities": {"streaming": True, "pushNotifications": True, "extendedAgentCard": False},
         "securitySchemes": {"bearer": {"httpAuthSecurityScheme": {"scheme": "Bearer",
                                                                   "description": "A2A access key"}}},
         "securityRequirements": [{"schemes": {"bearer": {"list": []}}}],
@@ -184,6 +202,14 @@ def _start(db: Session, key: A2AAccessKey, agent: Agent, params: SendParams, run
         raise RpcError(CONTENT_TYPE_NOT_SUPPORTED, "only text parts are supported")
     text = "\n".join(p.text or "" for p in msg.parts)
     context_id = msg.contextId or str(uuid.uuid4())
+    push_cfg = params.configuration.taskPushNotificationConfig
+    if push_cfg is not None:
+        if push_cfg.get("taskId"):
+            raise RpcError(INVALID_PARAMS, "taskPushNotificationConfig.taskId must be empty in SendMessage")
+        try:
+            push.check_url(str(push_cfg.get("url") or ""))
+        except push.PushConfigError as e:
+            raise RpcError(INVALID_PARAMS, f"taskPushNotificationConfig: {e}") from e
     try:
         ex = service.create_execution(
             db, organization_id=key.organization_id, agent=agent, actor=f"a2a:key:{key.id}",
@@ -194,6 +220,11 @@ def _start(db: Session, key: A2AAccessKey, agent: Agent, params: SendParams, run
     if (ex.input_context or {}).get("a2a", {}).get("key_id") != key.id:
         raise RpcError(INVALID_PARAMS, "messageId already used")
     if ex.status == X.CREATED.value:
+        if push_cfg is not None:
+            try:
+                push.create_config(db, ex, key.id, push_cfg)
+            except push.PushConfigError as e:
+                raise RpcError(INVALID_PARAMS, f"taskPushNotificationConfig: {e}") from e
         log_activity(db, "a2a.task_received", category="a2a", organization_id=key.organization_id,
                      actor=f"a2a:key:{key.id}", agent_id=agent.id, execution_id=ex.id)
         dispatch(db, ex, f"a2a:key:{key.id}", "create", run_inline=run_inline)
@@ -254,8 +285,49 @@ def _cancel(db: Session, key: A2AAccessKey, agent: Agent, p: TaskIdParams) -> di
     return task_json(ex)
 
 
-UNSUPPORTED = {"CreateTaskPushNotificationConfig",
-               "GetTaskPushNotificationConfig", "ListTaskPushNotificationConfigs", "DeleteTaskPushNotificationConfig"}
+UNSUPPORTED: set[str] = set()
+
+
+def _push_config(db: Session, key: A2AAccessKey, agent: Agent, task_id: str, config_id: str | None):
+    ex = _own_task(db, key, agent, task_id)
+    c = db.get(A2APushConfig, config_id) if config_id else None
+    if c is None or c.execution_id != ex.id or c.access_key_id != key.id:
+        raise RpcError(TASK_NOT_FOUND, "push notification config not found")
+    return c
+
+
+def _push(db: Session, key: A2AAccessKey, agent: Agent, method: str, params: Any) -> Any:
+    if method == "CreateTaskPushNotificationConfig":
+        body = params if isinstance(params, dict) else {}
+        ex = _own_task(db, key, agent, str(body.get("taskId") or ""))
+        if X(ex.status) in TERMINAL:
+            raise RpcError(UNSUPPORTED_OPERATION, "task is final; there is nothing left to notify")
+        try:
+            c = push.create_config(db, ex, key.id, body)
+        except push.PushConfigError as e:
+            raise RpcError(INVALID_PARAMS, str(e)) from e
+        log_activity(db, "a2a.push_config_created", category="a2a", organization_id=key.organization_id,
+                     actor=f"a2a:key:{key.id}", execution_id=ex.id, details={"config_id": c.id})
+        db.commit()
+        return push.config_json(c)
+    if method == "ListTaskPushNotificationConfigs":
+        p = PushListParams.model_validate(params or {})
+        ex = _own_task(db, key, agent, p.taskId)
+        q = select(A2APushConfig).where(A2APushConfig.execution_id == ex.id, A2APushConfig.access_key_id == key.id,
+                                        A2APushConfig.id > p.pageToken).order_by(A2APushConfig.id).limit(p.pageSize + 1)
+        rows = db.scalars(q).all()
+        more = len(rows) > p.pageSize
+        rows = rows[:p.pageSize]
+        return {"configs": [push.config_json(c) for c in rows], "nextPageToken": rows[-1].id if more else ""}
+    p = PushConfigParams.model_validate(params or {})
+    c = _push_config(db, key, agent, p.taskId, p.id)
+    if method == "GetTaskPushNotificationConfig":
+        return push.config_json(c)
+    db.delete(c)  # DeleteTaskPushNotificationConfig: permanent; pending deliveries go with it
+    log_activity(db, "a2a.push_config_deleted", category="a2a", organization_id=key.organization_id,
+                 actor=f"a2a:key:{key.id}", execution_id=c.execution_id, details={"config_id": c.id})
+    db.commit()
+    return {}
 
 
 async def _call(db: Session, key: A2AAccessKey, agent: Agent, method: str, params: Any, bg: BackgroundTasks) -> Any:
@@ -268,6 +340,8 @@ async def _call(db: Session, key: A2AAccessKey, agent: Agent, method: str, param
             return _list(db, key, agent, ListParams.model_validate(params or {}))
         if method == "CancelTask":
             return _cancel(db, key, agent, TaskIdParams.model_validate(params or {}))
+        if method in PUSH_METHODS:
+            return _push(db, key, agent, method, params)
     except ValidationError as e:
         raise RpcError(INVALID_PARAMS, "invalid params", e.errors(include_url=False, include_input=False)) from e
     if method == "GetExtendedAgentCard":

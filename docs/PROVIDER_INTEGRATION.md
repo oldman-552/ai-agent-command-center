@@ -72,7 +72,7 @@ blocked and there are no keys).
 | LiteLLM proxy | Not used | Own adapters cover the providers in scope (ADR-004); an OpenAI-compatible LiteLLM endpoint works as `openai_compatible`. |
 | Embedding models for memory | Not used | Local hashed embedding (ADR-024); swappable later. |
 | Image / audio generation endpoints | Not implemented | Text chat with tools only. |
-| A2A push notifications, extended card | Not implemented | Answered with the spec's errors; streaming or polling is used. |
+| A2A extended card, multi-turn follow-ups | Not implemented | Answered with the spec's errors. (Push notifications and streaming are served.) |
 | CLI interactive modes, `--yolo`/`--dangerously-skip-permissions` | Not used | Non-interactive only; no approval bypass. |
 | Cursor, Windsurf, Aider and other IDE agents | Not integrated | No documented, stable non-interactive contract verified. |
 

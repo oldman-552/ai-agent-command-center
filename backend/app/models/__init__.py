@@ -13,6 +13,8 @@ from app.models.agents import (
 from app.models.bus import CircuitBreaker, OutboxMessage, ProcessedMessage, SupervisorFinding
 from app.models.connectivity import (
                                A2AAccessKey,
+                               A2APushConfig,
+                               A2APushDelivery,
                                ApiCredential,
                                AuthType,
                                BrowserSession,
@@ -29,7 +31,7 @@ from app.models.governance import (
                                ApprovalStatus,
                                AuditLog,
                                Automation,
-    AutomationRun,
+                               AutomationRun,
                                Budget,
                                CostRecord,
                                EvaluationResult,
