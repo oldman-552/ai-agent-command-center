@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-10 17:45",
+  "date": "2026-11-10 17:50",
   "spec_version": "4.0",
   "current_phase": "Phases 16, 17, 22",
   "current_milestone": {
@@ -246,26 +246,7 @@
     "SEC-08"
   ],
   "files_changed": [
-    "backend/app/bus/handlers.py",
-    "backend/app/connectivity/a2a/push.py",
-    "backend/app/connectivity/a2a/server.py",
-    "backend/app/connectivity/gateway/service.py",
-    "backend/app/runtime/api.py",
-    "backend/app/runtime/contract.py",
-    "backend/app/runtime/service.py",
-    "backend/app/runtime/tools.py",
-    "backend/tests/test_tool_calling.py",
-    "docs/A2A_INTEGRATION.md",
-    "docs/AGENT_RUNTIME.md",
-    "docs/ARCHITECTURE_DECISIONS.md",
-    "docs/CHANGELOG.md",
-    "docs/HANDOFF.md",
-    "docs/RELEASE_READINESS.md",
-    "frontend/e2e/workspace.spec.ts",
-    "frontend/messages/ar.json",
-    "frontend/messages/en.json",
-    "frontend/src/app/(app)/executions/page.tsx",
-    "frontend/src/lib/admin.ts"
+    "docs/RELEASE_READINESS.md"
   ],
   "tests": {
     "passed": [
