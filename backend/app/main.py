@@ -15,10 +15,12 @@ from app.connectivity.a2a import server as a2a_server
 from app.control import agents, users
 from app.db import session_factory
 from app.governance import api as approvals_api
+from app.governance import audit_api
 from app.observability import dashboard
 from app.orchestration import api as orchestration_api
 from app.runtime import api as runtime_api
 from app.runtime.engines import mock as _mock_engine  # noqa: F401  (registers the mock engine)
+from app.sandbox import tools as _sandbox_tools  # noqa: F401  (registers shell.test / shell.build)
 from app.security import auth
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -61,6 +63,7 @@ app.include_router(a2a_keys.router)
 app.include_router(a2a_server.router)
 app.include_router(orchestration_api.router)
 app.include_router(approvals_api.router)
+app.include_router(audit_api.router)
 
 
 @app.get("/api/health", tags=["system"])

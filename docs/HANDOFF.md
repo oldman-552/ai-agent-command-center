@@ -60,7 +60,10 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - The dev DB is disposable; the super admin password in the dev container is `dev-only-password-123` (backend/.env, not committed).
 
 ### Next steps (in order)
-1. SEC-04 Docker sandbox + SEC-05 command policy (then evaluation can run real tests/lint), SEC-06 audit search/UI.
-   Approval Center (`app/governance/`, `/approvals`, ADR-017) and evaluation gate (`app/evaluation/`, ADR-018) are done;
-   register executors for deploy/merge/destructive ops when their planes exist.
+1. EV-02 performance profiles → selection, EV-05 evaluation UI, EV-03/EV-04; then M7/M8 (files.write + git tools
+   run inside the sandbox). Sandbox (`app/sandbox/`, ADR-019), audit (`/audit`), approvals (ADR-017) and the
+   evaluation gate (ADR-018) are done.
+   Dev sandbox image: `dockerd &` then the image `acc/sandbox:python` must exist (built offline here with
+   debootstrap + `docker import`; on a normal machine `docker build -t acc/sandbox:python -f docker/sandbox/Dockerfile .`).
+   Sandbox tests skip with a visible reason when Docker or the image is missing.
 2. Then M13 approvals/sandbox/audit UI, M12, M7, M8, M11, M9, M5 CLI, M14, M15 (see IMPLEMENTATION_PLAN.md).

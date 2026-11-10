@@ -14,7 +14,8 @@
     "providers": "المزوّدون والنماذج",
     "tasks": "مركز المهام",
     "approvals": "الموافقات",
-    "pendingApprovals": "{n} موافقات بانتظار القرار"
+    "pendingApprovals": "{n} موافقات بانتظار القرار",
+    "audit": "سجل التدقيق"
   },
   "language": {
     "label": "اللغة",
@@ -558,6 +559,56 @@
       "git_merge_protected": "دمج في فرع محمي",
       "irreversible": "عملية لا يمكن التراجع عنها",
       "task_critical": "قبول مهمة تنفّذ عملية حساسة"
+    }
+  },
+  "audit": {
+    "title": "سجل التدقيق",
+    "subtitle": "كل إجراء مهم أمنياً قام به الأشخاص أو الوكلاء أو المنصة. الأسرار محجوبة.",
+    "export": "تصدير CSV",
+    "total": "{n} سجل",
+    "empty": "لا توجد سجلات تطابق هذه المرشحات.",
+    "loadMore": "تحميل سجلات أقدم",
+    "filters": {
+      "label": "تصفية سجل التدقيق",
+      "search": "بحث",
+      "category": "الفئة",
+      "level": "الخطورة",
+      "since": "من",
+      "until": "حتى",
+      "atLeast": "{level} فما فوق"
+    },
+    "levels": {
+      "debug": "تصحيح",
+      "info": "معلومة",
+      "warning": "تحذير",
+      "error": "خطأ",
+      "critical": "حرِج"
+    },
+    "columns": {
+      "time": "الوقت",
+      "level": "الخطورة",
+      "actor": "المنفّذ",
+      "action": "الإجراء",
+      "message": "الملخّص"
+    },
+    "fields": {
+      "agent_id": "الوكيل",
+      "project_id": "المشروع",
+      "task_id": "المهمة",
+      "execution_id": "التنفيذ",
+      "details": "التفاصيل"
+    },
+    "categories": {
+      "security": "الأمان",
+      "approvals": "الموافقات",
+      "orchestration": "التنسيق",
+      "sandbox": "البيئة المعزولة",
+      "runtime": "التشغيل",
+      "agents": "الوكلاء",
+      "auth": "تسجيل الدخول",
+      "projects": "المشاريع",
+      "a2a": "A2A",
+      "system": "النظام"
     }
   }
 }

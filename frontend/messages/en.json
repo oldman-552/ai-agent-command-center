@@ -14,7 +14,8 @@
     "providers": "Providers & models",
     "tasks": "Task center",
     "approvals": "Approvals",
-    "pendingApprovals": "{n} pending approvals"
+    "pendingApprovals": "{n} pending approvals",
+    "audit": "Audit log"
   },
   "language": {
     "label": "Language",
@@ -558,6 +559,56 @@
       "git_merge_protected": "Merge into a protected branch",
       "irreversible": "Irreversible operation",
       "task_critical": "Accept a task that performs a critical operation"
+    }
+  },
+  "audit": {
+    "title": "Audit log",
+    "subtitle": "Every security-relevant action by people, agents and the platform. Secrets are redacted.",
+    "export": "Export CSV",
+    "total": "{n} entries",
+    "empty": "No entries match these filters.",
+    "loadMore": "Load older entries",
+    "filters": {
+      "label": "Filter the audit log",
+      "search": "Search",
+      "category": "Category",
+      "level": "Severity",
+      "since": "From",
+      "until": "Until",
+      "atLeast": "{level} and above"
+    },
+    "levels": {
+      "debug": "Debug",
+      "info": "Info",
+      "warning": "Warning",
+      "error": "Error",
+      "critical": "Critical"
+    },
+    "columns": {
+      "time": "Time",
+      "level": "Severity",
+      "actor": "Actor",
+      "action": "Action",
+      "message": "Summary"
+    },
+    "fields": {
+      "agent_id": "Agent",
+      "project_id": "Project",
+      "task_id": "Task",
+      "execution_id": "Execution",
+      "details": "Details"
+    },
+    "categories": {
+      "security": "Security",
+      "approvals": "Approvals",
+      "orchestration": "Orchestration",
+      "sandbox": "Sandbox",
+      "runtime": "Runtime",
+      "agents": "Agents",
+      "auth": "Sign-in",
+      "projects": "Projects",
+      "a2a": "A2A",
+      "system": "System"
     }
   }
 }

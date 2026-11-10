@@ -2,7 +2,7 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 48.8%**
+**Overall verified completion: 51.4%**
 
 ## M1 — Foundation (weight 8%, 94%) — spec Phases 1, 19, 23, 25
 
@@ -158,16 +158,16 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | EV-04 | P0 | Graceful shutdown preserving partial results | Shutdown test | pytest | RT-06 | pending | — |
 | EV-05 | P0 | Evaluation UI | E2E | Playwright | EV-01 | in_progress | — |
 
-## M13 — Enterprise Security (weight 7%, 50%) — spec Phases 16, 17, 22
+## M13 — Enterprise Security (weight 7%, 88%) — spec Phases 16, 17, 22
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
 | SEC-01 | P0 | RBAC: 6 roles + permissions, server-side enforcement on every endpoint | Authorization matrix tests | pytest | FND-04 | done | 6 roles/38 permissions seeded; require() on every route; tests test_rbac.py |
 | SEC-02 | P0 | Agents cannot escalate own permissions or change security policy | Tests | pytest | SEC-01 | done | agents have no login/roles; tool ceilings per security profile on create/edit; no merge/deploy tools exist; role grants limited to caller's own permissions (tests) |
 | SEC-03 | P0 | Approval Center: risk levels, evidence, decision records; critical ops blocked until approved | Tests + E2E | pytest + Playwright | SEC-01 | done | tests/test_approvals.py (6): frozen payload hash, risk never lowered, idempotent requests, executed exactly once with config version, tampered payload refused but decision kept, profile ceiling not liftable, HUMAN_ONLY decide + no self-approval + reason required, pending-first listing, 7-day expiry, tenant isolation; frontend/e2e/approvals.spec.ts: critical task → approval center (ack required for critical, reason required for reject) → approve → task COMPLETED; axe WCAG 2.2 AA ar/en incl. open dialog |
-| SEC-04 | P0 | Docker sandbox: CPU/mem/time/pids limits, no network by default, workspace-only mount, no secrets | Real container tests | pytest (docker) | — | pending | — |
-| SEC-05 | P0 | Command policy (default deny, allowlist per tool permission) | Tests | pytest | SEC-04 | pending | — |
-| SEC-06 | P0 | Audit log searchable/filterable, redacted; Audit UI | Tests + E2E | pytest + Playwright | FND-06 | pending | — |
+| SEC-04 | P0 | Docker sandbox: CPU/mem/time/pids limits, no network by default, workspace-only mount, no secrets | Real container tests | pytest (docker) | — | done | tests/test_sandbox.py against real Docker 29 containers (image acc/sandbox:python, debootstrapped Ubuntu 24.04 + pytest): uid 10001 with CapEff 0, no network, read-only rootfs + workspace-only write + no platform env/secrets/host paths, memory limit kills, pids limit, time limit kills and leaves no container, NanoCpus/PidsLimit/ReadonlyRootfs/NetworkMode verified via docker inspect, workspace boundary incl. symlink escape; agent → shell.test → sandbox pytest run, audited |
+| SEC-05 | P0 | Command policy (default deny, allowlist per tool permission) | Tests | pytest | SEC-04 | done | tests/test_sandbox.py::test_command_policy_default_deny (17 cases: per-tool allow-lists, no shells, no traversal/absolute paths, no code-loading flags, argv only), runtime test: denied command returned to the agent and audited as sandbox.command_denied |
+| SEC-06 | P0 | Audit log searchable/filterable, redacted; Audit UI | Tests + E2E | pytest + Playwright | FND-06 | done | tests/test_audit.py (filters, severity threshold, literal search, keyset paging, tenant isolation, redaction on output, CSV export formula-safe, read-only API); frontend/e2e/audit.spec.ts (search, details dialog, severity filter in URL and export link, CSV download) + axe WCAG 2.2 AA ar/en with dialog open |
 | SEC-07 | P1 | CSRF protection for cookie auth, secure CORS, security headers | Tests | pytest | FND-04 | done | CSRF double-submit, no CORS, security headers; tests pass |
 | SEC-08 | P1 | Dependency + container scanning in CI scripts | Scan runs | script | — | pending | — |
 

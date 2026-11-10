@@ -121,6 +121,20 @@ async def evaluate(db: Session, task: Task, ex: Execution) -> Evaluation:
     calls = db.scalar(select(func.count()).select_from(ExecutionEvent).where(
         ExecutionEvent.execution_id == ex.id, ExecutionEvent.type == "tool_call")) or 0
     check("no_tool_denials", denied == 0, denied=denied)
+    # Real sandbox results (SEC-04): the last run of each shell tool is what counts.
+    runs = db.scalars(select(ExecutionEvent).where(ExecutionEvent.execution_id == ex.id,
+                                                   ExecutionEvent.type == "tool_result").order_by(ExecutionEvent.seq))
+    last: dict[str, dict[str, Any]] = {}
+    for e in runs:
+        if e.payload.get("tool") in ("shell.test", "shell.build") and isinstance(e.payload.get("result"), dict):
+            last[e.payload["tool"]] = e.payload["result"]
+    tests = last.get("shell.test")
+    if tests is not None:
+        check("tests_pass", tests.get("exit_code") == 0 and not tests.get("timed_out"),
+              exit_code=tests.get("exit_code"), timed_out=tests.get("timed_out"))
+    build = last.get("shell.build")
+    if build is not None:
+        check("build_or_lint_pass", build.get("exit_code") == 0, exit_code=build.get("exit_code"))
     cost = Decimal(str(ex.cost_usd or 0))
     within_budget = check("within_budget", task.budget_usd is None or cost <= task.budget_usd,
                           cost_usd=str(cost), budget_usd=str(task.budget_usd) if task.budget_usd is not None else None)
@@ -137,6 +151,10 @@ async def evaluate(db: Session, task: Task, ex: Execution) -> Evaluation:
     else:
         scores["execution_duration"] = None
     scores["rework_rate"] = round(1 / max(task.attempts, 1), 3)
+    if tests is not None:
+        scores["test_pass_rate"] = 1.0 if tests.get("exit_code") == 0 and not tests.get("timed_out") else 0.0
+    if build is not None:
+        scores["code_quality"] = 1.0 if build.get("exit_code") == 0 else 0.0
 
     notes: list[str] = []
     if not (completed and has_output):
@@ -150,6 +168,10 @@ async def evaluate(db: Session, task: Task, ex: Execution) -> Evaluation:
             notes.append(f"{denied} tool call(s) were denied by policy")
         if not within_budget:
             notes.append("the execution exceeded the task budget")
+        if tests is not None and not (tests.get("exit_code") == 0 and not tests.get("timed_out")):
+            notes.append(f"tests failed in the sandbox (exit code {tests.get('exit_code')})")
+        if build is not None and build.get("exit_code") != 0:
+            notes.append(f"build/lint failed in the sandbox (exit code {build.get('exit_code')})")
     else:
         decision = "approve"
 

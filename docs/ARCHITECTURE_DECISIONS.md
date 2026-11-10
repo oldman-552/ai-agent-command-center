@@ -179,3 +179,20 @@ with the evaluator's notes until max_attempts, then FAILED. A human cannot appro
 not pass (409 `evaluation_not_passed`). Results are stored per execution (idempotent on redelivery).
 **Limitation:** keyword coverage is a weak proxy for "criterion met"; it is the gate until sandboxed tests exist
 (SEC-04), when test results become the primary signal.
+
+## ADR-019 — Sandbox: one throw-away Docker container per command, default-deny argv policy (2026-11-10)
+**Context:** Phase 17 — all agent code execution isolated, least privilege, default deny, no secret leakage.
+**Decision:** `app/sandbox/runner.py` runs each command with `docker run --rm` and: `--network none`, `--cpus`,
+`--memory` = `--memory-swap`, `--pids-limit 256`, time limit (docker kill → exit 124), `--read-only` rootfs with a
+256 MB `/tmp` tmpfs, `--cap-drop ALL`, `no-new-privileges`, uid 10001, `--ipc none`, a fixed minimal environment
+(nothing from the platform process), and only the project workspace bind-mounted at `/workspace`. Workspaces live at
+`<WORKSPACES_DIR>/<org>/<project>`, are resolved with symlinks and refused if outside that root, and are owned by the
+sandbox uid. Output is capped at 256 KB per stream and secret-redacted.
+`app/sandbox/policy.py`: commands are argv lists executed without a shell; each tool permission has its own
+allow-list of command prefixes (`shell.test` cannot build, `shell.build` cannot test); absolute paths outside
+`/workspace`, `..`, and code-loading flags are refused. Denials and runs are audited (`sandbox.*`).
+The evaluator now uses the last `shell.test`/`shell.build` results as deterministic checks (`tests_pass`,
+`build_or_lint_pass`) and fills `test_pass_rate` / `code_quality`.
+**Deployment note (open):** the worker needs a Docker daemon. Mounting the host's docker.sock into the worker container
+would give it root-equivalent power over the host; the compose stack therefore does not wire it yet. Options for the
+owner's machine: run the worker on the host, or a rootless Docker / dedicated sandbox daemon. Tracked as a known issue.

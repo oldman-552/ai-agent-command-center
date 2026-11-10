@@ -1,5 +1,5 @@
 "use client";
-import { Bot, KanbanSquare, ShieldCheck, LayoutDashboard, LayoutTemplate, LogOut, Menu, Plug, X, type LucideIcon } from "lucide-react";
+import { Bot, KanbanSquare, ScrollText, ShieldCheck, LayoutDashboard, LayoutTemplate, LogOut, Menu, Plug, X, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -14,10 +14,11 @@ import { useApprovals } from "@/lib/approvals";
 import { cn } from "@/lib/utils";
 
 // Only pages that actually exist are listed. New pages are added here as they are built.
-const NAV: { href: string; key: "dashboard" | "tasks" | "approvals" | "agents" | "templates" | "providers"; icon: LucideIcon; perm?: string }[] = [
+const NAV: { href: string; key: "dashboard" | "tasks" | "approvals" | "audit" | "agents" | "templates" | "providers"; icon: LucideIcon; perm?: string }[] = [
   { href: "/", key: "dashboard", icon: LayoutDashboard },
   { href: "/tasks", key: "tasks", icon: KanbanSquare },
   { href: "/approvals", key: "approvals", icon: ShieldCheck, perm: "approvals.read" },
+  { href: "/audit", key: "audit", icon: ScrollText, perm: "audit.read" },
   { href: "/agents", key: "agents", icon: Bot },
   { href: "/templates", key: "templates", icon: LayoutTemplate },
   { href: "/providers", key: "providers", icon: Plug },

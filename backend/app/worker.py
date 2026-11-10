@@ -26,6 +26,7 @@ from app.connectivity.gateway import service as _gateway  # noqa: F401  (registe
 from app.db import session_factory
 from app.runtime import service
 from app.runtime.engines import mock as _mock_engine  # noqa: F401  (registers the TEST-ONLY mock engine)
+from app.sandbox import tools as _sandbox_tools  # noqa: F401  (registers shell.test / shell.build)
 
 log = logging.getLogger("worker")
 

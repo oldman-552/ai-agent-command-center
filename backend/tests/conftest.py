@@ -18,6 +18,8 @@ os.environ["ADMIN_USERNAME"] = "admin"
 os.environ.setdefault("EXECUTION_DISPATCH", "inline")  # bus tests (test_bus.py) switch to "bus" explicitly
 TEST_AMQP = os.environ.get("TEST_RABBITMQ_URL", "amqp://acc:acc_dev@localhost:5672/acc_test")  # dedicated vhost
 os.environ["RABBITMQ_URL"] = TEST_AMQP
+os.environ["WORKSPACES_DIR"] = os.environ.get("TEST_WORKSPACES_DIR", "/tmp/acc-test-workspaces")
+os.environ.setdefault("SANDBOX_IMAGE", "acc/sandbox:python")
 os.environ["ADMIN_PASSWORD"] = "test-admin-password-1"
 
 from alembic.config import Config
