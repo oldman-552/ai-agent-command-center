@@ -379,13 +379,19 @@ async def test_a_failed_or_cancelled_request_frees_its_slot(fake_bridge):
     with pytest.raises(ProviderError):
         await _ask(a, S1, "[[fake:error:no_active_session:409]] x")
     hanging = asyncio.create_task(_ask(ArenaLocalBridgeAdapter(KEY, base_url=fake_bridge.url, settings=TERMS),
-                                       S1, "[[fake:slow:30]] never finishes in time"))
+                                       S1, "[[fake:slow:1.5]] cancelled by its caller"))
     await asyncio.sleep(0.3)
     hanging.cancel()
     with pytest.raises(asyncio.CancelledError):
         await hanging
-    evs = await asyncio.wait_for(_ask(ArenaLocalBridgeAdapter(KEY, base_url=fake_bridge.url, settings=TERMS),
-                                      session_id(2), "after the cancelled one"), 10)
+    sent = len(fake_bridge.completions())
+    following = asyncio.create_task(_ask(ArenaLocalBridgeAdapter(KEY, base_url=fake_bridge.url, settings=TERMS),
+                                         session_id(2), "after the cancelled one"))
+    await asyncio.sleep(0.3)
+    assert len(fake_bridge.completions()) == sent + 1  # the platform's slot is free at once: the request went out
+    # …but the bridge has no cancel: the abandoned turn runs to its end there, and the next one waits behind it
+    assert not following.done() and fake_bridge.turns(S1)[-1].endswith("cancelled by its caller")
+    evs = await asyncio.wait_for(following, 10)
     assert evs[-1].type == "usage"
     # the probe model is answered by the bridge process itself and never waits for a slot
     probe = await _ask(ArenaLocalBridgeAdapter(KEY, base_url=fake_bridge.url, settings={}), "ping", "ping")

@@ -12,6 +12,7 @@ It reproduces, from the source of arena-local-bridge v1.1.0 (`src/server.mjs`, `
   * one turn at a time through a queue with a maximum depth (503 `bridge_queue_full`, `Retry-After: 10`), a
     per-client rate limit (429 `rate_limited`);
   * joining an identical in-flight request, replaying a finished one only with `x-arena-idempotency-key`, for a TTL;
+    a turn keeps running after its client disconnected (the real bridge has no abort on close);
   * SSE: a role chunk first, empty-delta heartbeats, text deltas, a finish chunk, `[DONE]`; a failure after the stream
     opened is an in-band `data: {"error": …}` frame; no server-side timeout;
   * `usage` is always zeros; `X-Arena-Bridge-Request-Id` and `X-Arena-Bridge-Version` on completions.
@@ -261,12 +262,13 @@ def create_app(bridge: FakeBridge) -> Starlette:
 
     def guard(handler):
         async def wrapped(request: Request) -> Response:
-            bridge.requests.append({"path": request.url.path, "method": request.method,
-                                    "host": request.headers.get("host", ""),
-                                    "auth": "authorization" in request.headers,
-                                    "session": next((request.headers[h] for h in CLIENT_SESSION_HEADERS
-                                                     if request.headers.get(h)), ""),
-                                    "idempotency": request.headers.get(IDEMPOTENCY_HEADER, ""), "at": time.time()})
+            entry = {"path": request.url.path, "method": request.method, "host": request.headers.get("host", ""),
+                     "auth": "authorization" in request.headers,
+                     "session": next((request.headers[h] for h in CLIENT_SESSION_HEADERS
+                                      if request.headers.get(h)), ""),
+                     "idempotency": request.headers.get(IDEMPOTENCY_HEADER, ""), "at": time.time()}
+            bridge.requests.append(entry)
+            request.state.log = entry
             if not _is_local(request):
                 return _json(403, {"error": {"message": "This server only answers requests from this machine."}})
             return await handler(request)
@@ -345,6 +347,7 @@ def create_app(bridge: FakeBridge) -> Starlette:
                 raise TurnError(f.get("message", "FAKE failure"), int(f.get("status", 502)), f.get("code"),
                                 f.get("retry_after"))
             model = str(body.get("model") or "active").strip()
+            request.state.log["model"] = model
             client_sid = next((request.headers[h].strip() for h in CLIENT_SESSION_HEADERS
                                if request.headers.get(h, "").strip()), "")
             streaming = body.get("stream") is True
@@ -467,8 +470,10 @@ def create_app(bridge: FakeBridge) -> Starlette:
                     yield ("data: " + json.dumps(fail(e)) + "\n\n").encode()
                     yield b"data: [DONE]\n\n"
                 finally:
+                    # Like the real bridge: a client that goes away does not stop the turn. It runs to its end in
+                    # the "browser", and its result is kept for a named retry (the replay cache).
                     if not task.done():
-                        task.cancel()
+                        task.add_done_callback(lambda t: None if t.cancelled() else t.exception())
 
             return StreamingResponse(gen(), status_code=200, media_type="text/event-stream",
                                      headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no",

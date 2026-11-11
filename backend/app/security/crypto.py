@@ -80,6 +80,14 @@ _SECRET_PATTERNS = [
     re.compile(r"(https?://)[^/\s:@]+:[^/\s@]+@"),
 ]
 _SENSITIVE_KEYS = re.compile(r"(?i)(password|secret|token|api[_-]?key|authorization|credential)")
+# Shapes that are a credential with little doubt (provider keys, bearer tokens, URLs carrying a password). The
+# `password = …` heuristic is left out on purpose: it also matches ordinary code and prose.
+_CREDENTIAL_SHAPES = [p for p in _SECRET_PATTERNS if "password|passwd" not in p.pattern]
+
+
+def contains_credential(text: str) -> bool:
+    """True when the text contains something shaped like a real credential."""
+    return any(p.search(text or "") for p in _CREDENTIAL_SHAPES)
 
 
 def redact(text: str, extra_secrets: list[str] | None = None) -> str:

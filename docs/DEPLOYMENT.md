@@ -25,11 +25,12 @@ The supported deployment is Docker Compose on one host (Windows with Docker Desk
 ## Persistence and backups
 
 Named volumes: `pgdata` (database — everything important), `rabbitdata` (broker state), `workspaces` (project
-repositories and task worktrees), `browser-profiles` (bridge profiles). `STOP`/`stop.sh` never remove volumes; only
-`RESET-DEV.bat` (after typing `RESET`) does.
+repositories and task worktrees), `workforce-attachments` (files people attach to Human-Assisted results; the database
+holds their names and hashes, this volume holds the bytes), `browser-profiles` (bridge profiles). `STOP`/`stop.sh`
+never remove volumes; only `RESET-DEV.bat` (after typing `RESET`) does.
 
-Back up the database (`docker compose exec postgres pg_dump -U acc acc > backup.sql`), the `workspaces` volume, and
-`.env` — **`APP_ENCRYPTION_KEY` is required to read stored credentials**.
+Back up the database (`docker compose exec postgres pg_dump -U acc acc > backup.sql`), the `workspaces` and
+`workforce-attachments` volumes, and `.env` — **`APP_ENCRYPTION_KEY` is required to read stored credentials**.
 
 ## Sandboxes and Docker access
 

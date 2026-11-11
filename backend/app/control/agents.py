@@ -3,6 +3,7 @@ templates, config versions, lifecycle history. Agents are data — nothing here 
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -214,6 +215,18 @@ def _load(db: Session, agent_id: int, user: User) -> Agent:
     return get_scoped(db, Agent, agent_id, user)
 
 
+# Agents that another part of the platform owns are configured there, under that part's own permissions (the AI
+# Workforce's Manager and workers need `workforce.manage`): fn(db, agent) -> where, or None for an ordinary agent.
+MANAGED_ELSEWHERE: list[Callable[[Session, Agent], str | None]] = []
+
+
+def _not_managed(db: Session, agent: Agent) -> None:
+    for owner in MANAGED_ELSEWHERE:
+        where = owner(db, agent)
+        if where:
+            raise HTTPException(status.HTTP_409_CONFLICT, f"managed_at:{where}")
+
+
 # ---------------- agents ----------------
 @router.get("/agents", response_model=list[AgentOut])
 def list_agents(db: DB, user: User = Depends(require("agents.read")), state: str | None = None,
@@ -265,6 +278,7 @@ def get_agent(agent_id: int, db: DB, user: User = Depends(require("agents.read")
 @router.patch("/agents/{agent_id}", response_model=AgentOut)
 def update_agent(agent_id: int, body: AgentPatch, db: DB, user: User = Depends(require("agents.write"))) -> AgentOut:
     agent = _load(db, agent_id, user)
+    _not_managed(db, agent)
     if agent.archived_at:
         raise HTTPException(status.HTTP_409_CONFLICT, "agent_archived")
     changes = body.model_dump(exclude_unset=True)
@@ -308,6 +322,8 @@ def clone_agent(agent_id: int, db: DB, user: User = Depends(require("agents.writ
 
 def _control(db: Session, agent_id: int, user: User, action: str) -> Agent:
     agent = _load(db, agent_id, user)
+    if action in ("enable", "disable", "archive", "restore"):
+        _not_managed(db, agent)
     actor = f"user:{user.id}"
     if agent.archived_at and action != "restore":
         raise HTTPException(status.HTTP_409_CONFLICT, "agent_archived")
@@ -384,6 +400,7 @@ def restore(agent_id: int, db: DB, user: User = Depends(require("agents.delete")
 def delete_agent(agent_id: int, db: DB, user: User = Depends(require("agents.delete"))) -> None:
     """Hard delete is only allowed for archived agents (two-step, recoverable until then)."""
     agent = _load(db, agent_id, user)
+    _not_managed(db, agent)
     if not agent.archived_at:
         raise HTTPException(status.HTTP_409_CONFLICT, "archive_first")
     log_activity(db, "agents.deleted", category="agents", level="warning", user_id=user.id,

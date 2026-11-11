@@ -1482,7 +1482,7 @@
           "priority": "P0",
           "description": "Arena-specific Browser Bridge path removed; generic Browser Bridge and MCP keep working",
           "acceptance": "No built-in arena site; Arena hosts refused as custom sites; reversible data migration; bridge and MCP tests pass",
-          "verification": "pytest test_browser, test_integrations, test_workforce_legacy",
+          "verification": "pytest test_browser (incl. the retired-Arena migration), test_integrations",
           "depends": [
             "WF-01"
           ],
@@ -1522,8 +1522,8 @@
           "depends": [
             "WF-03"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "pytest tests/test_workforce_workers.py 11 passed (mock tier + FAKE bridge over real HTTP): default workforce = Manager without a model + four Human-Assisted workers; each worker has its own identity, role, prompt, model/session, mode, timeout/retry and status; every mode change audited; binding classified from the bridge's session registry (pinned session / single account / pooled / shared / unknown — never 'attested'); the generic agent routes answer 409 managed_at and the standard orchestrator never picks a workforce agent. No real Arena account was used (WF-20)"
         },
         {
           "id": "WF-06",
@@ -1534,8 +1534,8 @@
           "depends": [
             "WF-05"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "pytest tests/test_workforce_manager.py 17 passed — MOCK Manager (built-in mock provider, deterministic, labelled; not Claude): one prompt -> analysis + validated task graph assigned to workers (LangGraph, PostgreSQL checkpoints); invalid replies sent back with the error (3 tries) then the objective fails and nothing is created; resume continues from the checkpoint without a second model call (call count asserted); no objective without a Manager model, never a silent mock; a bridge session refused as Manager; idempotent submission. A real Claude model was NOT used (WF-21)"
         },
         {
           "id": "WF-07",
@@ -1546,8 +1546,8 @@
           "depends": [
             "WF-06"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "pytest tests/test_workforce_lifecycle.py 283 passed (mock tier, real PostgreSQL): every pair of the 17 lifecycle states is either allowed and recorded or refused; only a person reopens settled work; coarse status and lifecycle cannot diverge (flush hook + database CHECK); a task carries objective, instructions, expected output, skills, worker, priority, dependencies, timeout and acceptance criteria; prerequisites, blocking, cancellation keep their history"
         },
         {
           "id": "WF-08",
@@ -1559,8 +1559,8 @@
             "WF-03",
             "WF-07"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "pytest tests/test_workforce_execution.py 7 passed + tests/test_workforce_bus.py 1 passed (local integration: FAKE bridge over real HTTP/SSE, real PostgreSQL; the bus test adds real RabbitMQ and a real worker process that is killed and replaced): each worker uses only its own session and conversation id; key wf-task:{task}:attempt:{n} -> acc-{execution}-r0; a resumed execution re-sends the same key inside the replay window and the fake records ONE turn; after the window it fails as outcome_unknown and nothing is sent again; duplicate commands/events change nothing. A real Arena Local Bridge was NOT used (WF-20)"
         },
         {
           "id": "WF-09",
@@ -1571,7 +1571,7 @@
           "depends": [
             "WF-07"
           ],
-          "status": "pending",
+          "status": "in_progress",
           "evidence": ""
         },
         {
@@ -1583,8 +1583,8 @@
           "depends": [
             "WF-07"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "pytest tests/test_workforce_modes.py 8 passed (mock tier + FAKE bridge): a task planned for a disabled worker goes to an eligible worker with the skills (recorded as redistributed) or waits with a stated reason until one is enabled; nothing is sent for a disabled worker; manual reassignment is audited and refused when it would lose work; Automatic, Human-Assisted and Disabled workers finish one objective together; one task at a time per worker"
         },
         {
           "id": "WF-11",
@@ -1596,8 +1596,8 @@
             "WF-08",
             "WF-09"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "pytest tests/test_workforce_review.py 27 passed (MOCK Manager + FAKE bridge): HTTP 200 only creates a submission; every attempt is an immutable version with its own review; approve/revise/reject/escalate; an approval with an unmet criterion is overridden; revision limit, instruction-like text, unreadable verdict and an unavailable Manager leave the result with a person; a critical task is completed only by a human approval of exactly the reviewed version (frozen payload; a mismatch is not honoured). Review quality with a real model NOT verified (WF-21)"
         },
         {
           "id": "WF-12",
@@ -1608,8 +1608,8 @@
           "depends": [
             "WF-11"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "pytest tests/test_workforce_report.py 26 passed (mock tier): six classes computed from recorded rows (18-case rule table + end-to-end objective with one result per reachable class); the Manager's summary is stored as model text and cannot change a class (asserted with a summary that claims everything is verified); mock results, mock review, mock plan and mock summary are labelled in JSON and Markdown; one report version per state. The class 'verified' is reachable only by a machine check, which nothing produces until WF-14 — asserted empty for text-only runs"
         },
         {
           "id": "WF-13",
@@ -1621,8 +1621,8 @@
             "WF-08",
             "WF-09"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "pytest tests/test_workforce_recovery.py 36 passed + tests/test_workforce_bus.py 1 passed (local integration, FAKE bridge, MOCK Manager): 19-row failure policy table; bridge unreachable (bounded retries, then a person or FAILED), account/session unavailable (not retried), revoked terms, task timeout, empty/tool-call/garbage responses, rate limit with Retry-After, circuit breaker; a lost message is re-enqueued at worker start; redelivered commands and events are idempotent; a scheduling round that raises half-way is rolled back whole; a killed worker process is replaced and the objective completes with one turn sent. Database and broker outages were simulated at the application level here, not by stopping the servers"
         },
         {
           "id": "WF-14",
@@ -1646,8 +1646,8 @@
             "WF-04",
             "WF-11"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "pytest tests/test_workforce_security.py 30 passed (mock tier + FAKE bridge): 38 routes x 6 roles against a matrix written out in the test (403 exactly where the permission is missing), 401 without a session, CSRF on writes; another organization gets 404 for every object and cannot attach its workforce to foreign providers, people or projects; audit entries with the acting user; bridge key in no response, audit row, outbox message, Manager step or prompt; a secret in a prompt is redacted before storage/sending; a result containing a credential is not sent to any model; forged fence markers stay inside the block and the review rules are constant; approvals bound to the reviewed version"
         },
         {
           "id": "WF-16",
@@ -1684,8 +1684,8 @@
           "depends": [
             "WF-08"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "pytest tests/test_workforce_history.py 5 passed (local integration, FAKE bridge, MOCK Manager): /objectives/{id}/history returns objective and thread id, Manager step ids with model/times/outcome, task and worker ids, execution ids with idempotency key, provider request ids (also of the failed try), retries with Retry-After, errors and transitions; bridge usage is stored as not reported (NULL counters, no cost row) and shown as usage_reported=false, never as zero"
         },
         {
           "id": "WF-19",

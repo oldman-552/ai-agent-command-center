@@ -14,7 +14,7 @@ from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.evaluation.profiles import agent_quality
-from app.models import Agent, Execution, Project, Task
+from app.models import Agent, Execution, Project, Task, Workforce, WorkforceWorker
 from app.models import ExecutionStatus as X
 from app.models.agents import project_agents
 from app.runtime import circuit
@@ -37,6 +37,14 @@ class Selection:
     agent: Agent | None
     reason: str
     candidates: list[dict[str, Any]] = field(default_factory=list)
+
+
+def exclude_workforce(stmt):
+    """The Manager and the workers of an AI Workforce work only on workforce objectives (ADR-033): the standard
+    orchestrator, planner and reviewer never pick them."""
+    return stmt.where(Agent.id.not_in(select(WorkforceWorker.agent_id)),
+                      Agent.id.not_in(select(Workforce.manager_agent_id)
+                                      .where(Workforce.manager_agent_id.is_not(None))))
 
 
 def capabilities(agent: Agent) -> set[str]:
@@ -69,9 +77,9 @@ def _history(db: Session, agent_ids: list[int]) -> dict[int, dict[str, float]]:
 
 
 def select_agent(db: Session, task: Task) -> Selection:
-    stmt = select(Agent).where(Agent.organization_id == task.organization_id, Agent.is_enabled.is_(True),
-                               Agent.archived_at.is_(None), Agent.state.not_in(UNAVAILABLE_STATES),
-                               Agent.execution_engine.in_(registered_engines()))
+    stmt = exclude_workforce(select(Agent).where(
+        Agent.organization_id == task.organization_id, Agent.is_enabled.is_(True), Agent.archived_at.is_(None),
+        Agent.state.not_in(UNAVAILABLE_STATES), Agent.execution_engine.in_(registered_engines())))
     if task.project_id:
         roster = db.scalars(select(project_agents.c.agent_id).where(project_agents.c.project_id == task.project_id)).all()
         project = db.get(Project, task.project_id)

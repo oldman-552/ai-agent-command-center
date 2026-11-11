@@ -179,3 +179,41 @@ class WorkforceReport(Base):
     is_mock: Mapped[bool] = mapped_column(Boolean, default=False)
     manager_step_id: Mapped[str | None] = mapped_column(ForeignKey("workforce_manager_steps.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+# ---------------- lifecycle history safety net ----------------
+# `app.workforce.lifecycle.move()` validates a transition and writes its history row. Code that only knows the coarse
+# `status` (the standard orchestrator, a cancel route) changes the lifecycle through the model's validators instead;
+# this hook writes the history row for those changes too, so the history of a task never has a gap.
+def _record_direct_changes(session, _flush_context, _instances) -> None:
+    from sqlalchemy import inspect as sa_inspect
+
+    from app.models.work import Task
+
+    for obj in list(session.dirty):
+        if not isinstance(obj, Task):
+            continue
+        hist = sa_inspect(obj).attrs.lifecycle.history
+        if not hist.has_changes() or not hist.added:
+            continue
+        new = hist.added[0]
+        recorded = obj.__dict__.pop("_lifecycle_recorded", None)
+        if recorded == new:
+            continue  # written by lifecycle.move()
+        old = recorded or (hist.deleted[0] if hist.deleted else None)
+        if old == new:
+            continue
+        session.add(TaskTransition(organization_id=obj.organization_id, task_id=obj.id, from_state=old, to_state=new,
+                                   actor="system", reason="status changed outside the lifecycle service",
+                                   details={"direct": True}))
+
+
+def _install_lifecycle_hook() -> None:
+    from sqlalchemy import event
+    from sqlalchemy.orm import Session
+
+    if not event.contains(Session, "before_flush", _record_direct_changes):
+        event.listen(Session, "before_flush", _record_direct_changes)
+
+
+_install_lifecycle_hook()

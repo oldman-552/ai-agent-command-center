@@ -32,11 +32,40 @@ to `docs/requirements.json`.
   identifies itself, and everything that passes through it is labelled mock.
 - `scripts/dev/no-docker/`: build Python, PostgreSQL, Redis, RabbitMQ and Chromium as plain user processes to run the
   test suites on a machine without Docker or root (developer convenience; not used by the installers).
+- **AI Workforce backend** (ADR-033, `/api/workforce`): one prompt → the Manager analyses and plans → four workers →
+  review → one report.
+  - A default workforce is created at start: a Manager **without a model** and four workers (research, engineering,
+    QA, documentation), all **Human-Assisted**. Nothing is sent anywhere until a person chooses a Manager model.
+  - Worker modes: Automatic (through a provider such as an Arena Local Bridge session), Human-Assisted (a person takes
+    the card, gets the exact brief, and submits text, notes and attachments), Disabled. An Automatic worker that
+    cannot run now hands its task to a person (optional per worker).
+  - Task lifecycle with a single table of allowed moves and a history row for every change.
+  - Failed Automatic attempts are classified and bounded: retried, handed to a person, or failed visibly — and a
+    request whose outcome is unknown is never resent automatically.
+  - Review: the Manager's verdict is advice; fixed platform rules decide (an unmet criterion is never an approval,
+    a revision limit, instruction-like or credential-like text goes to a person). Critical tasks are completed only
+    by a human approval of exactly the reviewed version.
+  - Consolidated report (`/objectives/{id}/report`, `report.md`): every result in one of six classes computed from
+    recorded evidence — verified, approved by a person, worker proposal, unverified claim, failed, incomplete. The
+    Manager's summary is labelled as model text. Mock results are labelled.
+  - History (`/objectives/{id}/history`): Manager steps, tasks, workers, attempts, provider request ids, retries and
+    errors; usage only where a provider reported it.
+  - Attachments of Human-Assisted results are stored in the new `workforce-attachments` volume.
 
 ### Changed
 - Executions and usage records can carry *unknown* usage: token counters and cost are empty instead of 0 when the
   provider reports nothing. API consumers must treat `null` as "not reported".
 - A transient provider failure honours the provider's `Retry-After` in the retry back-off.
+- The Manager and the workers of the AI Workforce are configured only at `/api/workforce`; the generic agent routes
+  answer 409 `managed_at:…` for them, and the standard orchestrator never assigns work to them.
+- A prompt given to the AI Workforce is redacted like every other input before it is stored or sent; the response
+  says so (`prompt_redacted`).
+
+### Not verified
+- The Manager on a real Claude model and Automatic workers on a real Arena Local Bridge. Every test used the built-in
+  mock provider as the Manager and the fake bridge; both are labelled as such in results and reports.
+- Development tasks from text workers (files applied to a worktree, WF-14) are not implemented, so the report class
+  "verified" stays empty for now.
 
 ## Unreleased — 2026-11-10
 

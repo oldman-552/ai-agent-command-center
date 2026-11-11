@@ -4,6 +4,10 @@
     WORKER_ENGINES=api,cli uv run python -m app.worker   # a specialised worker
     WORKER_ROLES=orchestrator uv run python -m app.worker  # only the orchestrator (planning + scheduling)
     WORKER_ROLES=supervisor uv run python -m app.worker    # only the agent supervisor
+    WORKER_ROLES=workforce uv run python -m app.worker     # only the Arena Local Bridge health monitor (ADR-032)
+
+AI Workforce objectives (ADR-033) need no role of their own: their planning, review and scheduling run in the
+`orchestrator` role and their Automatic tasks in the `executions` role. The `workforce` role only reads bridge health.
 
 Exits non-zero if RabbitMQ or PostgreSQL is unreachable at start, so failures are visible to the supervisor
 (Docker restart policy). After start, broker outages are survived: the robust connection reconnects, consumers
@@ -34,6 +38,7 @@ from app.runtime import service
 from app.runtime.engines import cli as _cli_engine  # noqa: F401  (sandboxed CLI engine)
 from app.runtime.engines import mock as _mock_engine  # noqa: F401  (registers the TEST-ONLY mock engine)
 from app.sandbox import tools as _sandbox_tools  # noqa: F401  (registers shell.test / shell.build)
+from app.workforce import control as _workforce  # noqa: F401  (AI Workforce: gateway, bridge and runtime hooks)
 
 log = logging.getLogger("worker")
 

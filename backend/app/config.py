@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     arena_bridge_allowed_hosts: str = ""
     arena_bridge_health_interval_seconds: int = 30
     workforce_attachment_max_bytes: int = 10 * 1024 * 1024
+    workforce_attachments_dir: str = "/data/workforce-attachments"  # files people attach to Human-Assisted results
     skills_dir: str = "/data/skills"  # local skill folders that can be inspected and installed (no remote fetch)
     sandbox_image: str = "acc/sandbox:python"
     cli_sandbox_image: str = "acc/cli:latest"  # docker/cli/Dockerfile: the coding CLIs, built by the owner (EE-02)  # built from docker/sandbox/Dockerfile

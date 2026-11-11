@@ -8,6 +8,7 @@ x-backend-env: &backend-env
   ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
   ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set in .env}
   WORKSPACES_DIR: /data/workspaces
+  WORKFORCE_ATTACHMENTS_DIR: /data/workforce-attachments
   SANDBOX_CPU_LIMIT: ${SANDBOX_CPU_LIMIT:-1.0}
   SANDBOX_MEMORY_LIMIT: ${SANDBOX_MEMORY_LIMIT:-1g}
   SANDBOX_TIMEOUT_SECONDS: ${SANDBOX_TIMEOUT_SECONDS:-900}
@@ -85,6 +86,7 @@ services:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     volumes:
       - workspaces:/data/workspaces
+      - workforce-attachments:/data/workforce-attachments   # files attached to Human-Assisted results
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -159,4 +161,5 @@ volumes:
   pgdata:
   rabbitdata:
   workspaces:
+  workforce-attachments:
   browser-profiles:
