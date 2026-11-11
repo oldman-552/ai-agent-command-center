@@ -75,7 +75,7 @@ built unless you add `COMPOSE_PROFILES=browser-bridge` to `.env` (its Playwright
 
 ## Documentation
 
-[Architecture](docs/ARCHITECTURE.md) · [Decisions (ADRs)](docs/ARCHITECTURE_DECISIONS.md) · [Security](docs/SECURITY.md) ·
+**[دليل الاستخدام بالعربي](docs/USER_GUIDE_AR.md)** · [Architecture](docs/ARCHITECTURE.md) · [Decisions (ADRs)](docs/ARCHITECTURE_DECISIONS.md) · [Security](docs/SECURITY.md) ·
 [Development](docs/DEVELOPMENT.md) · [Deployment](docs/DEPLOYMENT.md) · [API reference](docs/API_REFERENCE.md) ·
 [Database schema](docs/DATABASE_SCHEMA.md) · [Agent runtime](docs/AGENT_RUNTIME.md) · [Orchestration](docs/ORCHESTRATION.md) ·
 [Supervisor](docs/SUPERVISOR.md) · [Context engineering](docs/CONTEXT_ENGINEERING.md) · [Memory](docs/MEMORY_SYSTEM.md) ·

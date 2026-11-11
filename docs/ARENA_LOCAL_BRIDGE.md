@@ -41,7 +41,7 @@ Inside a container, `localhost` is the container itself — not your computer. A
 | Where the backend runs | Address to enter | Why |
 |---|---|---|
 | Docker Desktop (Windows, macOS) — default | `http://host.docker.internal:20140` | Docker Desktop provides this name for the host. |
-| Docker Engine on Linux | `http://host.docker.internal:20140` | The compose file maps the name with `extra_hosts: host.docker.internal:host-gateway`. |
+| Docker Engine on Linux | `http://host.docker.internal:20140` | The compose file maps the name to the Docker gateway (`extra_hosts: host.docker.internal:host-gateway`), but a bridge bound to `127.0.0.1` is **not** reachable there. Forward the gateway address to it, e.g. `socat TCP-LISTEN:20140,bind=172.17.0.1,reuseaddr,fork TCP:127.0.0.1:20140` (steps in [USER_GUIDE_AR.md §12](USER_GUIDE_AR.md#12-ربط-arena-local-bridge-على-أوبنتو)); the forward makes the bridge reachable from every container on the host. Not verified on a real Linux machine. |
 | Directly on the host (development) | `http://127.0.0.1:20140` | Same machine. |
 
 Two properties of ALB matter here, both read from its source:
