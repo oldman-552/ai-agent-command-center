@@ -21,14 +21,18 @@ TEST_AMQP = os.environ.get("TEST_RABBITMQ_URL", "amqp://acc:acc_dev@localhost:56
 os.environ["RABBITMQ_URL"] = TEST_AMQP
 os.environ["WORKSPACES_DIR"] = os.environ.get("TEST_WORKSPACES_DIR", "/tmp/acc-test-workspaces")
 os.environ.setdefault("SANDBOX_IMAGE", "acc/sandbox:python")
+os.environ["WORKFORCE_ATTACHMENTS_DIR"] = os.environ.get("TEST_ATTACHMENTS_DIR", "/tmp/acc-test-attachments")
 os.environ["ADMIN_PASSWORD"] = "test-admin-password-1"
 os.environ["REDIS_URL"] = os.environ.get("TEST_REDIS_URL", "redis://localhost:6379/15")  # live updates + heartbeats
 os.environ.setdefault("LOG_FORMAT", "text")
 os.environ.setdefault("BROWSER_SHOW_TEST_PAGE", "true")  # the local test page drives the bridge tests
 
+import re
+
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 
 from alembic import command
 from app.config import get_settings
@@ -37,9 +41,39 @@ BACKEND = Path(__file__).resolve().parent.parent
 ADMIN_PW = "test-admin-password-1"
 
 
+def database_problem(url: str) -> str | None:
+    """The suite DROPS and rebuilds the schema of its database. Run against anything but a test database it would
+    erase an installation, so the name has to say what it is."""
+    name = make_url(url).database or ""
+    if not re.fullmatch(r"[a-z0-9_]+_test", name):
+        return (f"refusing to run: the tests erase and rebuild their database, and {name!r} is not a test database "
+                "(the name must end with _test). Set TEST_DATABASE_URL.")
+    return None
+
+
+def create_database_if_missing(url: str) -> bool:
+    """For the owner-run tiers (`docker compose run realtests`): the test database is created on first use, next to
+    the installation's database and never instead of it. Returns whether it had to be created."""
+    u = make_url(url)
+    admin = create_engine(u.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    try:
+        with admin.connect() as c:
+            if c.execute(text("SELECT 1 FROM pg_database WHERE datname = :n"), {"n": u.database}).scalar():
+                return False
+            c.execute(text(f'CREATE DATABASE "{u.database}"'))  # the name passed database_problem(): [a-z0-9_]
+            return True
+    finally:
+        admin.dispose()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _schema():
     get_settings.cache_clear()
+    problem = database_problem(TEST_DB)
+    if problem:
+        pytest.exit(problem, returncode=3)
+    if os.environ.get("TEST_CREATE_DATABASE") == "1":
+        create_database_if_missing(TEST_DB)
     eng = create_engine(TEST_DB)
     with eng.begin() as c:
         c.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
@@ -84,6 +118,18 @@ def login_as(client, username: str, password: str):
 def admin_client(client):
     client.headers.pop("x-csrf-token", None)
     return login_as(client, "admin", ADMIN_PW)
+
+
+@pytest.fixture()
+def fake_bridge():
+    """A FAKE Arena Local Bridge with four accounts on a real local port (real HTTP; never Arena)."""
+    from app.connectivity.gateway import service as gw
+    from tests.fakebridge import FakeBridgeServer, four_account_bridge
+
+    gw.HTTP_CLIENTS.pop("arena_local_bridge", None)
+    srv = FakeBridgeServer(four_account_bridge()).start()
+    yield srv
+    srv.stop()
 
 
 @pytest.fixture()

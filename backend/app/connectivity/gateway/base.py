@@ -22,14 +22,17 @@ class ChatRequest:
     max_tokens: int = 4096
     temperature: float | None = None
     tools: list[Any] = field(default_factory=list)
+    # Request-scoped hints an adapter may use and others ignore: session_id, idempotency_key, request_timeout.
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class GatewayEvent:
-    type: str  # "delta" | "usage" | "tool_call"
+    type: str  # "delta" | "usage" | "tool_call" | "meta"
     text: str = ""
-    usage: dict[str, int] = field(default_factory=dict)
+    usage: dict[str, Any] = field(default_factory=dict)  # {"unknown": True} when the provider reports no usage
     call: dict[str, Any] = field(default_factory=dict)  # tool_call: {"id", "name", "arguments": dict}
+    data: dict[str, Any] = field(default_factory=dict)  # meta: provider_request_id, bridge_version, mock, …
 
 
 @dataclass
@@ -71,7 +74,11 @@ ADAPTERS: dict[str, type] = {}
 
 
 def adapter_for(kind: str, *, api_key: str | None, base_url: str | None,
-                http_client: httpx.AsyncClient | None = None) -> ProviderAdapter:
+                http_client: httpx.AsyncClient | None = None,
+                settings: dict[str, Any] | None = None) -> ProviderAdapter:
     if kind not in ADAPTERS:
         raise ProviderError(f"no adapter for provider kind '{kind}'")
-    return ADAPTERS[kind](api_key=api_key, base_url=base_url, http_client=http_client)
+    cls = ADAPTERS[kind]
+    if getattr(cls, "accepts_settings", False):  # per-provider options (providers.settings)
+        return cls(api_key=api_key, base_url=base_url, http_client=http_client, settings=settings or {})
+    return cls(api_key=api_key, base_url=base_url, http_client=http_client)

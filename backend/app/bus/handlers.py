@@ -87,7 +87,24 @@ async def handle_orchestrator_command(env: Envelope) -> None:
         wf = db.get(Workflow, wf_id)
         if wf is None or wf.organization_id != env.organization_id:
             raise Fatal(f"unknown workflow {wf_id}")
-        status, thread_id = wf.status, wf.thread_id
+        status, thread_id, kind = wf.status, wf.thread_id, wf.kind
+    if kind == "workforce":  # AI Workforce objectives have their own planning, review and scheduling (ADR-033)
+        from app.workforce import control, manager
+        if env.message_type == MessageType.WORKFLOW_PLAN:
+            try:
+                await control.plan(wf_id)
+            except manager.ManagerUnavailable as e:
+                if env.attempt >= 5:  # the last delivery: say so on the objective instead of leaving it "planning"
+                    control.fail_planning(wf_id, "the Manager's model could not be reached; submit the objective "
+                                                 "again when it is available")
+                    return
+                log.warning("workforce objective %s: the Manager's model is unreachable (%s); retrying", wf_id, e)
+                raise  # retried by the bus with its back-off; the checkpoint keeps what was already done
+            return
+        if env.message_type == MessageType.WORKFLOW_ADVANCE:
+            await control.tick(wf_id)
+            return
+        raise Fatal(f"unexpected orchestrator command {env.message_type}")
     if env.message_type == MessageType.WORKFLOW_PLAN:
         if status != "planning":
             return  # already planned (duplicate or recovery nudge)
@@ -113,9 +130,12 @@ async def handle_orchestrator_command(env: Envelope) -> None:
 
 async def handle_execution_finished(env: Envelope) -> None:
     from app.orchestration import scheduler
+    from app.workforce import scheduler as workforce_scheduler
 
     ex_id = str(env.payload.get("execution_id") or "")
     with session_factory()() as db:
+        if await workforce_scheduler.on_execution_finished(db, ex_id, env) != "not_workforce":
+            return
         await scheduler.on_execution_finished(db, ex_id, env)
 
 

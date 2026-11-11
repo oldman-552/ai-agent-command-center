@@ -33,6 +33,12 @@ const STATUS_ICON = {
   changes_requested: RotateCcw, expired: ShieldQuestion,
 } as const;
 
+/** An approval raised by the AI Workforce: it accepts one version of one task's result. (The requester is the
+ *  person who submitted that result, or "workforce" for an Automatic worker — so it cannot be told by who asked.) */
+const fromWorkforce = (a: Approval) => typeof a.payload?.submission_id === "number" && typeof a.payload?.version === "number";
+/** Where the task behind an approval can be read: the workforce task card, or the generic task board. */
+const taskHref = (a: Approval) => (fromWorkforce(a) ? `/workforce/tasks?task=${a.task_id}` : `/tasks?task=${a.task_id}`);
+
 function opLabel(t: ReturnType<typeof useTranslations<"approvals">>, a: Approval) {
   const key = `operations.${a.operation.replaceAll(".", "_")}`;  // next-intl reads dots as nesting
   return t.has(key) ? t(key) : a.operation_label;
@@ -177,11 +183,17 @@ function ApprovalDialog({ approval: a, onClose }: { approval: Approval; onClose:
             </DialogDescription>
           </div>
           {a.summary && <p className="text-sm" dir="auto">{a.summary}</p>}
+          {fromWorkforce(a) && a.task_id && (
+            <p className="rounded-md border border-s-4 border-s-primary bg-card p-3 text-sm" data-testid="approval-workforce">
+              {t("workforceHelp", { version: Number(a.payload.version ?? 0) })}{" "}
+              <Link className="font-medium text-primary underline underline-offset-4" href={taskHref(a)}>{t("workforceOpen", { id: a.task_id })}</Link>
+            </p>
+          )}
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
             {([
               ["requestedBy", a.requested_by],
               ["requestedAt", fmt.dateTime(new Date(a.created_at), { dateStyle: "medium", timeStyle: "short" })],
-              ["task", a.task_id ? <Link key="t" className="text-primary underline" href={`/tasks?task=${a.task_id}`}>#{a.task_id}</Link> : "—"],
+              ["task", a.task_id ? <Link key="t" className="text-primary underline" href={taskHref(a)} data-testid="approval-task-link">#{a.task_id}</Link> : "—"],
               ["decidedAt", a.decided_at ? fmt.dateTime(new Date(a.decided_at), { dateStyle: "medium", timeStyle: "short" }) : "—"],
               ["executedAt", a.executed_at ? fmt.dateTime(new Date(a.executed_at), { dateStyle: "medium", timeStyle: "short" }) : "—"],
               ["reason", a.reason ?? "—"],

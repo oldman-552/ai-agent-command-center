@@ -55,15 +55,26 @@ from app.models.identity import (
 )
 from app.models.runtime import AgentMessage, Checkpoint, Execution, ExecutionEvent, ExecutionStatus
 from app.models.work import (
+                               ExecutionMode,
                                Project,
                                ProjectMode,
                                PullRequest,
                                Repository,
                                Task,
                                TaskDependency,
+                               TaskLifecycle,
                                TaskStatus,
                                Workflow,
                                Worktree,
+)
+from app.models.workforce import (
+                               ManagerStep,
+                               TaskAttachment,
+                               TaskSubmission,
+                               TaskTransition,
+                               Workforce,
+                               WorkforceReport,
+                               WorkforceWorker,
 )
 
 __all__ = [n for n in dir() if not n.startswith("_")]

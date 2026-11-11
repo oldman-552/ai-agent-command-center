@@ -63,8 +63,10 @@ class Evaluation:
 
 def _reviewer(db: Session, task: Task) -> Agent | None:
     """An enabled team agent allowed to review (pr.review) with a model; optional."""
-    stmt = select(Agent).where(Agent.organization_id == task.organization_id, Agent.is_enabled.is_(True),
-                               Agent.archived_at.is_(None), Agent.provider_id.is_not(None))
+    from app.orchestration.selection import exclude_workforce
+    stmt = exclude_workforce(select(Agent).where(
+        Agent.organization_id == task.organization_id, Agent.is_enabled.is_(True), Agent.archived_at.is_(None),
+        Agent.provider_id.is_not(None)))
     roster = db.scalars(select(project_agents.c.agent_id).where(project_agents.c.project_id == task.project_id)).all()
     if roster:
         stmt = stmt.where(Agent.id.in_(roster))

@@ -8,12 +8,18 @@ x-backend-env: &backend-env
   ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
   ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set in .env}
   WORKSPACES_DIR: /data/workspaces
+  WORKFORCE_ATTACHMENTS_DIR: /data/workforce-attachments
   SANDBOX_CPU_LIMIT: ${SANDBOX_CPU_LIMIT:-1.0}
   SANDBOX_MEMORY_LIMIT: ${SANDBOX_MEMORY_LIMIT:-1g}
   SANDBOX_TIMEOUT_SECONDS: ${SANDBOX_TIMEOUT_SECONDS:-900}
   REDIS_URL: redis://redis:6379/0
   BROWSER_BRIDGE_URL: http://browser-bridge:8100
   SKILLS_DIR: /data/skills
+  # AI Workforce (ADR-032): Arena Local Bridge runs on the host. Bridge addresses must be loopback,
+  # host.docker.internal or a private IPv4 address; list any other host name here (comma-separated).
+  ARENA_BRIDGE_ALLOWED_HOSTS: ${ARENA_BRIDGE_ALLOWED_HOSTS:-}
+  ARENA_BRIDGE_HEALTH_INTERVAL_SECONDS: ${ARENA_BRIDGE_HEALTH_INTERVAL_SECONDS:-30}
+  ACC_IN_DOCKER: "1"   # diagnostics warn that "localhost" is the container, not the host
 
 services:
   postgres:
@@ -73,10 +79,14 @@ services:
     restart: unless-stopped
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     environment: *backend-env
+    # Arena Local Bridge listens on the host: Docker Desktop resolves this name by itself, Docker Engine on Linux
+    # needs the mapping. Outbound only — nothing of the platform is published by it.
+    extra_hosts: ["host.docker.internal:host-gateway"]
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     volumes:
       - workspaces:/data/workspaces
+      - workforce-attachments:/data/workforce-attachments   # files attached to Human-Assisted results
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -96,6 +106,7 @@ services:
     restart: unless-stopped
     command: ["python", "-m", "app.worker"]
     environment: *backend-env
+    extra_hosts: ["host.docker.internal:host-gateway"]   # Arena Local Bridge on the host (see api)
     volumes:
       - workspaces:/data/workspaces
     depends_on:
@@ -145,9 +156,51 @@ services:
       timeout: 5s
       retries: 30
 
+  # Owner-run checks of the two tiers that leave this machine: the Manager on a real model (WF-21) and Automatic
+  # workers on a real Arena Local Bridge (WF-20). Used only through REAL-TESTS.bat or
+  # `docker compose run --rm -T realtests <pytest arguments>`; START never starts it (it has its own profile).
+  # It works on a database of its own, created on first use — the tests refuse any database whose name does not end
+  # with _test — and it reaches neither the broker nor the Redis of the installation.
+  realtests:
+    profiles: ["realtests"]
+    build: ./backend
+    restart: "no"
+    working_dir: /app
+    # the image carries no test tools: they are installed into a throwaway folder, at the versions of backend/uv.lock
+    entrypoint:
+      - sh
+      - -c
+      - 'uv pip install --quiet --target /tmp/testdeps pytest==9.2.0 pytest-asyncio==1.4.1.post1 && PYTHONPATH=/tmp/testdeps exec python -m pytest -p no:cacheprovider "$$@"'
+      - realtests
+    command: ["--collect-only", "-q", "-m", "real_provider or real_arena"]
+    environment:
+      TEST_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/acc_owner_test
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/acc_owner_test
+      TEST_CREATE_DATABASE: "1"
+      TEST_RABBITMQ_URL: amqp://unused:unused@127.0.0.1:9/none   # nothing listens there, on purpose
+      TEST_REDIS_URL: redis://127.0.0.1:9/15                     # nothing listens there, on purpose
+      ACC_IN_DOCKER: "1"
+      REAL_TIER_REQUIRED: ${REAL_TIER_REQUIRED:-}
+      REAL_MANAGER_API_KEY: ${REAL_MANAGER_API_KEY:-}
+      REAL_MANAGER_MODEL: ${REAL_MANAGER_MODEL:-}
+      REAL_MANAGER_KIND: ${REAL_MANAGER_KIND:-anthropic}
+      REAL_MANAGER_BASE_URL: ${REAL_MANAGER_BASE_URL:-}
+      REAL_PROVIDER_WORKERS: ${REAL_PROVIDER_WORKERS:-}
+      REAL_ARENA_BRIDGE_URL: ${REAL_ARENA_BRIDGE_URL:-http://host.docker.internal:20140}
+      REAL_ARENA_BRIDGE_KEY: ${REAL_ARENA_BRIDGE_KEY:-}
+      REAL_ARENA_ACCEPT_TERMS: ${REAL_ARENA_ACCEPT_TERMS:-}
+      REAL_ARENA_SESSIONS: ${REAL_ARENA_SESSIONS:-}
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes:
+      - ./backend/tests:/app/tests:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 # Named volumes hold all persistent data. START/STOP never remove them.
 volumes:
   pgdata:
   rabbitdata:
   workspaces:
+  workforce-attachments:
   browser-profiles:

@@ -7,11 +7,15 @@ missing the bridge fails safely with `interface_changed` instead of guessing.
 
 The `test` adapter drives the platform's own local test page (`/api/browser-bridge/test-page`) and is what the
 automated tests use.
+
+Arena is not a Browser Bridge site (ADR-032): it is reached only through Arena Local Bridge, a provider of kind
+`arena_local_bridge`. The former built-in `arena` site is gone and Arena's hosts are refused as custom sites.
 """
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field, replace
+from urllib.parse import urlsplit
 
 
 @dataclass(frozen=True)
@@ -42,22 +46,35 @@ BUILTIN: dict[str, Adapter] = {a.key: a for a in (
             input="#prompt", send="#send", response=".msg.assistant", generating="#stop:not([hidden])",
             stop="#stop", login="#login-required", new_chat="#new-chat", models=("echo-1",), verified=True,
             requires_terms=False, notes="The platform's own fake chat page used for automated tests."),
-    Adapter(key="arena", name="Arena agent (arena.ai)", url="https://arena.ai/agent",
-            terms_url="https://help.arena.ai/articles/5629909088-terms-of-use",
-            input="textarea", send="button[type='submit'], button[aria-label*='Send' i]",
-            response="[data-message-role='assistant'], [data-role='assistant'], .prose",
-            generating="button[aria-label*='Stop' i]", stop="button[aria-label*='Stop' i]",
-            login="a[href*='login'], a[href*='signin'], button[aria-label*='Sign in' i]",
-            notes="Guessed selectors, never checked against the live page: adjust them under Selectors. Arena's terms "
-                  "prohibit automated access and its bot checks will stop the session for a person to solve.",
-            terms_warning="Arena's terms explicitly prohibit accessing the service by automated means (section 5(vi)), "
-                          "and inputs are shared with third-party model providers that may not keep them "
-                          "confidential (section 3.4); I will not send confidential code or personal data."),
 )}
 # kept for code that only needs the built-in sites (tests); use catalog()/lookup() for an organization
 ADAPTERS = BUILTIN
 
 SITE_KEY_RE = re.compile(r"^[a-z][a-z0-9-]{1,31}$")
+
+# ADR-032 — Arena is served only by Arena Local Bridge. The key of the former built-in site stays reserved, and a site
+# on one of Arena's hosts can neither be added nor used (also when an older installation still has it stored).
+ARENA_RETIRED = "arena_requires_local_bridge"
+RETIRED_KEYS = {"arena": ARENA_RETIRED}
+ARENA_HOST_SUFFIXES = ("arena.ai", "lmarena.ai")
+
+
+def is_arena_url(url: str) -> bool:
+    try:
+        host = (urlsplit(str(url)).hostname or "").lower().rstrip(".")
+    except ValueError:
+        return False
+    return any(host == s or host.endswith("." + s) for s in ARENA_HOST_SUFFIXES)
+
+
+def retired_reason(org_settings: dict | None, key: str) -> str | None:
+    """Why a site key can no longer be used, or None. Checked by the gate and again by the bridge service."""
+    if key in RETIRED_KEYS:
+        return RETIRED_KEYS[key]
+    site = (((org_settings or {}).get("browser_bridge") or {}).get("sites") or {}).get(key)
+    if isinstance(site, dict) and is_arena_url(str(site.get("url") or "")):
+        return ARENA_RETIRED
+    return None
 
 
 def test_page_visible() -> bool:
@@ -82,7 +99,8 @@ def catalog(org_settings: dict | None, *, include_hidden: bool = False) -> dict[
     cfg = (org_settings or {}).get("browser_bridge") or {}
     out = {k: a for k, a in BUILTIN.items() if k != "test" or include_hidden or test_page_visible()}
     for k, d in (cfg.get("sites") or {}).items():
-        if SITE_KEY_RE.match(k) and k not in BUILTIN and isinstance(d, dict) and d.get("url"):
+        if (SITE_KEY_RE.match(k) and k not in BUILTIN and k not in RETIRED_KEYS and isinstance(d, dict)
+                and d.get("url") and not is_arena_url(str(d["url"]))):
             out[k] = custom_adapter(k, d)
     return out
 

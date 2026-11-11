@@ -23,7 +23,7 @@ Browser ──HTTPS──▶ frontend (Next.js, :3000) ──/api/* + WebSocket�
 | Process | Command | Role |
 |---|---|---|
 | `api` | `uvicorn app.main:app` | REST API, WebSocket `/api/ws`, A2A server `/api/a2a`, MCP server `/api/mcp/`, outbox writes |
-| `worker` | `python -m app.worker` | Outbox relay + consumers; roles (`WORKER_ROLES`): `executions`, `orchestrator`, `supervisor`, `automations`; heartbeat in Redis |
+| `worker` | `python -m app.worker` | Outbox relay + consumers; roles (`WORKER_ROLES`): `executions`, `orchestrator`, `supervisor`, `automations`, `a2a_push`, `memory_index`, `workforce` (Arena Local Bridge health readings, ADR-032); heartbeat in Redis |
 | `migrate` | `alembic upgrade head` | Runs once before api/worker start |
 | `browser-bridge` | `uvicorn app.browser.server:app` | Owns the browsers of the experimental bridge (internal token, private network) |
 | `frontend` | `node server.js` | Next.js standalone; proxies `/api/*` so the session cookie stays first-party |

@@ -173,6 +173,7 @@ class Bridge:
                 pdir.mkdir(parents=True, exist_ok=True, mode=0o700)
                 ctx = await pw.chromium.launch_persistent_context(
                     str(pdir), headless=settings.browser_headless, accept_downloads=False,
+                    executable_path=settings.browser_executable_path or None,
                     args=["--no-first-run", "--no-default-browser-check", "--disable-sync"])
             page = ctx.pages[0] if ctx.pages else await ctx.new_page()
             rt = Runtime(context=ctx, page=page, adapter=a, profile=(s.organization_id, s.profile_name))

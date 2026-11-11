@@ -13,6 +13,7 @@ from app.connectivity import providers
 from app.connectivity.a2a import engine as _a2a_engine  # noqa: F401  (registers the a2a engine + adapter)
 from app.connectivity.a2a import keys as a2a_keys
 from app.connectivity.a2a import server as a2a_server
+from app.connectivity.arena_bridge import api as arena_bridge_api
 from app.control import agents, users
 from app.control import teams as teams_api
 from app.db import session_factory
@@ -37,6 +38,7 @@ from app.runtime.engines import mock as _mock_engine  # noqa: F401  (registers t
 from app.sandbox import tools as _sandbox_tools  # noqa: F401  (registers shell.test / shell.build)
 from app.security import auth
 from app.supervisor import api as supervisor_api
+from app.workforce import api as workforce_api
 
 setup_logging("api")
 setup_tracing("api")
@@ -96,6 +98,8 @@ app.include_router(browser_api.router)
 app.include_router(integrations_api.router)
 app.mount("/api/mcp", mcp_endpoint)
 app.include_router(memory_api.context_router)
+app.include_router(arena_bridge_api.router)
+app.include_router(workforce_api.router)
 
 
 @app.get("/api/health", tags=["system"])

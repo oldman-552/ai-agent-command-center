@@ -19,6 +19,14 @@ from app.security.tenancy import get_scoped
 
 router = APIRouter(prefix="/api", tags=["providers"])
 NEEDS_KEY = {"anthropic", "openai", "google"}
+# Kinds with their own settings API (address allow-list, terms gate, human-only permission): not created, re-keyed,
+# re-addressed or deleted through the generic provider routes.
+MANAGED_ELSEWHERE = {"arena_local_bridge": "/api/workforce/bridges"}
+
+
+def _not_managed_here(kind: str) -> None:
+    if kind in MANAGED_ELSEWHERE:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"managed_at:{MANAGED_ELSEWHERE[kind]}")
 
 
 class ProviderCreate(BaseModel):
@@ -116,13 +124,15 @@ def list_providers(db: DB, user: User = Depends(require("providers.read"))) -> l
 @router.get("/provider-kinds")
 def provider_kinds(_: User = Depends(require("providers.read"))) -> list[dict]:
     return [{"kind": k, "is_mock": a.is_mock, "needs_api_key": k in NEEDS_KEY,
-             "needs_base_url": k in ("openai_compatible", "a2a")} for k, a in ADAPTERS.items()]
+             "needs_base_url": k in ("openai_compatible", "a2a")} for k, a in ADAPTERS.items()
+            if k not in MANAGED_ELSEWHERE]
 
 
 @router.post("/providers", status_code=201)
 def create_provider(body: ProviderCreate, db: DB, user: User = Depends(require("providers.manage"))) -> dict:
     if body.kind not in ADAPTERS:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "unknown_kind")
+    _not_managed_here(body.kind)
     if body.kind in NEEDS_KEY and not body.api_key:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "api_key_required")
     if body.kind in ("openai_compatible", "a2a") and not body.base_url:
@@ -151,6 +161,7 @@ def create_provider(body: ProviderCreate, db: DB, user: User = Depends(require("
 def update_provider(provider_id: int, body: ProviderPatch, db: DB,
                     user: User = Depends(require("providers.manage"))) -> dict:
     p = get_scoped(db, Provider, provider_id, user)
+    _not_managed_here(p.kind)
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(p, k, v)
     log_activity(db, "providers.updated", category="providers", user_id=user.id,
@@ -163,6 +174,7 @@ def update_provider(provider_id: int, body: ProviderPatch, db: DB,
 def set_credential(provider_id: int, body: KeyIn, db: DB,
                    user: User = Depends(require("providers.manage", "credentials.manage"))) -> dict:
     p = get_scoped(db, Provider, provider_id, user)
+    _not_managed_here(p.kind)
     _set_key(db, p, user, body.api_key)
     log_activity(db, "credentials.rotated", category="security", user_id=user.id,
                  organization_id=user.organization_id, details={"provider_id": p.id})
@@ -173,6 +185,7 @@ def set_credential(provider_id: int, body: KeyIn, db: DB,
 @router.delete("/providers/{provider_id}", status_code=204)
 def delete_provider(provider_id: int, db: DB, user: User = Depends(require("providers.manage"))) -> None:
     p = get_scoped(db, Provider, provider_id, user)
+    _not_managed_here(p.kind)
     if p.is_mock:
         raise HTTPException(status.HTTP_409_CONFLICT, "mock_provider_is_builtin")
     cred = p.credential

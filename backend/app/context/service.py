@@ -19,8 +19,13 @@ def budget_for(agent: Agent | None) -> int:
 
 
 def task_items(db: Session, task: Task, deps: list[Task], agent: Agent | None) -> list[Item]:
-    req = [f"TASK: {task.title}", "", task.description or "", "", "ACCEPTANCE CRITERIA:",
-           *[f"- {c}" for c in task.acceptance_criteria or []]]
+    req = [f"TASK: {task.title}", ""]
+    if task.objective:  # AI Workforce tasks say why they exist and what form the result must have
+        req += [f"WHY THIS TASK EXISTS: {task.objective}", ""]
+    req += [task.instructions or task.description or "", ""]
+    if task.expected_output:
+        req += ["EXPECTED OUTPUT:", task.expected_output, ""]
+    req += ["ACCEPTANCE CRITERIA:", *[f"- {c}" for c in task.acceptance_criteria or []]]
     items = [Item("requirements", "task", "\n".join(req).strip(), score=10.0, source={"task_id": task.id})]
     if agent is not None:  # skills a human reviewed, enabled and assigned to this agent (MCP-04)
         from sqlalchemy import select

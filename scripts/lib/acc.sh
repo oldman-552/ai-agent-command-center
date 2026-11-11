@@ -105,5 +105,33 @@ for k in ("database", "rabbitmq", "redis"):
 w = s.get("workers", {})
 print(f"  {'workers':<15} {w.get('status')} ({len(w.get('instances', []))} running)")
 print(f"  {'browser_bridge':<15} {s.get('browser_bridge', {}).get('status')} (optional, experimental)")
+ab = s.get("arena_local_bridge") or {}
+if ab.get("status") == "not_configured":
+    print(f"  {'arena_local_bridge':<15} not configured (optional: Human-Assisted workers need none)")
+elif ab:
+    print(f"  {'arena_local_bridge':<15} {ab.get('status')} ({ab.get('configured')} configured, {ab.get('ready')} ready when last checked)")
 PY
+}
+
+# Arena Local Bridge runs on the host; the platform runs in containers. Only a check made INSIDE a container says
+# whether the workers can reach it. Sends nothing to Arena; prints no key and no account address. The bridge is
+# optional, so the result is reported and never fails the health check.
+# Probe exit codes: 0 = nothing configured or everything ready, 10 = a configured bridge cannot be used, anything
+# else = the check itself did not run (for example the api service is stopped).
+bridge_probe() {
+  local api_code worker_out worker_code
+  say ""
+  "${COMPOSE[@]}" exec -T api python -m app.connectivity.arena_bridge.probe 2>&1 | tee -a "$LOG"
+  api_code=${PIPESTATUS[0]}
+  if [ "$api_code" -eq 0 ] || [ "$api_code" -eq 10 ]; then
+    worker_out="$("${COMPOSE[@]}" exec -T worker python -m app.connectivity.arena_bridge.probe 2>&1)"; worker_code=$?
+    if [ "$worker_code" -eq "$api_code" ]; then say "  The worker container reports the same result."
+    else say "WARNING: the worker container reports a different result than the API container:"; say "$worker_out"; fi
+  fi
+  if [ "$api_code" -eq 10 ]; then
+    say "WARNING: an Arena Local Bridge is configured but cannot be used right now. Automatic workers hand their tasks to people until it is fixed. See docs/ARENA_LOCAL_BRIDGE.md."
+  elif [ "$api_code" -ne 0 ]; then
+    say "WARNING: the Arena Local Bridge check could not run inside the API container. Is the platform started (./start.sh)?"
+  fi
+  return 0
 }

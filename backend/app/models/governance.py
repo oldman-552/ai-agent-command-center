@@ -164,6 +164,10 @@ class UsageRecord(Base):
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     retry_count: Mapped[int] = mapped_column(Integer, default=0)
     is_mock: Mapped[bool] = mapped_column(Boolean, default=False)
+    # False when the provider reports no usage (Arena Local Bridge always answers zeros): the token columns are then
+    # not a measurement and must be shown as "not reported", never as 0 tokens.
+    usage_known: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    provider_request_id: Mapped[str | None] = mapped_column(String(128))
 
 
 class CostRecord(Base):

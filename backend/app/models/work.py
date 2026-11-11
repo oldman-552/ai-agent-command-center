@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.db import Base, TimestampMixin
 from app.models._base import enum_check, org_fk
@@ -30,6 +30,64 @@ class TaskStatus(str, enum.Enum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
+
+
+class TaskLifecycle(str, enum.Enum):
+    """The detailed, persisted lifecycle of a task (AI Workforce). `TaskStatus` stays the scheduler's coarse phase and
+    is always a function of this value (`COARSE_STATUS`), enforced by the model and by a table constraint."""
+
+    DRAFT = "DRAFT"
+    PLANNED = "PLANNED"
+    READY = "READY"                                  # dependencies satisfied, waiting for an eligible worker
+    ASSIGNED = "ASSIGNED"
+    WAITING_FOR_ACCEPTANCE = "WAITING_FOR_ACCEPTANCE"  # Human-Assisted: the task card waits for a person
+    ACCEPTED = "ACCEPTED"
+    QUEUED = "QUEUED"                                # Automatic: dispatched, not started yet
+    RUNNING = "RUNNING"
+    SUBMITTED = "SUBMITTED"                          # a result arrived (from a bridge or from a person)
+    UNDER_REVIEW = "UNDER_REVIEW"
+    APPROVED = "APPROVED"                            # review passed; waits only for a required human approval
+    REJECTED = "REJECTED"
+    REVISION_REQUESTED = "REVISION_REQUESTED"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    BLOCKED = "BLOCKED"
+    CANCELLED = "CANCELLED"
+
+
+class ExecutionMode(str, enum.Enum):
+    AUTOMATIC = "AUTOMATIC"
+    HUMAN_ASSISTED = "HUMAN_ASSISTED"
+    DISABLED = "DISABLED"
+
+
+_L, _T = TaskLifecycle, TaskStatus
+COARSE_STATUS: dict[str, str] = {
+    _L.DRAFT.value: _T.BACKLOG.value, _L.PLANNED.value: _T.PLANNED.value, _L.READY.value: _T.READY.value,
+    _L.REVISION_REQUESTED.value: _T.READY.value, _L.BLOCKED.value: _T.BLOCKED.value,
+    _L.ASSIGNED.value: _T.IN_PROGRESS.value, _L.WAITING_FOR_ACCEPTANCE.value: _T.IN_PROGRESS.value,
+    _L.ACCEPTED.value: _T.IN_PROGRESS.value, _L.QUEUED.value: _T.IN_PROGRESS.value,
+    _L.RUNNING.value: _T.IN_PROGRESS.value, _L.SUBMITTED.value: _T.IN_PROGRESS.value,
+    _L.UNDER_REVIEW.value: _T.REVIEW.value, _L.APPROVED.value: _T.APPROVAL.value,
+    _L.COMPLETED.value: _T.COMPLETED.value, _L.REJECTED.value: _T.FAILED.value, _L.FAILED.value: _T.FAILED.value,
+    _L.CANCELLED.value: _T.CANCELLED.value,
+}
+# What a plain `task.status = …` means for code that does not know the detailed lifecycle.
+DEFAULT_LIFECYCLE: dict[str, str] = {
+    _T.BACKLOG.value: _L.DRAFT.value, _T.PLANNED.value: _L.PLANNED.value, _T.READY.value: _L.READY.value,
+    _T.IN_PROGRESS.value: _L.RUNNING.value, _T.BLOCKED.value: _L.BLOCKED.value, _T.REVIEW.value: _L.UNDER_REVIEW.value,
+    _T.APPROVAL.value: _L.APPROVED.value, _T.COMPLETED.value: _L.COMPLETED.value, _T.FAILED.value: _L.FAILED.value,
+    _T.CANCELLED.value: _L.CANCELLED.value,
+}
+
+
+def lifecycle_pairs_sql() -> str:
+    """CHECK expression: `lifecycle` and `status` can only appear in consistent pairs."""
+    by_status: dict[str, list[str]] = {}
+    for fine, coarse in COARSE_STATUS.items():
+        by_status.setdefault(coarse, []).append(fine)
+    return " OR ".join("(status = '{}' AND lifecycle IN ({}))".format(c, ", ".join(f"'{f}'" for f in sorted(fs)))
+                       for c, fs in sorted(by_status.items()))
 
 
 class Repository(TimestampMixin, Base):
@@ -85,12 +143,20 @@ class Workflow(TimestampMixin, Base):
     thread_id: Mapped[str | None] = mapped_column(String(64), unique=True)
     created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     error: Mapped[str | None] = mapped_column(Text)
+    # "workforce": one prompt handled by the Manager and the workers of a workforce (analysis, review, one report)
+    kind: Mapped[str] = mapped_column(String(16), default="standard", server_default="standard", index=True)
+    workforce_id: Mapped[int | None] = mapped_column(ForeignKey("workforces.id", ondelete="SET NULL"), index=True)
+    review_policy: Mapped[str | None] = mapped_column(String(16))  # manager | human (None = human, as before)
 
 
 class Task(TimestampMixin, Base):
     __tablename__ = "tasks"
     __table_args__ = (enum_check("status", TaskStatus),
-                      CheckConstraint("max_attempts >= 1", name="max_attempts_positive"))
+                      CheckConstraint("max_attempts >= 1", name="max_attempts_positive"),
+                      enum_check("lifecycle", TaskLifecycle),
+                      CheckConstraint(lifecycle_pairs_sql(), name="lifecycle_matches_status"),
+                      CheckConstraint("execution_mode IS NULL OR execution_mode IN ('AUTOMATIC','HUMAN_ASSISTED')",
+                                      name="execution_mode_valid"))
 
     id: Mapped[int] = mapped_column(primary_key=True)
     organization_id: Mapped[int] = org_fk()
@@ -102,6 +168,17 @@ class Task(TimestampMixin, Base):
     task_type: Mapped[str] = mapped_column(String(32), default="general")  # architecture|frontend|backend|...
     required_skills: Mapped[list] = mapped_column(JSONB, default=list)
     status: Mapped[str] = mapped_column(String(16), default=TaskStatus.BACKLOG.value, index=True)
+    # Detailed lifecycle; change it with app.workforce.lifecycle.move() so the transition is validated and recorded.
+    lifecycle: Mapped[str] = mapped_column(String(24), default=TaskLifecycle.DRAFT.value,
+                                           server_default=TaskLifecycle.DRAFT.value, index=True)
+    objective: Mapped[str | None] = mapped_column(Text)           # why this task exists, in one or two sentences
+    instructions: Mapped[str] = mapped_column(Text, default="", server_default="")
+    expected_output: Mapped[str] = mapped_column(Text, default="", server_default="")
+    timeout_seconds: Mapped[int | None] = mapped_column(Integer)  # None = the worker's own timeout
+    execution_mode: Mapped[str | None] = mapped_column(String(16))  # mode of the current/last attempt
+    assignment_source: Mapped[str | None] = mapped_column(String(16))  # plan | manual | auto | redistributed
+    accepted_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     priority: Mapped[int] = mapped_column(Integer, default=5)
     assigned_agent_id: Mapped[int | None] = mapped_column(ForeignKey("agents.id", ondelete="SET NULL"), index=True)
     acceptance_criteria: Mapped[list] = mapped_column(JSONB, default=list)
@@ -122,6 +199,38 @@ class Task(TimestampMixin, Base):
     created_by_agent_id: Mapped[int | None] = mapped_column(ForeignKey("agents.id", ondelete="SET NULL"))
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    def _loaded(self, name: str) -> str | None:
+        """Current value of a column without being fooled by an expired attribute."""
+        if name in self.__dict__:
+            return self.__dict__[name]
+        from sqlalchemy import inspect as sa_inspect
+        state = sa_inspect(self)
+        return getattr(self, name) if state.persistent else None
+
+    @validates("status")
+    def _status_implies_lifecycle(self, _key: str, value: str) -> str:
+        """Code that only knows the coarse status keeps working: the lifecycle follows with the default detailed
+        state. `lifecycle.move()` sets the lifecycle itself, so its more precise choice is kept."""
+        if (not self.__dict__.get("_syncing") and value in DEFAULT_LIFECYCLE
+                and COARSE_STATUS.get(self._loaded("lifecycle")) != value):
+            self.__dict__["_syncing"] = True
+            try:
+                self.lifecycle = DEFAULT_LIFECYCLE[value]
+            finally:
+                self.__dict__.pop("_syncing", None)
+        return value
+
+    @validates("lifecycle")
+    def _lifecycle_implies_status(self, _key: str, value: str) -> str:
+        coarse = COARSE_STATUS.get(value)
+        if not self.__dict__.get("_syncing") and coarse is not None and self._loaded("status") != coarse:
+            self.__dict__["_syncing"] = True
+            try:
+                self.status = coarse
+            finally:
+                self.__dict__.pop("_syncing", None)
+        return value
 
 
 class TaskDependency(Base):

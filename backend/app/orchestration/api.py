@@ -229,6 +229,9 @@ def cancel_workflow(workflow_id: int, db: DB, user: User = Depends(require("task
     wf = get_scoped(db, Workflow, workflow_id, user)
     if wf.status in ("completed", "failed", "cancelled"):
         return workflow_out(db, wf)
+    if wf.kind == "workforce":  # same effect, recorded in the task history with the person's name
+        from app.workforce import control
+        return workflow_out(db, control.cancel_objective(db, wf, user, "cancelled from the workflows page"))
     wf = db.get(Workflow, wf.id, with_for_update=True, populate_existing=True)
     for t in db.scalars(select(Task).where(Task.workflow_id == wf.id, Task.status.not_in(scheduler.TERMINAL_TASK))):
         for ex in db.scalars(select(Execution).where(Execution.task_id == t.id)):

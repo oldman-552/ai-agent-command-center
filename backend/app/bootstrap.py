@@ -164,4 +164,6 @@ def run_bootstrap(db: Session) -> None:
     ensure_super_admin(db, org)
     seed_templates(db)
     seed_mock_provider(db, org)
+    from app.workforce import service as workforce
+    workforce.ensure_default(db, org.id)  # a Manager without a model and four Human-Assisted workers (ADR-033)
     db.commit()

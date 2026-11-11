@@ -1,6 +1,7 @@
 "use client";
-import { AlertTriangle, CircleStop, FlaskConical, Globe, Lock, LockOpen, Play, Power, RefreshCw, Send, SquarePlus } from "lucide-react";
+import { AlertTriangle, CircleStop, FlaskConical, Globe, Info, Lock, LockOpen, Play, Power, RefreshCw, Send, SquarePlus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
+import Link from "next/link";
 import { useState } from "react";
 import { useCan } from "@/components/providers";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,15 @@ export default function BrowserBridgePage() {
         <div className="flex flex-col gap-1">
           <p className="font-medium">{t("warningTitle")}</p>
           <p>{t("warningBody")}</p>
+        </div>
+      </Card>
+
+      <Card role="note" className="flex gap-3 p-4 text-sm" data-testid="bb-arena-moved">
+        <Info className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
+        <div className="flex flex-col gap-1">
+          <p className="font-medium">{t("arenaMovedTitle")}</p>
+          <p>{t("arenaMovedBody")}</p>
+          <Link href="/workforce/bridge" className="w-fit font-medium text-primary underline underline-offset-4">{t("arenaMovedLink")}</Link>
         </div>
       </Card>
 
@@ -316,7 +326,7 @@ function SelectorsDialog({ p, onClose }: { p: BridgeProvider; onClose: () => voi
   );
 }
 
-/** One browser profile per employee, agent or account: its sign-ins (e.g. an Arena account) stay in it. */
+/** One browser profile per employee, agent or account: its sign-ins stay in it. */
 function Profiles({ manage }: { manage: boolean }) {
   const t = useTranslations("bridge.profiles");
   const profiles = useBridgeProfiles();

@@ -8,7 +8,7 @@ the `X-CSRF-Token` header equal to the `acc_csrf` cookie. Permissions are enforc
 Machine clients use scoped keys instead: A2A keys (`/api/a2a/agents/*`) and MCP keys (`/api/mcp/`).
 The live OpenAPI document is served at `/docs` and `/openapi.json` while the API runs.
 
-149 operations.
+194 operations.
 
 ## a2a
 
@@ -95,8 +95,12 @@ The live OpenAPI document is served at `/docs` and `/openapi.json` while the API
 |---|---|---|
 | `GET` | `/api/browser-bridge` | Overview |
 | `PUT` | `/api/browser-bridge/enabled` | Set Enabled |
+| `GET` | `/api/browser-bridge/profiles` | List Profiles |
+| `POST` | `/api/browser-bridge/profiles` | Create Profile |
+| `DELETE` | `/api/browser-bridge/profiles/{name}` | Delete Profile — Deletes the profile and its stored sign-ins (cookies) from the bridge machine. |
 | `POST` | `/api/browser-bridge/providers/{provider}/acknowledge` | Acknowledge |
 | `DELETE` | `/api/browser-bridge/providers/{provider}/acknowledge` | Revoke |
+| `PUT` | `/api/browser-bridge/providers/{provider}/selectors` | Set Selectors — Adjust a provider's selectors when its page changed (Super Admin; audited). Applies from the next start. |
 | `GET` | `/api/browser-bridge/sessions` | Sessions |
 | `POST` | `/api/browser-bridge/sessions` | Create Session |
 | `GET` | `/api/browser-bridge/sessions/{sid}` | Get Session |
@@ -107,6 +111,8 @@ The live OpenAPI document is served at `/docs` and `/openapi.json` while the API
 | `POST` | `/api/browser-bridge/sessions/{sid}/start` | Start |
 | `GET` | `/api/browser-bridge/sessions/{sid}/status` | Status |
 | `POST` | `/api/browser-bridge/sessions/{sid}/stop` | Stop |
+| `POST` | `/api/browser-bridge/sites` | Add Site — Any website, locked until its terms are acknowledged like every site (ADR-005). |
+| `DELETE` | `/api/browser-bridge/sites/{key}` | Remove Site |
 
 ## budgets
 
@@ -139,6 +145,7 @@ The live OpenAPI document is served at `/docs` and `/openapi.json` while the API
 | `GET` | `/api/executions/{execution_id}` | Get Execution |
 | `POST` | `/api/executions/{execution_id}/cancel` | Cancel |
 | `GET` | `/api/executions/{execution_id}/events` | Events |
+| `POST` | `/api/executions/{execution_id}/input` | Answer — Answer the question an agent asked (WAITING_FOR_INPUT); the execution resumes with the answer. |
 | `POST` | `/api/executions/{execution_id}/resume` | Resume |
 | `GET` | `/api/runtime/clis` | Cli Catalog — Supported coding CLIs for the `cli` engine, the flags used and how they were verified (EE-02/EE-04). |
 | `GET` | `/api/runtime/overview` | Runtime Overview — Agent Runtime page: registered engines, execution counts by status, open circuits (all from the DB). |
@@ -268,6 +275,49 @@ The live OpenAPI document is served at `/docs` and `/openapi.json` while the API
 | `GET` | `/api/users` | List Users |
 | `POST` | `/api/users` | Create User |
 | `PATCH` | `/api/users/{user_id}` | Update User |
+
+## workforce
+
+| Method | Path | Summary |
+|---|---|---|
+| `GET` | `/api/workforce` | Get Workforce |
+| `GET` | `/api/workforce/attachments/{attachment_id}` | Download Attachment |
+| `DELETE` | `/api/workforce/attachments/{attachment_id}` | Delete Attachment |
+| `GET` | `/api/workforce/bridges` | List Bridges |
+| `POST` | `/api/workforce/bridges` | Create Bridge |
+| `GET` | `/api/workforce/bridges/{bridge_id}` | Get Bridge |
+| `PATCH` | `/api/workforce/bridges/{bridge_id}` | Update Bridge |
+| `DELETE` | `/api/workforce/bridges/{bridge_id}` | Delete Bridge |
+| `POST` | `/api/workforce/bridges/{bridge_id}/discover` | Discover |
+| `POST` | `/api/workforce/bridges/{bridge_id}/health` | Refresh Health |
+| `PUT` | `/api/workforce/bridges/{bridge_id}/key` | Set Key |
+| `POST` | `/api/workforce/bridges/{bridge_id}/terms` | Acknowledge Terms |
+| `DELETE` | `/api/workforce/bridges/{bridge_id}/terms` | Revoke Terms |
+| `POST` | `/api/workforce/bridges/{bridge_id}/test` | Test Bridge — Connection test with a step-by-step diagnosis, run from where the API runs. Sends nothing to Arena. |
+| `GET` | `/api/workforce/dashboard` | Dashboard |
+| `PATCH` | `/api/workforce/manager` | Update Manager |
+| `POST` | `/api/workforce/objectives` | Submit Objective |
+| `GET` | `/api/workforce/objectives` | List Objectives |
+| `GET` | `/api/workforce/objectives/{objective_id}` | Get Objective |
+| `POST` | `/api/workforce/objectives/{objective_id}/cancel` | Cancel Objective |
+| `GET` | `/api/workforce/objectives/{objective_id}/history` | Get History |
+| `GET` | `/api/workforce/objectives/{objective_id}/report` | Get Report |
+| `GET` | `/api/workforce/objectives/{objective_id}/report.md` | Get Report Markdown |
+| `POST` | `/api/workforce/objectives/{objective_id}/tick` | Nudge — Ask the platform to look at the objective again (after fixing a bridge, enabling a worker…). |
+| `GET` | `/api/workforce/options` | Options — What can be chosen for the Manager and for a worker: providers with their models; for a bridge, its sessions |
+| `POST` | `/api/workforce/setup` | Setup — Create the default workforce (a Manager and four workers) when the organization has none. |
+| `GET` | `/api/workforce/tasks` | List Tasks — The task board. `queue`: `offered` = cards waiting for a person that I may take, `mine` = cards I accepted, |
+| `GET` | `/api/workforce/tasks/{task_id}` | Get Task |
+| `POST` | `/api/workforce/tasks/{task_id}/accept` | Accept Task |
+| `POST` | `/api/workforce/tasks/{task_id}/attachments` | Add Attachment — Upload one file as the request body (`?filename=…`, `Content-Type` = the file's type). |
+| `POST` | `/api/workforce/tasks/{task_id}/cancel` | Cancel Task |
+| `POST` | `/api/workforce/tasks/{task_id}/decline` | Decline Task |
+| `POST` | `/api/workforce/tasks/{task_id}/reassign` | Reassign Task |
+| `POST` | `/api/workforce/tasks/{task_id}/reopen` | Reopen Task |
+| `POST` | `/api/workforce/tasks/{task_id}/review` | Review Task |
+| `POST` | `/api/workforce/tasks/{task_id}/review/retry` | Review Again |
+| `POST` | `/api/workforce/tasks/{task_id}/submit` | Submit Task |
+| `PATCH` | `/api/workforce/workers/{worker_id}` | Update Worker |
 
 ## Not in OpenAPI
 

@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from decimal import Decimal
 from typing import Any
 
 import httpx2 as httpx  # the official SDKs use httpx2; one HTTP stack for the whole gateway
 from sqlalchemy import select
 
+from app.connectivity.arena_bridge import adapter as _arena_bridge  # noqa: F401  (registers arena_local_bridge)
 from app.connectivity.gateway import adapters as _adapters  # noqa: F401  (registers adapters)
 from app.connectivity.gateway import toolspec
 from app.connectivity.gateway.base import ChatRequest, ProviderError, ProviderUnavailable, adapter_for
@@ -36,10 +37,32 @@ from app.security.crypto import decrypt_secret
 # Tests may inject an httpx client (MockTransport) per provider kind.
 HTTP_CLIENTS: dict[str, httpx.AsyncClient] = {}
 
+# Request-scoped hints for adapters that use them (ChatRequest.metadata), contributed by other planes without the
+# gateway importing them: fn(db, execution, agent, provider) -> dict. A hook may refuse the request by raising
+# ProviderError (e.g. the AI Workforce refuses to send for a worker that is not in Automatic mode).
+MetadataHook = Callable[[Any, Execution, Agent, Provider], dict[str, Any]]
+REQUEST_METADATA_HOOKS: list[MetadataHook] = []
+
+
+def refusal(code: str, message: str) -> ProviderError:
+    """A request the platform itself declined to send: nothing reached the provider."""
+    err = ProviderError(f"{code}: {message}", 409)
+    err.details = {"code": code, "message": message, "category": "configuration", "retryable": False,  # type: ignore[attr-defined]
+                   "delivered": False}
+    return err
+
 
 def build_adapter(p: Provider):
     key = decrypt_secret(p.credential.encrypted_value) if p.credential else None
-    return adapter_for(p.kind, api_key=key, base_url=p.base_url, http_client=HTTP_CLIENTS.get(p.kind))
+    return adapter_for(p.kind, api_key=key, base_url=p.base_url, http_client=HTTP_CLIENTS.get(p.kind),
+                       settings=p.settings)
+
+
+def request_metadata(db, ex: Execution, agent: Agent, provider: Provider) -> dict[str, Any]:
+    meta: dict[str, Any] = {"session_id": f"acc-agent-{agent.identifier}", "request_timeout": agent.timeout_seconds}
+    for hook in REQUEST_METADATA_HOOKS:
+        meta.update(hook(db, ex, agent, provider) or {})
+    return meta
 
 
 def price_cost(m: ModelInfo | None, usage: dict[str, int]) -> tuple[Decimal | None, dict]:
@@ -55,15 +78,23 @@ def price_cost(m: ModelInfo | None, usage: dict[str, int]) -> tuple[Decimal | No
                                                 "cached_input_per_mtok": str(cached_price)}
 
 
-def record_usage(db, *, provider: Provider, model: str, usage: dict[str, int], duration_ms: int,
-                 agent_id=None, project_id=None, task_id=None, execution_id=None, retry_count=0) -> Decimal | None:
+def record_usage(db, *, provider: Provider, model: str, usage: dict[str, Any], duration_ms: int,
+                 agent_id=None, project_id=None, task_id=None, execution_id=None, retry_count=0,
+                 provider_request_id: str | None = None) -> Decimal | None:
+    """`usage == {"unknown": True}` (a provider that reports no usage): the call is recorded with
+    `usage_known = False`; its zero token columns are not a measurement and no cost is derived from them."""
+    known = not usage.get("unknown")
     rec = UsageRecord(organization_id=provider.organization_id, provider_id=provider.id, provider_kind=provider.kind,
                       model=model, agent_id=agent_id, project_id=project_id, task_id=task_id,
-                      execution_id=execution_id, input_tokens=usage.get("input_tokens", 0),
-                      output_tokens=usage.get("output_tokens", 0), cached_tokens=usage.get("cached_tokens", 0),
-                      duration_ms=duration_ms, retry_count=retry_count, is_mock=provider.is_mock)
+                      execution_id=execution_id, input_tokens=int(usage.get("input_tokens", 0) or 0),
+                      output_tokens=int(usage.get("output_tokens", 0) or 0),
+                      cached_tokens=int(usage.get("cached_tokens", 0) or 0),
+                      duration_ms=duration_ms, retry_count=retry_count, is_mock=provider.is_mock,
+                      usage_known=known, provider_request_id=provider_request_id)
     db.add(rec)
     db.flush()
+    if not known:
+        return None
     m = db.scalar(select(ModelInfo).where(ModelInfo.provider_id == provider.id, ModelInfo.name == model))
     cost, pricing = price_cost(m, usage)
     if cost is not None and not provider.is_mock:
@@ -86,6 +117,23 @@ def _routes(db, agent: Agent) -> list[tuple[Provider, str]]:
 
 MAX_TOOL_ROUNDS = 8
 MAX_TOOL_RESULT_CHARS = 20_000
+
+
+def _snapshot(state: dict[str, Any], messages: list[dict[str, Any]], rounds: int) -> dict[str, Any]:
+    """Checkpoint state of the tool loop, keeping the pinned route and the open request (if any)."""
+    snap: dict[str, Any] = {"messages": messages, "tool_rounds": rounds,
+                            "pending_request": state.get("pending_request")}
+    if state.get("route"):
+        snap["route"] = state["route"]
+    return snap
+
+
+def _retryable(e: Exception) -> RetryableError:
+    """A transient provider failure for the runtime, keeping the provider's Retry-After hint and classification."""
+    err = RetryableError(str(e))
+    err.retry_after = getattr(e, "retry_after", None)  # type: ignore[attr-defined]
+    err.details = getattr(e, "details", None)  # type: ignore[attr-defined]
+    return err
 
 
 class ApiEngine:
@@ -152,13 +200,49 @@ class ApiEngine:
                         yield EngineEvent("log", {"message": f"fallback to {provider.name}/{model}"})
                     ex.provider, ex.model, ex.is_mock = provider.kind, model, provider.is_mock
                     db.commit()
-                    req = ChatRequest(model=model, messages=messages, system=system_message(agent.system_instructions),
-                                      max_tokens=int(agent.context_policy.get("max_output_tokens", 4096)),
-                                      temperature=agent.context_policy.get("temperature"), tools=tools)
                     started, usage, produced = time.monotonic(), {}, False
                     text_parts, calls = [], []
+                    request_id: str | None = None
+                    reports_usage = True
                     try:
-                        async for ev in build_adapter(provider).stream(req):
+                        adapter = build_adapter(provider)
+                        reports_usage = getattr(adapter, "reports_usage", True)
+                        offered = tools if getattr(adapter, "supports_tools", True) else []
+                        if tools and not offered and not state.get("tools_note"):
+                            state["tools_note"] = True
+                            yield EngineEvent("log", {"message": f"{provider.name} offers no platform tools; this "
+                                                                 "turn is text only"})
+                        meta = request_metadata(db, ex, agent, provider)
+                        window = getattr(adapter, "replay_window", None)
+                        if window is not None:
+                            # At-least-once provider (ADR-032): the same key is sent on every resend of this round, and
+                            # a request whose outcome is unknown is never resent after the provider's replay window.
+                            key = f"acc-{ex.id}-r{rounds}"
+                            meta["idempotency_key"] = key
+                            pending = state.get("pending_request") or {}
+                            if pending.get("key") == key and pending.get("provider_id") == provider.id:
+                                age = time.time() - float(pending.get("sent_at") or 0)
+                                if age > window:
+                                    err = ProviderError(
+                                        f"outcome_unknown: this request was sent {int(age)} s ago and its answer never "
+                                        f"arrived; resending after the {int(window)} s replay window could run the "
+                                        "turn twice, so it is not resent")
+                                    err.details = {"code": "outcome_unknown", "category": "outcome_unknown",  # type: ignore[attr-defined]
+                                                   "retryable": False, "sent_seconds_ago": int(age),
+                                                   "replay_window_s": int(window)}
+                                    raise err
+                                yield EngineEvent("log", {"message": "resending the same request with its idempotency "
+                                                                     f"key ({int(age)} s after the first send)"})
+                            else:
+                                state["pending_request"] = {"key": key, "provider_id": provider.id,
+                                                            "sent_at": time.time()}
+                                await ctx.checkpoint(_snapshot(state, messages, rounds))
+                        req = ChatRequest(model=model, messages=messages,
+                                          system=system_message(agent.system_instructions),
+                                          max_tokens=int(agent.context_policy.get("max_output_tokens", 4096)),
+                                          temperature=agent.context_policy.get("temperature"), tools=offered,
+                                          metadata=meta)
+                        async for ev in adapter.stream(req):
                             if ev.type == "delta":
                                 produced = True
                                 text_parts.append(ev.text)
@@ -168,21 +252,40 @@ class ApiEngine:
                                 calls.append(ev.call)
                             elif ev.type == "usage":
                                 usage = ev.usage
+                            elif ev.type == "meta":
+                                request_id = ev.data.get("provider_request_id") or request_id
+                                if request_id:
+                                    ex.provider_request_id = str(request_id)[:128]
+                                if ev.data.get("mock") and not ex.is_mock:  # e.g. the fake bridge identifies itself
+                                    ex.is_mock = provider.is_mock = True
+                                db.commit()
+                                yield EngineEvent("provider", {"provider": provider.kind, **ev.data})
                     except (ProviderUnavailable, ProviderError) as e:
                         last_error = e
+                        details = getattr(e, "details", None)
+                        if details:
+                            yield EngineEvent("provider_error", {"provider": provider.kind, "model": model, **details})
+                            if details.get("delivered") is False and state.get("pending_request"):
+                                state["pending_request"] = None  # refused before anything was sent on: no open outcome
+                                await ctx.checkpoint(_snapshot(state, messages, rounds))
+                        if not reports_usage:  # nothing was measured: the execution's counters stay "not reported"
+                            yield EngineEvent("usage", {"unknown": True, "provider": provider.kind, "model": model})
                         if isinstance(e, ProviderUnavailable):
                             circuit.record_failure(db, "provider", provider.id, provider.organization_id, str(e))
                             db.commit()
                         if produced or rounds:  # output or tool work already happened — don't splice another model in
                             if isinstance(e, ProviderUnavailable):
-                                raise RetryableError(str(e)) from e
+                                raise _retryable(e) from e
                             raise
+                        if (details or {}).get("code") == "outcome_unknown":
+                            raise  # the turn may have run: never hand the same work to another model behind its back
                         continue
+                    state["pending_request"] = None
                     circuit.record_success(db, "provider", provider.id, provider.organization_id)
                     cost = record_usage(db, provider=provider, model=model, usage=usage,
                                         duration_ms=int((time.monotonic() - started) * 1000), agent_id=agent.id,
                                         project_id=ex.project_id, task_id=ex.task_id, execution_id=ex.id,
-                                        retry_count=ex.attempt - 1)
+                                        retry_count=ex.attempt - 1, provider_request_id=request_id)
                     if cost is not None:
                         ex.cost_usd = (ex.cost_usd or Decimal(0)) + cost
                     db.commit()
@@ -192,7 +295,7 @@ class ApiEngine:
                     break
                 if used is None:
                     if isinstance(last_error, ProviderUnavailable):
-                        raise RetryableError(str(last_error)) from last_error
+                        raise _retryable(last_error) from last_error
                     raise last_error or ProviderError("no route succeeded")
                 if not calls:
                     return
@@ -229,7 +332,8 @@ class ApiEngine:
                                      "content": content})
                 rounds += 1
                 routes = [used]
-                await ctx.checkpoint({"messages": messages, "tool_rounds": rounds, "route": [used[0].id, used[1]],
+                state["route"] = [used[0].id, used[1]]
+                await ctx.checkpoint({"messages": messages, "tool_rounds": rounds, "route": state["route"],
                                       **({"pending_input": question} if question else {})})
                 if question:
                     raise InputRequired(question["question"])

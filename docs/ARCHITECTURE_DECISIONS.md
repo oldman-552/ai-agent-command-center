@@ -446,3 +446,185 @@ sites, registered with an owner, one window at a time. Desktop mode runs the bri
 `BROWSER_HEADLESS=false`, bound to Docker's host-gateway address only, with PostgreSQL/Redis published on 127.0.0.1.
 **Consequences:** No adapter is verified against a live provider; selectors are adjustable per site. Desktop mode is
 Linux-desktop only for now; in Docker/Codespaces the bridge stays headless.
+
+## ADR-032 — Arena Local Bridge is the only Arena path; the Browser Bridge loses its Arena site (2026-11-11)
+**Status:** Accepted. Supersedes the Arena part of ADR-031. Assessment: `docs/WORKFORCE_ASSESSMENT.md`.
+**Context:** The owner wants one prompt handled by a Claude Manager and four specialised workers, each on its own
+Arena account, through Arena Local Bridge (ALB, `Gandhara2077/arena-local-bridge`). Until now the only Arena path was
+the built-in `arena` site of the Playwright Browser Bridge: guessed DOM selectors that were never checked against the
+live page, one browser profile per person, and no way to plan, review or consolidate work. ALB already does the
+browser work and exposes an OpenAI-compatible HTTP endpoint on the Windows host, so two parallel Arena paths would
+mean two sets of sessions, two terms gates and an unverified scraper next to the supported route.
+The v1 spec said "never use unofficial Arena AI integrations"; this ADR records that the owner has explicitly
+replaced that rule for ALB. ALB is not an official Arena API, and the terms risk noted in ADR-031 remains.
+**Decision:**
+1. **Exclusive path.** Arena is reached only through the provider kind `arena_local_bridge`. The Browser Bridge's
+   built-in `arena` site, its selectors and its terms text are deleted. Any site whose host is `arena.ai` or
+   `lmarena.ai` (or a subdomain) is refused when added, dropped from the catalogue if it already exists, and refused
+   again by the bridge service. Stored Arena acknowledgements, selector overrides and custom Arena sites move to
+   `browser_bridge.retired_arena` (kept, unused); Arena browser sessions are stopped with an explanatory error. The
+   migration is reversible and deletes nothing.
+2. **The generic Browser Bridge stays.** Custom sites, profiles, the test page, desktop mode, the `browser` engine,
+   the MCP browser tools, the `browser_bridge.manage` permission and the health entry are general-purpose and keep
+   working.
+3. **A bridge instance is a provider.** Base URL, encrypted write-only key, status and discovered sessions reuse the
+   provider registry. Per-instance options live in `providers.settings`; the last health snapshot in
+   `providers.health`. Several instances can exist (one per Arena account gives real parallelism).
+4. **Own HTTP adapter, not the OpenAI SDK.** It needs explicit control of what ALB actually implements:
+   - `Host: 127.0.0.1:<port>` — ALB answers 403 to any other Host on every route, whatever its `HOST` setting, so
+     this is the only way a container can reach it through `host.docker.internal`. The guard exists against browser
+     DNS rebinding; the Bearer key is still required and ALB can stay bound to loopback. The header is a visible
+     per-instance setting.
+   - `x-codex-session-id` (stable per worker), `x-arena-idempotency-key` (stable per execution round).
+   - the system prompt folded into the user message, because ALB sends only the last user message to a session;
+   - streaming with ALB's 10-second heartbeats as the liveness signal; a client-side idle and total timeout, because
+     ALB has none; a non-streaming mode as a switch;
+   - ALB's error body, `Retry-After`, in-stream error frames and `X-Arena-Bridge-Request-Id` mapped to the gateway's
+     error classes and to the execution's events;
+   - `usage` is ignored: ALB always reports zeros, so usage is recorded as *not reported*, never as 0 tokens.
+   The adapter never calls `/api/status` (it returns the bridge key) and never uses ALB's reCAPTCHA or proxy helpers.
+5. **Account binding is shown as what it is.** ALB has no account selector and names no account in its responses.
+   A worker is *deterministic* when its model is a session UUID (the session's owner is always used) or when its
+   bridge instance has exactly one enabled account; otherwise it is *pooled* and the UI says so. The owning account
+   is read from ALB's session registry, stored masked, and labelled "configured, not attested per response".
+6. **Terms gate.** No chat request goes to ALB until a person accepts an exact statement for that instance. The
+   statement names the instance's address, so changing the address revokes it. Audited and revocable. Diagnostics and
+   health readings need no acknowledgement: they use ALB's local routes and its `ping` probe model, which ALB answers
+   itself without opening Arena. Human-Assisted mode needs no bridge and no gate.
+   Creating a bridge, changing its address or options, replacing its key, acknowledging or revoking the terms and
+   deleting it need `workforce.bridge`, a human-only permission that only the Super Admin role holds: the bridge
+   drives the owner's personal Arena accounts, so an Organization Admin can configure workers (`workforce.manage`)
+   and run diagnostics but cannot point the platform at another bridge or accept the terms on the owner's behalf.
+   Bridges are managed only at `/api/workforce/bridges`; the generic provider routes answer 409
+   `managed_at:/api/workforce/bridges` for this kind, so the address rules and the gate cannot be bypassed there.
+7. **No duplicate turns after a restart.** The idempotency key is stable across resume and transient retries. A
+   request whose outcome is unknown is resent only inside ALB's replay window; after it the execution fails as
+   `outcome_unknown` and the task-level policy (bounded retry or Human-Assisted fallback) decides.
+8. **Fake bridge for tests.** `backend/devtools/fake_arena_bridge.py` reproduces ALB's routes, host guard, errors,
+   queue and stream format from its source. It identifies itself (`service: fake-arena-bridge`), and a provider that
+   talks to it is forced to `is_mock = true`, so its results are labelled mock everywhere.
+9. **Only local addresses.** A bridge address must be loopback, `host.docker.internal`, a private IPv4 address, or a
+   host named in `ARENA_BRIDGE_ALLOWED_HOSTS`; no credentials, path or query in the URL. The key is therefore never
+   sent to a public host.
+10. **Health is read, not assumed.** The worker's `workforce` role (one leader, PostgreSQL advisory lock) reads each
+    enabled bridge every `ARENA_BRIDGE_HEALTH_INTERVAL_SECONDS`: `/health`, the key probe and the session registry.
+    Account e-mail addresses are masked before they are stored (`o***@domain`) and told apart by a salted hash;
+    prompts in ALB's registry are dropped. "Works" means reachable, key accepted and an account ready.
+11. **The platform waits for a slot before it sends.** ALB runs one turn at a time and refuses when its queue is
+    full. Each worker process therefore keeps at most `max_concurrent` (default 1) requests in flight per bridge
+    address and makes the rest wait on its own side, where nothing has been sent yet. The wait is recorded on the
+    execution. Several worker processes each keep their own count; ALB's queue orders them.
+**Consequences:** One Arena path with a clear provider abstraction; the unverified Arena scraper is gone. Automatic
+workers need ALB running on the host and the owner's acknowledgement; without it every worker still works in
+Human-Assisted mode. Limits inherited from ALB: no per-response account attestation, one turn at a time per instance,
+no token usage, at-least-once delivery, no platform tools inside Arena sessions.
+**Not verified in development:** a real ALB, real Arena accounts, `host.docker.internal` reaching a loopback-bound
+ALB on Docker Desktop, and one-instance-per-account. These need the owner's Windows machine.
+
+## ADR-033 — AI Workforce: one Manager, four workers, results accepted only on recorded evidence (2026-11-11)
+**Status:** Accepted. Builds on ADR-032 (the bridge). Code: `backend/app/workforce/`.
+**Context:** The owner gives one prompt and wants a Manager model to analyse it, split it into tasks, give them to
+four specialised workers, review what comes back and hand over one result. The workers are text-only chat sessions
+(Arena accounts behind Arena Local Bridge) or people who paste a task into Arena themselves. The platform already had
+an orchestrator (ADR-013..016) for tool-using agents; it assumes an agent can run tools, be evaluated by commands and
+retried freely. None of that holds for a chat session that can only answer with text, may deliver the same message
+twice, and whose account the platform cannot attest.
+**Decision:**
+1. **A separate plane beside the orchestrator.** An objective is a `Workflow` with `kind = "workforce"`. It has its
+   own planner, scheduler, reviewer and report (`app/workforce/`). The standard orchestrator skips these workflows,
+   the standard agent selection never picks the Manager or a worker, and the generic agent and task-review routes
+   answer 409 `managed_at:/api/workforce/…` for them, so there is one place where each rule is enforced. Shared and
+   unchanged: runtime, gateway, bus, outbox, Approval Center, budgets, audit, RBAC, tenancy.
+2. **The Manager is an agent whose model a person chooses.** There is no default model: until one is set, submitting
+   an objective answers 409 `manager_model_not_configured`. A bridge session cannot be the Manager
+   (`manager_cannot_use_a_bridge`): the Manager needs a system prompt, structured answers and reported usage. Every
+   Manager call goes through the gateway and is stored as a `ManagerStep` (analyze, plan, review, consolidate) with
+   model, times, outcome, trace and provider request id.
+3. **Planning is a checkpointed graph.** analyze → plan → validate → assign, or give up (LangGraph, PostgreSQL
+   checkpoints, thread = the objective). A reply that is not valid JSON, breaks the schema or fails validation
+   (at most 12 tasks, known workers, at least one acceptance criterion each, no unknown or cyclic dependency, known
+   critical operations) is sent back with the error, three times at most. A resumed run continues after the last
+   finished step and does not ask the model again. An unreachable model is retried by the bus with back-off; the
+   fifth delivery fails the objective with the reason.
+4. **Four workers, three modes, nothing automatic by default.** A worker is an agent plus a workforce row: slot,
+   role, skills, prompt, model or session, timeout, retries, mode, fallback, optional named person, its own
+   conversation id and its account binding (ADR-032 §5). Modes: `AUTOMATIC` (through a provider), `HUMAN_ASSISTED`
+   (a person does the task), `DISABLED` (receives nothing). The default workforce is created with every worker
+   Human-Assisted and the Manager without a model, so a fresh installation sends nothing anywhere.
+5. **One lifecycle table.** A task moves only through `lifecycle.move()`, which checks the `ALLOWED` table and
+   writes a history row; a flush hook refuses a lifecycle change made any other way. The coarse task status used by
+   the rest of the platform is derived from the lifecycle and cannot diverge. Reopening a failed or rejected task is
+   a person's move only.
+6. **Scheduling.** A ready task goes to its planned worker if that worker is eligible; otherwise to another eligible
+   worker that has every required skill (recorded as `redistributed`); otherwise it waits with a stated reason. A
+   task a person assigned by hand is not moved again. One task at a time per worker unless its limit says more.
+   A worker that is Automatic but cannot run now (provider off, terms not acknowledged, bridge or account away,
+   circuit open) hands the task to a person when its fallback is on, and makes it wait when it is off.
+7. **Automatic work is an ordinary execution.** The scheduler creates an execution with the key
+   `wf-task:{task}:attempt:{n}`; the runtime and the gateway do the rest, including the bridge's idempotency rules
+   (ADR-032 §7). A gateway hook adds the worker's conversation id and refuses the request if the worker is not in
+   Automatic mode at that moment, whatever created the execution.
+8. **Human-Assisted is a task state, not an engine.** There is deliberately no `human` execution engine: an engine
+   kind is a queue with consumers, and a person is not a consumer. A Human-Assisted task waits as a card
+   (offer → accept → submit, or decline). The person gets exactly the text a model would get, as one message to
+   paste. Attachments are stored on a volume, with an extension allow-list and a size limit, and are only ever
+   downloaded, never rendered. This mode needs no bridge, no terms gate and no provider.
+9. **A result is a submission, never an HTTP status.** Whatever comes back — from a provider or from a person — is
+   stored unchanged as the next immutable version (unique per task and version, with its SHA-256) and only then
+   reviewed. A failed Automatic attempt is classified: outcome unknown, account, session or configuration problems
+   go to a person (or fail when there is no fallback) and are never resent automatically; bridge down, rate limit,
+   upstream error, invalid response and timeout are retried up to the task's attempt limit, then go to a person or
+   fail. Every failure is kept on the task with its code, category, attempt, and whether anything was delivered.
+10. **The Manager advises; fixed rules decide.** The Manager returns a verdict per acceptance criterion with a quote.
+    The platform turns it into one of approve, revise, reject, needs-a-person by rules that no model output can
+    change: an unmet criterion is never an approval; an empty result is never an approval; after `max_revisions`
+    the next decision is a person's; a result containing instruction-like text is a person's decision even when the
+    Manager approved; a result containing something shaped like a credential is not sent to any model at all; an
+    unreadable verdict or an unavailable model leaves the result with a person (or a retry); with the review policy
+    `human` the Manager's verdict is recorded as advice only. A person may decide at any time.
+11. **Critical tasks need the Approval Center.** For a task with a critical operation, a passed review only creates
+    an approval whose frozen payload names the task, the operation, the submission, its version and its hash. Only
+    that approval, decided by a person with `approvals.decide`, completes the task; an approval whose payload no
+    longer matches the reviewed version is not honoured and is audited.
+12. **Worker output is data.** It is never placed in a system prompt. Towards the Manager it is fenced with a random
+    marker that is removed from the text if it occurs there; towards the next worker an approved result is passed as
+    labelled untrusted data after the task, followed by a reminder of the rules.
+13. **Secrets.** A prompt is redacted like every other input of the platform before it is stored or sent, and the
+    response says so (`prompt_redacted`). Provider and bridge keys are encrypted, write-only and appear in no
+    response, log, event or prompt. Account addresses are stored masked (ADR-032 §10).
+14. **The report separates what is known from what is claimed.** Each task result is in exactly one class, computed
+    from recorded rows: `verified` (a machine check of exactly the accepted version), `human_approved` (a person
+    accepted it or approved its critical operation), `worker_proposal` (the Manager accepted it and every criterion
+    is backed by a quote that really occurs in the text), `unverified_claim` (accepted on the Manager's judgement
+    alone), `failed`, `incomplete`. "Facts" are sentences the platform derives from its own rows. The Manager's
+    summary is appended as model text and cannot change a class. One report version per state of the objective.
+    Anything that involved a mock provider, the fake bridge or a mock Manager — result, review, plan or summary — is
+    labelled mock. An objective is `completed` only when every task is; otherwise it is `failed` and its report is
+    `partial`, including when a person cancelled a task on purpose.
+15. **Permissions.** `workforce.read`, `run`, `work`, `review`, `manage`, and `bridge` (ADR-032 §6). `manage` and
+    `bridge` are human-only. Every other organization gets 404 for every workforce object.
+**Consequences:** One prompt can be planned, executed by any mix of Arena sessions and people, reviewed and
+consolidated, and it still works with no bridge at all. The price is a second scheduler beside the orchestrator's,
+kept small by sharing everything below it.
+**Limits that are part of the design:**
+- Workers are text-only: nothing inside an Arena session can run tools, tests or code of the platform.
+- The `verified` class is empty for text work. It needs a machine check, which only development tasks applied to a
+  worktree can provide (WF-14, not implemented yet). Until then the strongest classes are `human_approved` and
+  `worker_proposal`, and the report says that nothing was checked by the platform.
+- The review is as good as the Manager's model. The rules stop the known bad cases; they do not make a wrong
+  answer right.
+- A bridge delivers at-least-once. The platform never resends blindly, but a request whose outcome is unknown may
+  have been answered in the Arena session; the person who takes the task over is told so.
+**Not verified in development:** the Manager on a real Claude model (WF-21) and Automatic workers on a real Arena
+Local Bridge with four accounts (WF-20). Every test used the mock provider as the Manager and the fake bridge.
+
+**Addendum (2026-11-11) — two people on the critical path.** The approval of a critical task was first requested by
+`workforce`, whoever did the work. A person who did a Human-Assisted task could therefore submit a result and then
+approve it alone, which contradicts the platform rule that a requester never decides their own request. Now the
+requester of that approval is the person who submitted the result (`user:<id>`), so the existing
+`self_approval_forbidden` check applies; an Automatic worker's result is still requested by `workforce`. The evidence
+of the approval names who submitted. Not changed: a person may review their own **non-critical** result when the
+Manager hands it to a person — forbidding that would stop a one-person installation whenever the Manager escalates.
+The history and the result show who submitted and who accepted. Tests: `test_workforce_review.py`
+(`…only_by_a_human_approval…`, `…automatic_worker_is_requested_by_the_platform`), `test_workforce_security.py`,
+`e2e/workforce.spec.ts`.

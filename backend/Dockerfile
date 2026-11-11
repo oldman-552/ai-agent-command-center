@@ -9,7 +9,8 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 COPY . .
 ENV PATH="/app/.venv/bin:$PATH"
-RUN useradd --create-home --uid 10001 acc && mkdir -p /data/workspaces && chown acc /data/workspaces
+RUN useradd --create-home --uid 10001 acc && mkdir -p /data/workspaces /data/workforce-attachments \
+ && chown acc /data/workspaces /data/workforce-attachments
 USER acc
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

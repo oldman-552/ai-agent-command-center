@@ -132,8 +132,9 @@ class PlanState(TypedDict, total=False):
 
 def _team(db, wf: Workflow) -> list[Agent]:
     """The project's agent roster when it has one, otherwise the organization's agents."""
-    stmt = select(Agent).where(Agent.organization_id == wf.organization_id, Agent.is_enabled.is_(True),
-                               Agent.archived_at.is_(None))
+    from app.orchestration.selection import exclude_workforce
+    stmt = exclude_workforce(select(Agent).where(Agent.organization_id == wf.organization_id,
+                                                 Agent.is_enabled.is_(True), Agent.archived_at.is_(None)))
     roster = db.scalars(select(project_agents.c.agent_id).where(project_agents.c.project_id == wf.project_id)).all()
     if roster:
         stmt = stmt.where(Agent.id.in_(roster))

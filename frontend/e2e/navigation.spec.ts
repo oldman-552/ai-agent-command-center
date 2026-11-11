@@ -4,13 +4,14 @@ import { login, PASS } from "./helpers";
 
 test.skip(!PASS, "E2E_PASSWORD not set");
 
-// UX-01: the 20-item main navigation — every page loads, has a heading, no console errors, no failed API calls.
-const PAGES = ["/", "/projects", "/agents", "/teams", "/tasks", "/orchestration", "/supervisor", "/executions",
+// UX-01: the main navigation (the 20 items of the spec plus the AI Workforce) — every page loads, has a heading, no
+// console errors, no failed API calls.
+const PAGES = ["/", "/workforce", "/projects", "/agents", "/teams", "/tasks", "/orchestration", "/supervisor", "/executions",
   "/browser-bridge", "/integrations", "/providers", "/runtime", "/memory", "/skills", "/github", "/approvals",
   "/evaluations", "/analytics", "/audit", "/settings"];
 
 for (const lang of ["ar", "en"] as const) {
-  test(`all 20 navigation items work (${lang})`, async ({ page }) => {
+  test(`all ${PAGES.length} navigation items work (${lang})`, async ({ page }) => {
     test.setTimeout(180_000);
     await login(page, lang);
     const nav = page.getByRole("navigation").first();

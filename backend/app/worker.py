@@ -4,6 +4,10 @@
     WORKER_ENGINES=api,cli uv run python -m app.worker   # a specialised worker
     WORKER_ROLES=orchestrator uv run python -m app.worker  # only the orchestrator (planning + scheduling)
     WORKER_ROLES=supervisor uv run python -m app.worker    # only the agent supervisor
+    WORKER_ROLES=workforce uv run python -m app.worker     # only the Arena Local Bridge health monitor (ADR-032)
+
+AI Workforce objectives (ADR-033) need no role of their own: their planning, review and scheduling run in the
+`orchestrator` role and their Automatic tasks in the `executions` role. The `workforce` role only reads bridge health.
 
 Exits non-zero if RabbitMQ or PostgreSQL is unreachable at start, so failures are visible to the supervisor
 (Docker restart policy). After start, broker outages are survived: the robust connection reconnects, consumers
@@ -34,6 +38,7 @@ from app.runtime import service
 from app.runtime.engines import cli as _cli_engine  # noqa: F401  (sandboxed CLI engine)
 from app.runtime.engines import mock as _mock_engine  # noqa: F401  (registers the TEST-ONLY mock engine)
 from app.sandbox import tools as _sandbox_tools  # noqa: F401  (registers shell.test / shell.build)
+from app.workforce import control as _workforce  # noqa: F401  (AI Workforce: gateway, bridge and runtime hooks)
 
 log = logging.getLogger("worker")
 
@@ -67,7 +72,8 @@ async def main() -> int:
     relay_ch = await conn.channel(publisher_confirms=True, on_return_raises=True)
     relay = asyncio.create_task(Relay(relay_ch).run(stop))
     roles = os.environ.get("WORKER_ROLES",
-                           "executions,orchestrator,supervisor,automations,a2a_push,memory_index").split(",")
+                           "executions,orchestrator,supervisor,automations,a2a_push,memory_index,workforce"
+                           ).split(",")
     supervisor = None
     if "supervisor" in roles:  # M7: independent of the orchestrator; one leader across all workers
         from app.supervisor import service as supervisor_service
@@ -94,6 +100,10 @@ async def main() -> int:
     if "a2a_push" in roles:  # A2A webhooks (transactional outbox; safe with several workers)
         from app.connectivity.a2a import push as a2a_push_service
         a2a_push = asyncio.create_task(a2a_push_service.run(stop))
+    workforce = None
+    if "workforce" in roles:  # AI Workforce (ADR-032): bridge health readings; one leader across all workers
+        from app.connectivity.arena_bridge import monitor as bridge_monitor
+        workforce = asyncio.create_task(bridge_monitor.run(stop))
     consumers = (execution_consumers(_engines()) if "executions" in roles else []) + (
         orchestrator_consumers() if "orchestrator" in roles else [])
     if "orchestrator" in roles:
@@ -134,6 +144,8 @@ async def main() -> int:
         await a2a_push
     if memory_index is not None:
         await memory_index
+    if workforce is not None:
+        await workforce
     await heartbeat
     await conn.close()
     log.info("worker stopped cleanly")

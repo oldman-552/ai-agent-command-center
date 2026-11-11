@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from typing import Any
 
 import anthropic
@@ -345,6 +345,11 @@ def mock_review(prompt: str) -> str:
                                     for i in range(1, n + 1)]})
 
 
+# TEST ONLY: other planes register a deterministic reply for their own system-prompt marker:
+# marker -> fn(request) -> text. Like every mock reply, the text must label itself as mock.
+MOCK_RESPONDERS: dict[str, Callable[[ChatRequest], str]] = {}
+
+
 class MockAdapter:
     """TEST ONLY — deterministic, never real AI. Output is prefixed so it can never be mistaken for a model."""
 
@@ -356,6 +361,15 @@ class MockAdapter:
 
     async def stream(self, req: ChatRequest) -> AsyncIterator[GatewayEvent]:
         last = req.messages[-1]["content"] if req.messages else ""
+        for marker, responder in MOCK_RESPONDERS.items():
+            if marker in (req.system or ""):
+                if "[[mock:unavailable]]" in last:
+                    raise ProviderUnavailable("mock provider unavailable (requested by test marker)")
+                text = responder(req)
+                yield GatewayEvent("delta", text=text)
+                yield GatewayEvent("usage", usage={"input_tokens": len(str(last).split()),
+                                                   "output_tokens": len(text.split()), "cached_tokens": 0})
+                return
         if EVAL_MARKER in (req.system or ""):
             text = mock_review(last)  # deterministic reviewer verdicts, labelled mock
             yield GatewayEvent("delta", text=text)

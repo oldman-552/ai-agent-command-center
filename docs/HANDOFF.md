@@ -37,6 +37,34 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - Still owner-only: GW-10 (live key), FI-06 (real GitHub repo — creating one was blocked here), SEC-08 (Trivy),
   FI-01 (Windows).
 
+### Session 2026-11-11 — AI Workforce (M16, branch `arena/2b22bc10-ai-agent-command-center`)
+- Read first: `docs/AI_WORKFORCE.md` (what it does), ADR-032/033 (why), `docs/ARENA_LOCAL_BRIDGE.md` (the bridge).
+- Code: `backend/app/workforce/` (lifecycle, service, manager, scheduler, review, report, human, control, history,
+  api at `/api/workforce`, `mock.py` = TEST-ONLY Manager behaviour), `backend/app/connectivity/arena_bridge/`
+  (client, adapter, service, api, monitor, `probe.py`), `backend/devtools/fake_arena_bridge.py`.
+  Frontend: `src/app/(app)/workforce/*`, `src/components/workforce/*`, `src/lib/workforce.ts`.
+- The Arena site of the Browser Bridge is gone (ADR-032); Arena is reached only through Arena Local Bridge.
+- **Not verified, owner only:** WF-20 (real bridge, four accounts), WF-21 (real Claude Manager) — `REAL-TESTS.bat`;
+  WF-17 real run of the Windows scripts. **Not built:** WF-14 (file blocks from text workers into a worktree; the
+  report class `verified` stays empty until then).
+- This session had **no Docker and no Windows**. `scripts/dev/no-docker/` builds PostgreSQL, Redis, RabbitMQ, Python
+  and Chromium as user processes: `toolchain.sh all`, `infra.sh up`, `test-backend.sh`, `e2e-stack.sh up`
+  (see `docs/DEVELOPMENT.md`). Docker-dependent tests fail or skip there; they are not regressions.
+- Gotchas:
+  - The mock Manager plans numbered lines: `2. Title [skill] (after 1) {critical.operation} @W3`. Markers such as
+    `[[mock:review-escalate]]` in a result steer its review (list in `app/workforce/mock.py`).
+  - A critical Human-Assisted result is requested by its author (`user:<id>`), so tests need a second person to
+    approve: `tests/wf.py::second_person` (an ORGANIZATION_ADMIN — never a second Super Admin).
+  - `tests/conftest.py` refuses a database whose name does not end in `_test`.
+  - axe-core does not test the contrast of Arabic text (ligature heuristic). Contrast defects show only in the
+    English runs; keep `scripts/check-contrast.mjs` current.
+  - The page title is rendered by the root layout, not by `generateMetadata` (the title vanished during
+    client-side navigation and axe's `document-title` failed now and then).
+  - `scripts/windows/acc.ps1` is UTF-8 **with** a byte-order mark and CRLF; call programs only through
+    `Invoke-Logged` / `Invoke-Quiet` / `Invoke-Shown` (`backend/tests/test_launch_scripts.py` checks all of this).
+  - After changing backend code, restart the API and the worker before the browser suite
+    (`e2e-stack.sh down && e2e-stack.sh up`); after changing frontend code, rebuild and restart the web app.
+
 ### Layout (spec v4, ADR-001)
 - `backend/app/models/` — schema per plane (identity, agents, work, runtime, connectivity, governance); `__init__` re-exports.
 - `backend/app/security/` — auth (JWT cookie + CSRF), rbac (roles/permissions as data), tenancy (`scoped`, `get_scoped`), crypto, audit.
@@ -82,6 +110,8 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - The dev DB is disposable; the super admin password in the dev container is `dev-only-password-123` (backend/.env, not committed).
 
 ### Next steps (in order)
+0. AI Workforce: WF-14 (development tasks from text workers) is the only unbuilt requirement. WF-20, WF-21 and the
+   real run of WF-17 need the owner's machine (`REAL-TESTS.bat`, `HEALTH-CHECK.bat`).
 1. Remaining items need the owner (see docs/RELEASE_READINESS.md): GW-10 live API call, FI-06 real provider +
    GitHub run, SEC-08 Trivy image scan, FI-01 real Windows run. Everything else is implemented and verified; keep
    docs in sync (`scripts/gen-docs.py` for API/schema).

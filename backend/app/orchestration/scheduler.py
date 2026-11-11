@@ -69,9 +69,9 @@ def build_prompt(db: Session, task: Task, deps: list[Task], agent=None) -> tuple
 def advance(db: Session, workflow_id: int, causation: Envelope | None = None) -> dict[str, Any]:
     """One scheduling round. Returns a summary (also appended to workflow.plan['rounds'] when it dispatched)."""
     wf = db.get(Workflow, workflow_id, with_for_update=True, populate_existing=True)  # serialises all scheduling of this workflow
-    if wf is None or wf.status not in ACTIVE_WF:
-        db.rollback()
-        return {"skipped": wf.status if wf else "missing"}
+    if wf is None or wf.status not in ACTIVE_WF or wf.kind != "standard":
+        db.rollback()  # an AI Workforce objective is scheduled by app.workforce, with its own rules
+        return {"skipped": (wf.status if wf.kind == "standard" else wf.kind) if wf else "missing"}
     tasks = list(db.scalars(select(Task).where(Task.workflow_id == wf.id).order_by(Task.priority.desc(), Task.id)))
     by_id = {t.id: t for t in tasks}
     deps = _deps(db, list(by_id))
@@ -201,6 +201,8 @@ def review(db: Session, task: Task, decision: str, note: str, actor: str) -> Tas
     """Human review gate: approve → COMPLETED, revise → READY (note fed into the next prompt), reject → FAILED."""
     wf = db.get(Workflow, task.workflow_id, with_for_update=True, populate_existing=True) if task.workflow_id else None
     db.refresh(task)
+    if wf is not None and wf.kind != "standard":  # reviewed under the workforce's rules, not here
+        raise HTTPException(409, "managed_at:/api/workforce/tasks")
     if task.status != T.REVIEW.value:
         raise HTTPException(409, f"task_not_in_review:{task.status}")
     now = datetime.now(UTC)
@@ -273,6 +275,7 @@ def recover_running(db: Session) -> int:
     'resume after restart' independent of which messages were in flight)."""
     n = 0
     for wf in db.scalars(select(Workflow).where(Workflow.status.in_(["running", "planning"]))):
+        # (both kinds: the command handler sends a workforce objective to app.workforce)
         if wf.status == "planning":
             enqueue(db, workflow_command(MessageType.WORKFLOW_PLAN, workflow_id=wf.id, organization_id=wf.organization_id,
                                          project_id=wf.project_id, sender="orchestrator", reason="recovery",
@@ -292,6 +295,8 @@ def _on_approval_decision(db: Session, a) -> None:
     if task is None or task.status != T.APPROVAL.value or (task.result or {}).get("approval_id") != a.id:
         return
     wf = db.get(Workflow, task.workflow_id, with_for_update=True, populate_existing=True) if task.workflow_id else None
+    if wf is not None and wf.kind != "standard":
+        return  # settled by the workforce's own listener
     db.refresh(task)
     now = datetime.now(UTC)
     from app.governance.approvals import _EXECUTORS

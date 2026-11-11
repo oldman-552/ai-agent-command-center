@@ -1,5 +1,5 @@
 "use client";
-import { Activity, BarChart3, Bot, Brain, Cpu, FolderKanban, Gauge, GitBranch, Globe, KanbanSquare, LayoutDashboard, ListTree, LogOut, Menu, Network, Plug, Puzzle, ScrollText, Settings, ShieldCheck, Users, Workflow, X, type LucideIcon } from "lucide-react";
+import { Activity, BarChart3, Bot, Brain, Cpu, FolderKanban, Gauge, GitBranch, Globe, KanbanSquare, LayoutDashboard, ListTree, LogOut, Menu, Network, Plug, Puzzle, ScrollText, Settings, ShieldCheck, Users, Waypoints, Workflow, X, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -14,13 +14,14 @@ import { useApprovals } from "@/lib/approvals";
 import { useLiveUpdates } from "@/lib/live";
 import { cn } from "@/lib/utils";
 
-// The 20-item main navigation of the spec (Phase 23). Items are hidden when the user lacks the permission;
-// the backend enforces every permission regardless.
-type NavKey = "dashboard" | "projects" | "agents" | "teams" | "tasks" | "orchestration" | "supervisor" | "executions" |
+// The 20-item main navigation of the spec (Phase 23) plus the AI Workforce (ADR-033). Items are hidden when the user
+// lacks the permission; the backend enforces every permission regardless.
+type NavKey = "dashboard" | "workforce" | "projects" | "agents" | "teams" | "tasks" | "orchestration" | "supervisor" | "executions" |
   "bridge" | "integrations" | "providers" | "runtime" | "memory" | "skills" | "github" | "approvals" | "evaluations" |
   "analytics" | "audit" | "settings";
 const NAV: { href: string; key: NavKey; icon: LucideIcon; perm?: string }[] = [
   { href: "/", key: "dashboard", icon: LayoutDashboard },
+  { href: "/workforce", key: "workforce", icon: Waypoints, perm: "workforce.read" },
   { href: "/projects", key: "projects", icon: FolderKanban, perm: "projects.read" },
   { href: "/agents", key: "agents", icon: Bot },
   { href: "/teams", key: "teams", icon: Users, perm: "teams.read" },

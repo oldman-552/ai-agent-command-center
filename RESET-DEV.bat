@@ -1,5 +1,5 @@
 @echo off
-rem DELETE ALL DATA of this installation (asks you to type RESET first).
+rem Same as RESET.bat (kept for older instructions): DELETE ALL DATA, after you type RESET.
 setlocal
 chcp 65001 >nul
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\windows\acc.ps1" reset

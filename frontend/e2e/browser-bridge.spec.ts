@@ -9,6 +9,23 @@ async function axe(page: Page) {
   expect(r.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(", ")}`)).toEqual([]);
 }
 
+async function csrfOf(page: Page) {
+  return (await page.context().cookies()).find((c) => c.name === "acc_csrf")?.value ?? "";
+}
+
+/** A site the Super Admin added: the terms gate is exercised on it (Arena is not a Browser Bridge site, ADR-032). */
+async function addSite(page: Page, key: string) {
+  const headers = { "X-CSRF-Token": await csrfOf(page) };
+  await page.request.delete(`/api/browser-bridge/sites/${key}`, { headers });
+  const r = await page.request.post("/api/browser-bridge/sites", { headers, data: {
+    key, name: "Example chat", url: "https://chat.example.com/app", terms_url: "https://chat.example.com/terms" } });
+  expect(r.status()).toBe(201);
+}
+
+async function removeSite(page: Page, key: string) {
+  await page.request.delete(`/api/browser-bridge/sites/${key}`, { headers: { "X-CSRF-Token": await csrfOf(page) } });
+}
+
 async function setEnabled(page: Page, on: boolean) {
   const csrf = (await page.context().cookies()).find((c) => c.name === "acc_csrf")?.value ?? "";
   const r = await page.request.put("/api/browser-bridge/enabled", { data: { enabled: on }, headers: { "X-CSRF-Token": csrf } });
@@ -20,21 +37,23 @@ for (const lang of ["ar", "en"] as const) {
     const en = lang === "en";
     await login(page, lang);
     await setEnabled(page, false);
+    const site = `e2e-gate-${lang}`;
+    await addSite(page, site);
     await page.goto("/browser-bridge");
     await expect(page.getByTestId("bb-status")).toContainText(en ? "Disabled" : "معطّل");
-    await expect(page.getByTestId("bb-provider-arena")).toContainText(en ? "Locked" : "مقفل");
+    await expect(page.getByTestId(`bb-provider-${site}`)).toContainText(en ? "Locked" : "مقفل");
     await axe(page);
 
     // the terms gate: the confirm button stays disabled until the box is ticked
-    await page.getByTestId("bb-provider-arena").getByRole("button", { name: en ? /^Acknowledge/ : /إقرار|أقر/ }).click();
+    await page.getByTestId(`bb-provider-${site}`).getByRole("button", { name: en ? /^Acknowledge/ : /إقرار|أقر/ }).click();
     const confirm = page.getByTestId("bb-ack-confirm");
     await expect(confirm).toBeDisabled();
     await page.getByTestId("bb-ack-check").check();
     await axe(page);
     await confirm.click();
-    await expect(page.getByTestId("bb-provider-arena")).toContainText(en ? "Unlocked" : "مفتوح");
-    await page.getByTestId("bb-provider-arena").getByRole("button", { name: en ? /^Revoke/ : /سحب|إلغاء/ }).click(); // revoke again
-    await expect(page.getByTestId("bb-provider-arena")).toContainText(en ? "Locked" : "مقفل");
+    await expect(page.getByTestId(`bb-provider-${site}`)).toContainText(en ? "Unlocked" : "مفتوح");
+    await page.getByTestId(`bb-provider-${site}`).getByRole("button", { name: en ? /^Revoke/ : /سحب|إلغاء/ }).click(); // revoke again
+    await expect(page.getByTestId(`bb-provider-${site}`)).toContainText(en ? "Locked" : "مقفل");
 
     // enable and drive the local test page through a real headless browser
     await page.getByTestId("bb-toggle").click();
@@ -66,21 +85,34 @@ for (const lang of ["ar", "en"] as const) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
     }
     await axe(page);
+    await removeSite(page, site);
     await setEnabled(page, false); // leave the bridge disabled, as it ships
   });
 }
 
-test("arena.ai: its own terms clauses, and the Super Admin can adjust selectors (English)", async ({ page }) => {
+test("Arena is not offered by the Browser Bridge; selectors of an added site can be adjusted (English)", async ({ page }) => {
   await login(page, "en");
+  const site = "e2e-selectors";
+  await addSite(page, site);
   await page.goto("/browser-bridge");
-  const card = page.getByTestId("bb-provider-arena");
-  await expect(card).toContainText("Arena agent");
-  await card.getByRole("button", { name: /Acknowledge/ }).click();
-  const dlg = page.getByRole("dialog");
-  await expect(dlg).toContainText("section 5(vi)");
-  await expect(dlg).toContainText("section 3.4");
+  // ADR-032: no Arena site, a pointer to Arena Local Bridge instead, and Arena addresses are refused
+  await expect(page.getByTestId("bb-provider-arena")).toHaveCount(0);
+  const moved = page.getByTestId("bb-arena-moved");
+  await expect(moved).toContainText("Arena Local Bridge");
+  await expect(moved.getByRole("link")).toHaveAttribute("href", "/workforce/bridge");
+  await page.getByTestId("bb-add-site").click();
+  const add = page.getByTestId("bb-site-dialog");
+  await add.locator("#site-name").fill("Arena");
+  await add.locator("#site-key").fill("my-arena");
+  await add.locator("#site-url").fill("https://arena.ai/agent");
+  await add.getByTestId("bb-site-save").click();
+  await expect(page.getByText("Arena cannot be used through the Browser Bridge")).toBeVisible();
   await page.keyboard.press("Escape");
-  await card.getByTestId("bb-sel-arena").click();
+  await expect(page.getByTestId("bb-provider-my-arena")).toHaveCount(0);
+
+  const card = page.getByTestId(`bb-provider-${site}`);
+  await expect(card).toContainText("Example chat");
+  await card.getByTestId(`bb-sel-${site}`).click();
   const sel = page.getByTestId("bb-sel-dialog");
   await expect(sel.locator("#sel-input")).toHaveAttribute("placeholder", "textarea");
   const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
@@ -89,10 +121,11 @@ test("arena.ai: its own terms clauses, and the Super Admin can adjust selectors 
   await sel.getByTestId("bb-sel-save").click();
   await expect(card).toContainText("custom selectors");
   const ov = await (await page.request.get("/api/browser-bridge")).json();
-  expect(ov.providers.find((p: { key: string }) => p.key === "arena").selectors.input).toBe("div[contenteditable='true']");
-  await card.getByTestId("bb-sel-arena").click();
+  expect(ov.providers.find((p: { key: string }) => p.key === site).selectors.input).toBe("div[contenteditable='true']");
+  await card.getByTestId(`bb-sel-${site}`).click();
   await page.getByTestId("bb-sel-reset").click();
   await expect(card).not.toContainText("custom selectors");
+  await removeSite(page, site);
 });
 
 test("profiles per employee and adding any website (English)", async ({ page }) => {
