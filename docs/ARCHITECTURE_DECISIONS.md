@@ -609,8 +609,8 @@ kept small by sharing everything below it.
 **Limits that are part of the design:**
 - Workers are text-only: nothing inside an Arena session can run tools, tests or code of the platform.
 - The `verified` class is empty for text work. It needs a machine check, which only development tasks applied to a
-  worktree can provide (WF-14, not implemented yet). Until then the strongest classes are `human_approved` and
-  `worker_proposal`, and the report says that nothing was checked by the platform.
+  worktree can provide (WF-14, since built — ADR-034). For text tasks the strongest classes remain `human_approved`
+  and `worker_proposal`, and the report says that nothing was checked by the platform.
 - The review is as good as the Manager's model. The rules stop the known bad cases; they do not make a wrong
   answer right.
 - A bridge delivers at-least-once. The platform never resends blindly, but a request whose outcome is unknown may

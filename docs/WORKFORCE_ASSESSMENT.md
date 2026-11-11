@@ -16,7 +16,7 @@ Everything below comes from reading the actual source of both repositories. Noth
 > **What became of it (2026-11-11).** Phases 1–8 and 10 of §6 are built; the decisions are ADR-032 and ADR-033, the
 > guides are [`AI_WORKFORCE.md`](AI_WORKFORCE.md) and [`ARENA_LOCAL_BRIDGE.md`](ARENA_LOCAL_BRIDGE.md). Phase 9
 > (Windows scripts) is written and checked as text only. Development tasks from text workers (requirement WF-14)
-> are **not built**. Everything in §9 is still not verified; `REAL-TESTS.bat` and `HEALTH-CHECK.bat` are the
+> were built afterwards (ADR-034). Everything in §9 is still not verified; `REAL-TESTS.bat` and `HEALTH-CHECK.bat` are the
 > tools for it.
 
 ---

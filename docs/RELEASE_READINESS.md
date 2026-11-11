@@ -20,6 +20,14 @@ One prompt → a Manager analyses and plans → four workers (Automatic through 
 (answers written by hand, not AI). Automatic workers talked to a fake bridge written from Arena Local Bridge's
 source. No request went to a real model or to Arena. The environment had **no Docker and no Windows**.
 
+| Suite (2026-11-11, WF-14 + Operations Room; environment WITH Docker) | Result | Notes |
+|---|---|---|
+| Backend, whole suite | **977 passed** | real PostgreSQL, RabbitMQ, Redis, Docker sandbox, git; the owner-run real tiers (`test_real_arena.py`, `test_real_provider.py`) were left out |
+| … of which development tasks (WF-14) | 11 passed | `test_workforce_devtasks.py`: file blocks applied to the task branch, sandbox tests, merge only after approval, `verified` only on passed tests |
+| Lint · migrations | clean · no new operations | `ruff check app devtools tests` · `alembic check` |
+| Frontend type check + i18n guard (1 925 keys, ar = en) · contrast · build | clean | |
+| Browser suite (Playwright, Arabic + English, axe WCAG 2.2 AA) | **76 / 76 passed** | includes `e2e/workforce-room.spec.ts` (Operations Room + a code task applied and tested) and the FAKE-bridge scenarios |
+
 | Suite (2026-11-11) | Result | Notes |
 |---|---|---|
 | Backend, whole suite | **950 passed, 1 failed, 19 skipped** | The failure needs the `docker` program (`test_cli_engine.py::test_secrets_reach_the_container_by_name_only`). 15 skips need Docker, nginx or root control of the broker; the 2026-11-10 report below records them as passing, and they could not run in this environment. 4 skips are the owner-run real tiers. |
@@ -34,11 +42,11 @@ source. No request went to a real model or to Arena. The environment had **no Do
 
 | Requirement | Status | What is missing |
 |---|---|---|
-| WF-01 … WF-13, WF-15, WF-16, WF-18, WF-19 | done, on the tiers above | — |
+| WF-01 … WF-16, WF-18, WF-19 | done, on the tiers above | — |
 | WF-17 Windows scripts | written; **never executed** | Run `INSTALL.bat`, `START.bat`, `HEALTH-CHECK.bat`, `STOP.bat` on Windows with Docker Desktop. `RESET.bat` on an installation you can lose. |
 | WF-20 real Arena Local Bridge, four accounts | **not run** | `REAL-TESTS.bat`, choice 2 (sends 5 short prompts to Arena through your accounts) |
 | WF-21 Manager on a real Claude model | **not run** | `REAL-TESTS.bat`, choice 1 (your API key; about 5 to 8 requests) |
-| WF-14 development tasks from text workers | **not built** | Files from a worker's answer applied to a worktree, tests run by the platform, protected merge. Until then the result class *Verified by the platform* is always empty. |
+| WF-14 development tasks from text workers | done (ADR-034) | Tested with the mock Manager, people's submissions, real git and the real Docker sandbox; **not** with a real model or Arena worker writing code. |
 
 Limits that come from Arena Local Bridge and cannot be fixed here: it does not name the account that answered, it
 reports no usage, it runs one request at a time, and a request the platform abandoned keeps running inside it.

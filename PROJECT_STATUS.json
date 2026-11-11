@@ -1,12 +1,12 @@
 {
-  "date": "2026-11-11 13:02",
+  "date": "2026-11-11 14:33",
   "spec_version": "4.0",
   "current_phase": "Phases 16, 17, 22",
   "current_milestone": {
     "id": 13,
     "name": "Enterprise Security"
   },
-  "overall_percent": 95.4,
+  "overall_percent": 96.0,
   "milestones": [
     {
       "id": 1,
@@ -132,8 +132,8 @@
       "id": 16,
       "name": "AI Workforce (Arena Local Bridge)",
       "weight": 12,
-      "percent": 81.0,
-      "done": 17,
+      "percent": 85.7,
+      "done": 18,
       "total": 21
     }
   ],
@@ -262,6 +262,7 @@
     "WF-11",
     "WF-12",
     "WF-13",
+    "WF-14",
     "WF-15",
     "WF-16",
     "WF-18",
@@ -272,46 +273,14 @@
     "WF-17"
   ],
   "files_changed": [
-    "README.md",
-    "RESET-DEV.bat",
-    "backend/app/workforce/review.py",
-    "backend/pyproject.toml",
-    "backend/tests/conftest.py",
-    "backend/tests/test_workforce_report.py",
-    "backend/tests/test_workforce_review.py",
-    "backend/tests/test_workforce_security.py",
-    "backend/tests/wf.py",
-    "docker-compose.yml",
-    "docs/API_REFERENCE.md",
+    "PROJECT_STATUS.json",
     "docs/ARCHITECTURE_DECISIONS.md",
-    "docs/ARENA_LOCAL_BRIDGE.md",
-    "docs/CHANGELOG.md",
-    "docs/DATABASE_SCHEMA.md",
-    "docs/DEPLOYMENT.md",
-    "docs/DEVELOPMENT.md",
     "docs/HANDOFF.md",
     "docs/RELEASE_READINESS.md",
-    "docs/SECURITY.md",
-    "docs/TROUBLESHOOTING.md",
-    "docs/WINDOWS_SETUP.md",
+    "docs/REQUIREMENTS.md",
     "docs/WORKFORCE_ASSESSMENT.md",
     "docs/requirements.json",
-    "frontend/e2e/workforce.spec.ts",
-    "frontend/messages/ar.json",
-    "frontend/messages/en.json",
-    "frontend/src/app/(app)/approvals/page.tsx",
-    "frontend/src/components/workforce/task-dialog.tsx",
-    "health-check.sh",
-    "scripts/lib/acc.sh",
-    "scripts/windows/acc.ps1",
-    "INSTALL.bat",
-    "REAL-TESTS.bat",
-    "RESET.bat",
-    "backend/app/connectivity/arena_bridge/probe.py",
-    "backend/tests/test_arena_bridge_probe.py",
-    "backend/tests/test_docs_consistency.py",
-    "backend/tests/test_launch_scripts.py",
-    "backend/tests/test_real_arena.py"
+    "progress.txt"
   ],
   "tests": {
     "passed": [
@@ -342,7 +311,7 @@
     "Sandbox image here was built offline (debootstrap + docker import); docker/sandbox/Dockerfile (ubuntu:24.04 base) must be built and verified on the owner's machine",
     "SEC-08: container image scanning (Trivy) is scripted but has never run — Trivy and vulnerability feeds are unreachable here; run scripts/security-scan.sh --strict on the owner's machine/CI",
     "GitHub integration verified against an in-memory HTTP fake + local bare remote only (github.com unreachable here); verify against a real repository on the owner's machine",
-    "AI Workforce: WF-14 (development tasks from text workers: files into a worktree, tests run by the platform, protected merge) is not built; the result class 'verified' is therefore always empty",
+    "AI Workforce: WF-14 code tasks are tested only with the mock Manager and people's submissions; a real model or Arena worker writing code was never run, and workforce merges go into the platform's local project repository (no GitHub pull request yet)",
     "AI Workforce: never run against a real Claude model (WF-21) or a real Arena Local Bridge with four accounts (WF-20); REAL-TESTS.bat exists for it and was itself never executed",
     "Windows scripts (INSTALL/START/STOP/UPDATE/HEALTH-CHECK/RESET/REAL-TESTS.bat, scripts/windows/acc.ps1) were checked as text only; never executed (no Windows, no Docker)",
     "Arena Local Bridge limits that the platform cannot fix: it does not name the account that answered (bindings are configuration, not proof), reports no usage, runs one request at a time, and an abandoned request keeps running inside it",
