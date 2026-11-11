@@ -1,0 +1,918 @@
+{
+ "Arena 模型提供商 · 本地桥接 GUI": [
+  "Arena model provider · Local bridge GUI",
+  "مزوّد نماذج Arena · واجهة الجسر المحلي"
+ ],
+ "Arena 模型提供商 · 本地桥接": [
+  "Arena model provider · Local bridge",
+  "مزوّد نماذج Arena · الجسر المحلي"
+ ],
+ "抽卡 → 归档 → 选用 → 测试 → 接入客户端，全流程一个界面": [
+  "Draw → archive → select → test → connect a client, all in one screen",
+  "سحب ← أرشفة ← اختيار ← اختبار ← ربط عميل، كل ذلك في شاشة واحدة"
+ ],
+ "本地服务 127.0.0.1": [
+  "Local service 127.0.0.1",
+  "خدمة محلية 127.0.0.1"
+ ],
+ "模型归档 / 连接": [
+  "Model archive / Connection",
+  "أرشيف النماذج / الاتصال"
+ ],
+ "连抽采集": [
+  "Batch collection",
+  "الجمع المتتالي"
+ ],
+ "批量测试": [
+  "Batch test",
+  "اختبار جماعي"
+ ],
+ "提示：bridge 用": [
+  "Note: the bridge uses ",
+  "تنبيه: الجسر يستخدم "
+ ],
+ "你登录时保存的那个 Arena 账号": [
+  "the Arena account you saved when signing in",
+  "حساب Arena الذي حفظته عند تسجيل الدخول"
+ ],
+ "（长期账号，过期会自动续期）在自带的有头浏览器里驱动 session；你本机浏览器可能是": [
+  " (a long-lived account, renewed automatically) to drive sessions in its own visible browser; your own browser may be signed in to ",
+  " (حساب طويل الأمد يُجدَّد تلقائيًا) لتشغيل الجلسات في متصفحه الخاص؛ متصفحك أنت قد يكون مسجّلًا في "
+ ],
+ "另一个账号": [
+  "another account",
+  "حساب آخر"
+ ],
+ "。所以": [
+  ". So ",
+  ". لذلك "
+ ],
+ "不要在自己浏览器里打开这些 session": [
+  "do not open these sessions in your own browser",
+  "لا تفتح هذه الجلسات في متصفحك"
+ ],
+ "。驱动对话请走下面的 API / Proxy。": [
+  ". Use the API / Proxy below to drive conversations.",
+  ". استخدم الـ API / Proxy في الأسفل لتشغيل المحادثات."
+ ],
+ "模型归档 / 可选 session": [
+  "Model archive / available sessions",
+  "أرشيف النماذج / الجلسات المتاحة"
+ ],
+ "刷新额度": [
+  "Refresh quota",
+  "تحديث الرصيد"
+ ],
+ "刷新": [
+  "Refresh",
+  "تحديث"
+ ],
+ "全选": [
+  "Select all",
+  "تحديد الكل"
+ ],
+ "清空": [
+  "Clear",
+  "مسح"
+ ],
+ "删除所选": [
+  "Delete selected",
+  "حذف المحدد"
+ ],
+ "搜索模型 / UUID / 账号": [
+  "Search model / UUID / account",
+  "ابحث عن نموذج / UUID / حساب"
+ ],
+ "搜索模型池": [
+  "Search model pools",
+  "ابحث في مجموعات النماذج"
+ ],
+ "排序方式": [
+  "Sort by",
+  "الترتيب حسب"
+ ],
+ "按可用条数": [
+  "Available sessions",
+  "عدد الجلسات المتاحة"
+ ],
+ "按最近使用": [
+  "Recently used",
+  "آخر استخدام"
+ ],
+ "按采集时间": [
+  "Collection time",
+  "وقت الجمع"
+ ],
+ "按模型名": [
+  "Model name",
+  "اسم النموذج"
+ ],
+ "连接信息": [
+  "Connection details",
+  "معلومات الاتصال"
+ ],
+ "账号额度": [
+  "Account quota",
+  "رصيد الحسابات"
+ ],
+ "Arena 邮箱 / Email": [
+  "Arena email",
+  "بريد Arena الإلكتروني"
+ ],
+ "密码 / Password": [
+  "Password",
+  "كلمة المرور"
+ ],
+ "登录并保存 / Sign in": [
+  "Sign in and save",
+  "تسجيل الدخول والحفظ"
+ ],
+ "凭据会加密保存在本机；登录成功后即可使用账号。": [
+  "Credentials are stored encrypted on this machine; the account is usable after a successful sign-in.",
+  "بيانات الدخول تُحفظ مشفّرة على هذا الجهاز؛ يصبح الحساب جاهزًا بعد نجاح تسجيل الدخول."
+ ],
+ "本机 MCP（自建运行时）": [
+  "Local MCP (built-in runtime)",
+  "MCP المحلي (بيئة التشغيل المدمجة)"
+ ],
+ "工作区绝对目录（仅明确选择此目录）": [
+  "Workspace absolute folder (only this folder is exposed)",
+  "المسار الكامل لمجلد العمل (هذا المجلد فقط)"
+ ],
+ "例如 D:\\projects\\my-project": [
+  "e.g. /home/me/project",
+  "مثال: ‎/home/me/project"
+ ],
+ "文件工具只允许工作区和配置的只读 skills；DATA_DIR 保持私有。exec_command 以本机用户权限运行，工作目录约束不构成沙箱。": [
+  "File tools may only use the workspace and configured read-only skills; DATA_DIR stays private. exec_command runs with your user's rights — the folder restriction is not a sandbox.",
+  "أدوات الملفات مقصورة على مجلد العمل والمهارات المحددة للقراءة فقط؛ DATA_DIR يبقى خاصًا. exec_command يعمل بصلاحيات مستخدمك — تقييد المجلد ليس عزلًا."
+ ],
+ "一键启动": [
+  "Start",
+  "تشغيل"
+ ],
+ "停止并收回": [
+  "Stop and revoke",
+  "إيقاف وسحب الصلاحية"
+ ],
+ "重注入给当前会话": [
+  "Re-inject into the current session",
+  "إعادة الحقن في الجلسة الحالية"
+ ],
+ "最近的 Codex 工作区": [
+  "Recent Codex workspaces",
+  "مجلدات Codex الأخيرة"
+ ],
+ "确认并重注入": [
+  "Confirm and re-inject",
+  "تأكيد وإعادة الحقن"
+ ],
+ "取消": [
+  "Cancel",
+  "إلغاء"
+ ],
+ "会话绑定": [
+  "Session bindings",
+  "ربط الجلسات"
+ ],
+ "每一轮：新建 Arena 会话 → 用助手自带探针识别真实模型 → 写入归档目录。识别不到模型名也会入库（标记「未识别」），不算失败。": [
+  "Each round: new Arena session → identify the real model with the built-in probe → write it to the archive. A session whose model is not identified is still saved (marked “Unidentified”); that is not a failure.",
+  "كل جولة: جلسة Arena جديدة ← تحديد النموذج الحقيقي بأداة الفحص ← الحفظ في الأرشيف. الجلسة التي لا يُعرف نموذجها تُحفظ أيضًا (بعلامة «غير محدد») ولا تُعد فشلًا."
+ ],
+ "连抽次数": [
+  "Number of rounds",
+  "عدد الجولات"
+ ],
+ "每轮间隔（毫秒）": [
+  "Pause between rounds (ms)",
+  "الفاصل بين الجولات (ملي ثانية)"
+ ],
+ "首轮 prompt": [
+  "First-round prompt",
+  "رسالة الجولة الأولى"
+ ],
+ "开始连抽": [
+  "Start collecting",
+  "ابدأ الجمع"
+ ],
+ "未开始。": [
+  "Not started.",
+  "لم يبدأ."
+ ],
+ "未开始": [
+  "Not started",
+  "لم يبدأ"
+ ],
+ "批量测试模型": [
+  "Batch-test models",
+  "اختبار النماذج جماعيًا"
+ ],
+ "测试 prompt": [
+  "Test prompt",
+  "رسالة الاختبار"
+ ],
+ "请用一句话自我介绍，并说明你是哪个模型。": [
+  "Introduce yourself in one sentence and say which model you are.",
+  "عرّف بنفسك في جملة واحدة وقل أي نموذج أنت."
+ ],
+ "并发数": [
+  "Concurrency",
+  "عدد الطلبات المتزامنة"
+ ],
+ "开始测试": [
+  "Start test",
+  "ابدأ الاختبار"
+ ],
+ "还没有结果。": [
+  "No results yet.",
+  "لا توجد نتائج بعد."
+ ],
+ "选择要测试的 session": [
+  "Choose sessions to test",
+  "اختر الجلسات للاختبار"
+ ],
+ "加载中…": [
+  "Loading…",
+  "جارٍ التحميل…"
+ ],
+ "已复制": [
+  "Copied",
+  "نُسخ"
+ ],
+ "复制": [
+  "Copy",
+  "نسخ"
+ ],
+ "你好": [
+  "Hello",
+  "مرحبًا"
+ ],
+ "读取失败：": [
+  "Read failed: ",
+  "فشلت القراءة: "
+ ],
+ "读取失败": [
+  "Read failed",
+  "فشلت القراءة"
+ ],
+ "无法连接本地 bridge：": [
+  "Cannot reach the local bridge: ",
+  "تعذّر الاتصال بالجسر المحلي: "
+ ],
+ "未识别": [
+  "Unidentified",
+  "غير محدد"
+ ],
+ "后端实际运行的推理档位": [
+  "Reasoning tier the backend actually runs",
+  "مستوى الاستدلال الذي يعمل فعلًا"
+ ],
+ "档位": [
+  "Tier",
+  "المستوى"
+ ],
+ "疑似失效（已标记）": [
+  "Possibly dead (marked)",
+  "قد تكون منتهية (عُلّمت)"
+ ],
+ "疑似失效": [
+  "Possibly dead",
+  "قد تكون منتهية"
+ ],
+ "当前选用": [
+  "Selected",
+  "المختار حاليًا"
+ ],
+ "正在使用": [
+  "In use",
+  "قيد الاستخدام"
+ ],
+ "选用此模型": [
+  "Use this model",
+  "استخدم هذا النموذج"
+ ],
+ "体检失败：": [
+  "Health check failed: ",
+  "فشل الفحص: "
+ ],
+ "体检": [
+  "Health check",
+  "فحص"
+ ],
+ "补标失败：": [
+  "Re-identify failed: ",
+  "فشلت إعادة التحديد: "
+ ],
+ "补标": [
+  "Re-identify",
+  "إعادة التحديد"
+ ],
+ "待补标": [
+  "Awaiting re-identify",
+  "بانتظار إعادة التحديد"
+ ],
+ "Arena URL（仅供参考，": [
+  "Arena URL (for reference only, ",
+  "رابط Arena (للعلم فقط، "
+ ],
+ "勿在你自己浏览器打开": [
+  "do not open it in your own browser",
+  "لا تفتحه في متصفحك"
+ ],
+ "）：": [
+  "): ",
+  "): "
+ ],
+ "可用 N": [
+  "Available N",
+  "متاح N"
+ ],
+ "可用": [
+  "Available",
+  "متاح"
+ ],
+ "· 用过": [
+  "· used",
+  "· مستخدم"
+ ],
+ "用过": [
+  "Used",
+  "مستخدم"
+ ],
+ "采集": [
+  "Collected",
+  "جُمع"
+ ],
+ "账号：": [
+  "Account: ",
+  "الحساب: "
+ ],
+ "条 session": [
+  " sessions",
+  " جلسات"
+ ],
+ "个模型池 ·": [
+  " model pools ·",
+  " مجموعات نماذج ·"
+ ],
+ "· 筛出": [
+  "· filtered",
+  "· بعد التصفية"
+ ],
+ "未读到 session": [
+  "No sessions read",
+  "لم تُقرأ أي جلسة"
+ ],
+ "请确认": [
+  "Check that",
+  "تأكد أن"
+ ],
+ "指向「模型归档」目录（含 记录.json）。": [
+  "points to the model-archive folder (with 记录.json).",
+  "يشير إلى مجلد أرشيف النماذج (الذي فيه 记录.json)."
+ ],
+ "当前：": [
+  "Current: ",
+  "الحالي: "
+ ],
+ "(未设置)": [
+  "(not set)",
+  "(غير مضبوط)"
+ ],
+ "没有匹配的模型池": [
+  "No matching model pool",
+  "لا توجد مجموعة مطابقة"
+ ],
+ "没有模型 / UUID / 账号匹配「": [
+  "No model / UUID / account matches “",
+  "لا نموذج / UUID / حساب يطابق «"
+ ],
+ "」。": [
+  "”.",
+  "»."
+ ],
+ "存活": [
+  "Alive",
+  "تعمل"
+ ],
+ "识别中": [
+  "Identifying",
+  "جارٍ التحديد"
+ ],
+ "正在发一轮对话重新识别…约 1–2 分钟，请勿关闭页面": [
+  "Sending one round to re-identify… about 1–2 minutes, keep this page open",
+  "إرسال جولة لإعادة التحديد… نحو 1–2 دقيقة، لا تغلق الصفحة"
+ ],
+ "已识别为": [
+  "Identified as",
+  "حُدّد كـ"
+ ],
+ "指纹识别为": [
+  "Fingerprint matched",
+  "البصمة تطابق"
+ ],
+ "（margin": [
+  " (margin",
+  " (الهامش"
+ ],
+ "指纹最接近": [
+  "Closest fingerprint",
+  "أقرب بصمة"
+ ],
+ "，但未达阈值，未写入": [
+  ", below the threshold; not saved",
+  "، لكنها دون الحد؛ لم تُحفظ"
+ ],
+ "仍未识别到模型": [
+  "Model still unidentified",
+  "ما زال النموذج غير محدد"
+ ],
+ "先勾选要删除的 session": [
+  "First tick the sessions to delete",
+  "حدّد أولًا الجلسات المراد حذفها"
+ ],
+ "确认删除": [
+  "Confirm deleting",
+  "تأكيد حذف"
+ ],
+ "条 session？": [
+  " sessions?",
+  " جلسات؟"
+ ],
+ "· 会从本地归档 记录.json 里永久移除，无法撤销": [
+  "· they are removed for good from the local archive (记录.json); this cannot be undone",
+  "· تُحذف نهائيًا من الأرشيف المحلي (记录.json) ولا يمكن التراجع"
+ ],
+ "· 它们在 Arena 侧仍然存在，只是这里不再记录": [
+  "· they still exist on Arena; they are only no longer listed here",
+  "· تبقى موجودة في Arena، فقط لا تُسجَّل هنا"
+ ],
+ "· 指向它们的绑定会一并解除": [
+  "· bindings to them are removed too",
+  "· يُلغى أي ربط يشير إليها"
+ ],
+ "删除失败：": [
+  "Delete failed: ",
+  "فشل الحذف: "
+ ],
+ "已删除": [
+  "Deleted",
+  "حُذف"
+ ],
+ "条未找到）": [
+  " not found)",
+  " غير موجودة)"
+ ],
+ "归档里还没有 session。": [
+  "The archive has no sessions yet.",
+  "لا توجد جلسات في الأرشيف بعد."
+ ],
+ "已选用该模型": [
+  "Model selected",
+  "اختير النموذج"
+ ],
+ "选用失败：": [
+  "Selection failed: ",
+  "فشل الاختيار: "
+ ],
+ "未知错误": [
+  "Unknown error",
+  "خطأ غير معروف"
+ ],
+ "暂无绑定": [
+  "No bindings yet",
+  "لا يوجد ربط بعد"
+ ],
+ "客户端显式把某条 session 的 UUID 当 model 传进来时才会建立绑定，之后它会固定回到那条 session，直到你在这里解除。": [
+  "A binding is created only when a client passes a session's UUID as the model; that client then always returns to that session until you remove the binding here.",
+  "يُنشأ الربط فقط عندما يرسل عميل UUID جلسة كاسم للنموذج؛ بعدها يعود ذلك العميل دائمًا إلى الجلسة نفسها حتى تلغي الربط هنا."
+ ],
+ "正常": [
+  "OK",
+  "سليم"
+ ],
+ "解除绑定": [
+  "Remove binding",
+  "إلغاء الربط"
+ ],
+ "已解除绑定": [
+  "Binding removed",
+  "أُلغي الربط"
+ ],
+ "解除失败：": [
+  "Remove failed: ",
+  "فشل الإلغاء: "
+ ],
+ "已结算窗口的余额": [
+  "Balance of the settled window",
+  "رصيد الفترة المحسوبة"
+ ],
+ "额度未读到": [
+  "Quota not read",
+  "لم يُقرأ الرصيد"
+ ],
+ "额度": [
+  "Quota",
+  "الرصيد"
+ ],
+ "读取于": [
+  "Read at",
+  "قُرئ في"
+ ],
+ "没有账号": [
+  "No accounts",
+  "لا توجد حسابات"
+ ],
+ "在下方登录 Arena 账号即可开始使用。": [
+  "Sign in to an Arena account below to start.",
+  "سجّل الدخول بحساب Arena في الأسفل للبدء."
+ ],
+ "已禁用": [
+  "Disabled",
+  "معطّل"
+ ],
+ "正在登录并验证账号…": [
+  "Signing in and verifying the account…",
+  "جارٍ تسجيل الدخول والتحقق من الحساب…"
+ ],
+ "登录失败，请重试。": [
+  "Sign-in failed, try again.",
+  "فشل تسجيل الدخول، حاول مرة أخرى."
+ ],
+ "登录成功，凭据已加密保存。": [
+  "Signed in; credentials stored encrypted.",
+  "نجح تسجيل الدخول، وحُفظت البيانات مشفّرة."
+ ],
+ "读取中…": [
+  "Reading…",
+  "جارٍ القراءة…"
+ ],
+ "百分比未读到（USD 见下）": [
+  "Percentage not read (USD below)",
+  "لم تُقرأ النسبة (الدولار في الأسفل)"
+ ],
+ "尚未选用 session": [
+  "No session selected yet",
+  "لم تُختر جلسة بعد"
+ ],
+ "在左侧点「选用此模型」后，这里会给出 API / Proxy 地址。": [
+  "Click “Use this model” on the left and the API / Proxy addresses appear here.",
+  "اضغط «استخدم هذا النموذج» على اليسار وستظهر هنا عناوين الـ API / Proxy."
+ ],
+ "已选用": [
+  "Selected",
+  "مختار"
+ ],
+ "API Base URL（粘到客户端的 API Base / Proxy）": [
+  "API Base URL (paste into the client's API Base / Proxy)",
+  "عنوان API الأساسي (الصقه في خانة API Base / Proxy لدى العميل)"
+ ],
+ "Proxy URL（本机代理地址，同上）": [
+  "Proxy URL (local proxy address, same as above)",
+  "عنوان Proxy (عنوان الوسيط المحلي، كما في الأعلى)"
+ ],
+ "model · 推荐填 active（自动指向当前选中模型）": [
+  "model · recommended: active (always the selected model)",
+  "model · المستحسن: active (يشير دائمًا إلى النموذج المختار)"
+ ],
+ "model · 或填此 UUID（客户端不认 active 别名时用）": [
+  "model · or this UUID (when the client does not accept the alias active)",
+  "model · أو هذا الـ UUID (إذا لم يقبل العميل الاسم active)"
+ ],
+ "Chat 端点": [
+  "Chat endpoint",
+  "نقطة المحادثة"
+ ],
+ "示例 curl（用 active）": [
+  "Example curl (with active)",
+  "مثال curl (باستخدام active)"
+ ],
+ "客户端把 base_url 设为": [
+  "Set the client's base_url to",
+  "اضبط base_url في العميل على"
+ ],
+ "，model 填": [
+  ", model to",
+  "، وmodel على"
+ ],
+ "或上面 UUID；流式加": [
+  " or the UUID above; for streaming add",
+  " أو الـ UUID أعلاه؛ وللبث المتدفق أضف"
+ ],
+ "MCP 状态读取失败": [
+  "Could not read the MCP state",
+  "تعذّرت قراءة حالة MCP"
+ ],
+ "运行时：": [
+  "Runtime: ",
+  "بيئة التشغيل: "
+ ],
+ "自建 Local MCP（默认）": [
+  "Built-in Local MCP (default)",
+  "MCP محلي مدمج (افتراضي)"
+ ],
+ "AgentDock（可选兼容）": [
+  "AgentDock (optional compatibility)",
+  "AgentDock (توافق اختياري)"
+ ],
+ "访问已撤销 · 传输清理未完成": [
+  "Access revoked · transport cleanup not finished",
+  "سُحبت الصلاحية · تنظيف الاتصال لم يكتمل"
+ ],
+ "本地工具当前不可用。": [
+  "Local tools are not available now.",
+  "الأدوات المحلية غير متاحة الآن."
+ ],
+ "旧端口只返回拒绝响应，等待传输进程退出。": [
+  "The old port only answers with refusals; waiting for the transport process to exit.",
+  "المنفذ القديم يرد بالرفض فقط؛ بانتظار خروج عملية الاتصال."
+ ],
+ "端点或所有权记录仍待清理。": [
+  "The endpoint or ownership record still needs cleanup.",
+  "نقطة الاتصال أو سجل الملكية ما زال يحتاج تنظيفًا."
+ ],
+ "请重试「停止并收回」；清理完成前不能重新启动或切换工作区。": [
+  "Retry “Stop and revoke”; you cannot restart or switch workspace before the cleanup finishes.",
+  "أعد «إيقاف وسحب الصلاحية»؛ لا يمكن إعادة التشغيل أو تغيير المجلد قبل اكتمال التنظيف."
+ ],
+ "停止错误：": [
+  "Stop error: ",
+  "خطأ في الإيقاف: "
+ ],
+ "未找到可选 AgentDock 目录": [
+  "Optional AgentDock folder not found",
+  "لم يُعثر على مجلد AgentDock الاختياري"
+ ],
+ "目录：": [
+  "Folder: ",
+  "المجلد: "
+ ],
+ "设置": [
+  "Set",
+  "اضبط"
+ ],
+ "指向含 agentdock.exe / cloudflared.exe 的文件夹。": [
+  "to the folder that contains agentdock.exe / cloudflared.exe.",
+  "على المجلد الذي فيه agentdock.exe / cloudflared.exe."
+ ],
+ "已停止并收回": [
+  "Stopped and revoked",
+  "أُوقف وسُحبت الصلاحية"
+ ],
+ "已停止": [
+  "Stopped",
+  "متوقف"
+ ],
+ "填写工作区后启动本机 127.0.0.1 监听器。": [
+  "Enter a workspace, then start the local 127.0.0.1 listener.",
+  "اكتب مجلد العمل ثم شغّل المستمع المحلي على 127.0.0.1."
+ ],
+ "已明确配置 cloudflared；启动时会另外打开公网隧道，并把端点告诉 Arena。": [
+  "cloudflared is configured: starting also opens a public tunnel and tells Arena the endpoint.",
+  "cloudflared مضبوط: التشغيل يفتح أيضًا نفقًا عامًا ويخبر Arena بنقطة الاتصال."
+ ],
+ "Arena 远端当前不可达；如需连接，显式配置 ARENA_CLOUDFLARED_PATH（开源 cloudflared 的绝对路径，无自动下载）。": [
+  "Arena cannot reach this machine; to allow it, set ARENA_CLOUDFLARED_PATH (absolute path of the open-source cloudflared; nothing is downloaded).",
+  "Arena لا يستطيع الوصول إلى هذا الجهاز؛ للسماح بذلك اضبط ARENA_CLOUDFLARED_PATH (المسار الكامل لبرنامج cloudflared؛ لا يُنزَّل شيء تلقائيًا)."
+ ],
+ "已显式选择 AgentDock 兼容模式；启动会打开公网隧道。": [
+  "AgentDock compatibility mode is selected; starting opens a public tunnel.",
+  "اختير وضع توافق AgentDock؛ التشغيل يفتح نفقًا عامًا."
+ ],
+ "用完点「停止并收回」。": [
+  "Click “Stop and revoke” when you are done.",
+  "اضغط «إيقاف وسحب الصلاحية» عندما تنتهي."
+ ],
+ "上次错误：": [
+  "Last error: ",
+  "آخر خطأ: "
+ ],
+ "运行中 · 公网隧道已发布": [
+  "Running · public tunnel published",
+  "يعمل · النفق العام منشور"
+ ],
+ "运行中 · 仅本机，Arena 远端不可达": [
+  "Running · this machine only, Arena cannot reach it",
+  "يعمل · هذا الجهاز فقط، Arena لا يصل إليه"
+ ],
+ "MCP 端点（仅本机）": [
+  "MCP endpoint (this machine only)",
+  "نقطة MCP (هذا الجهاز فقط)"
+ ],
+ "MCP 端点（公网）": [
+  "MCP endpoint (public)",
+  "نقطة MCP (عامة)"
+ ],
+ "给 Arena 的端点说明（仅供查看/手工粘贴）": [
+  "Endpoint note for Arena (view / paste by hand only)",
+  "وصف نقطة الاتصال لـ Arena (للعرض أو اللصق اليدوي فقط)"
+ ],
+ "隧道已发布；持有 URL + token 即持有本地工具权限。命令以本机用户权限运行，用完收回。": [
+  "The tunnel is published; whoever has the URL + token can use your local tools. Commands run with your user's rights — revoke when done.",
+  "النفق منشور؛ من يملك الرابط والرمز يملك أدواتك المحلية. الأوامر تعمل بصلاحيات مستخدمك — اسحب الصلاحية عندما تنتهي."
+ ],
+ "监听器只绑定 127.0.0.1，可由本机 MCP 客户端使用。尚无公网通道，因此不会向 Arena 注入本地端点。": [
+  "The listener is bound to 127.0.0.1 for local MCP clients. There is no public channel, so no local endpoint is injected into Arena.",
+  "المستمع مربوط بـ 127.0.0.1 لعملاء MCP المحليين. لا توجد قناة عامة، فلا تُحقن أي نقطة محلية في Arena."
+ ],
+ "启动中…": [
+  "Starting…",
+  "جارٍ التشغيل…"
+ ],
+ "启动失败：": [
+  "Start failed: ",
+  "فشل التشغيل: "
+ ],
+ "重注入失败：": [
+  "Re-inject failed: ",
+  "فشلت إعادة الحقن: "
+ ],
+ "请先选择工作区": [
+  "Choose a workspace first",
+  "اختر مجلد العمل أولًا"
+ ],
+ "没认出工作区：请在下方选择目标项目，确认后安排重注入。": [
+  "Workspace not recognised: choose the project below and confirm to schedule a re-inject.",
+  "لم يُتعرَّف على مجلد العمل: اختر المشروع في الأسفل وأكّد لجدولة إعادة الحقن."
+ ],
+ "已安排：下一次请求会把本地能力重新注入（工作区：": [
+  "Scheduled: the next request re-injects the local tools (workspace: ",
+  "جُدول: الطلب التالي يعيد حقن الأدوات المحلية (مجلد العمل: "
+ ],
+ "本地能力未启用 —": [
+  "Local tools not enabled —",
+  "الأدوات المحلية غير مفعّلة —"
+ ],
+ "停止失败：": [
+  "Stop failed: ",
+  "فشل الإيقاف: "
+ ],
+ "归档 session": [
+  "Archived sessions",
+  "الجلسات المؤرشفة"
+ ],
+ "模型数": [
+  "Models",
+  "عدد النماذج"
+ ],
+ "归档目录": [
+  "Archive folder",
+  "مجلد الأرشيف"
+ ],
+ "连抽中": [
+  "Collecting",
+  "جارٍ الجمع"
+ ],
+ "已结束 · 成功": [
+  "Finished · succeeded",
+  "انتهى · نجح"
+ ],
+ "成功": [
+  "Succeeded",
+  "نجح"
+ ],
+ "/ 共": [
+  "/ total",
+  "/ من أصل"
+ ],
+ "进行中": [
+  "In progress",
+  "قيد التنفيذ"
+ ],
+ "· 失败": [
+  "· failed",
+  "· فشل"
+ ],
+ "· 共": [
+  "· total",
+  "· الإجمالي"
+ ],
+ "✓ 已入库（未识别模型": [
+  "✓ Saved (model unidentified",
+  "✓ حُفظ (النموذج غير محدد"
+ ],
+ "中止原因：": [
+  "Stopped because: ",
+  "سبب التوقف: "
+ ],
+ "已开始连抽": [
+  "Collection started",
+  "بدأ الجمع"
+ ],
+ "已请求停止，当前一轮结束后停止": [
+  "Stop requested; stops after the current round",
+  "طُلب الإيقاف؛ يتوقف بعد الجولة الحالية"
+ ],
+ "已请求停止": [
+  "Stop requested",
+  "طُلب الإيقاف"
+ ],
+ "测试中": [
+  "Testing",
+  "جارٍ الاختبار"
+ ],
+ "通过": [
+  "Passed",
+  "نجح"
+ ],
+ "(空回复)": [
+  "(empty reply)",
+  "(رد فارغ)"
+ ],
+ "模型": [
+  "Model",
+  "النموذج"
+ ],
+ "结果": [
+  "Result",
+  "النتيجة"
+ ],
+ "耗时": [
+  "Duration",
+  "المدة"
+ ],
+ "回复 / 错误": [
+  "Reply / error",
+  "الرد / الخطأ"
+ ],
+ "先在下方勾选要测试的 session": [
+  "First tick the sessions to test below",
+  "حدّد أولًا الجلسات للاختبار في الأسفل"
+ ],
+ "已开始测试": [
+  "Test started",
+  "بدأ الاختبار"
+ ],
+ "个 session": [
+  " sessions",
+  " جلسات"
+ ],
+ "停止": [
+  "Stop",
+  "إيقاف"
+ ],
+ "删除": [
+  "Delete",
+  "حذف"
+ ],
+ "选择": [
+  "Select",
+  "اختر"
+ ],
+ "已选": [
+  "Selected",
+  "المحدد"
+ ],
+ "失败": [
+  "Failed",
+  "فشل"
+ ],
+ "次": [
+  "",
+  ""
+ ],
+ "个": [
+  "",
+  ""
+ ],
+ "条": [
+  "",
+  ""
+ ],
+ "（": [
+  " (",
+  " ("
+ ],
+ "）": [
+  ")",
+  ")"
+ ],
+ "、": [
+  ", ",
+  "، "
+ ],
+ "：": [
+  ": ",
+  ": "
+ ],
+ "。": [
+  ".",
+  "."
+ ],
+ "，": [
+  ", ",
+  "، "
+ ],
+ "「": [
+  "“",
+  "«"
+ ],
+ "」": [
+  "”",
+  "»"
+ ],
+ "？": [
+  "?",
+  "؟"
+ ]
+}
