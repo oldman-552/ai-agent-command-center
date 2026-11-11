@@ -1571,8 +1571,8 @@
           "depends": [
             "WF-07"
           ],
-          "status": "in_progress",
-          "evidence": ""
+          "status": "done",
+          "evidence": "pytest tests/test_workforce_human.py 8 passed (task completes end to end with no bridge configured) + E2E workforce.spec 'people do the work' ar/en passed: accept, submit text + notes + attachment, review, completed; no bridge exists in that scenario. Tier: mock Manager."
         },
         {
           "id": "WF-10",
@@ -1660,8 +1660,8 @@
             "WF-09",
             "WF-11"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "frontend e2e/workforce.spec.ts 8/8 passed (4 scenarios x ar/en: prompt->plan->people do the work->review->report->history; bridge settings + terms gate + diagnostics + Automatic worker; critical task completed only in the Approval Center + board filters; no page overflow at 375/1440 px) with axe on every view; full browser suite 74/74 passed; npm run check OK (1765 keys ar/en, tsc clean); check-contrast.mjs passed. Tier: mock Manager + FAKE bridge only. axe does not test contrast of Arabic text (documented in DEVELOPMENT.md) - contrast is covered by the English run and the token check."
         },
         {
           "id": "WF-17",

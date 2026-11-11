@@ -31,6 +31,7 @@ export function useDecide() {
   return useMutation({
     mutationFn: ({ id, decision, reason }: { id: number; decision: "approve" | "reject" | "changes_requested"; reason: string }) =>
       api<Approval>(`/api/approvals/${id}/decide`, { method: "POST", body: JSON.stringify({ decision, reason }) }),
-    onSuccess: () => ["approvals", "tasks", "task", "workflow"].forEach((k) => qc.invalidateQueries({ queryKey: [k] })),
+    onSuccess: () => ["approvals", "tasks", "task", "workflow", "wf-task", "wf-tasks", "wf-objective", "wf-dashboard"]
+      .forEach((k) => qc.invalidateQueries({ queryKey: [k] })),
   });
 }

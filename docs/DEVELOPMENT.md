@@ -39,6 +39,39 @@ npm run build && cp -r .next/static .next/standalone/.next/
 E2E_PASSWORD=<admin password> npx playwright test   # against the running stack (ar + en, axe)
 ```
 
+What the browser suite needs from the stack it runs against:
+
+- `E2E_FAKE_BRIDGE_URL` and `E2E_FAKE_BRIDGE_KEY` — the address and key of a running **fake** Arena Local Bridge
+  (`python -m devtools.fake_arena_bridge --port 20140 --key <key>` in `backend/`), reachable from the API. Without
+  them the two bridge tests of `e2e/workforce.spec.ts` are skipped. Never point these at a real bridge.
+- A worker process (the workforce plans and reviews in the worker) and the built-in mock provider.
+- One skill folder with a `SKILL.md` under `SKILLS_DIR` for `e2e/integrations.spec.ts` (inspect → install). The
+  repository ships none there.
+- `BROWSER_SHOW_TEST_PAGE=true` and a running Browser Bridge service for `e2e/browser-bridge.spec.ts`.
+
+**What the accessibility checks do not cover.** The suite runs axe-core on every view in Arabic and in English.
+axe-core does not test the colour contrast of text it takes for an icon ligature, and joined Arabic letters match
+that heuristic (`isIconLigature`, axe-core 4.14): on an Arabic page the `color-contrast` rule silently skips the
+Arabic text, and when the first three text nodes of a font family look like that, all later text in that family —
+Latin words included. So contrast is effectively checked by the **English** run — the components
+and colours are the same in both languages — and by `scripts/check-contrast.mjs`, which is independent of language.
+Keep both: a state that only appears in the Arabic run has no automated contrast check. The other axe rules (names,
+labels, roles, landmarks, focus order) do run on the Arabic pages.
+
+### Without Docker
+
+`scripts/dev/no-docker/` runs everything as plain user processes on a Linux machine that has neither Docker nor root
+(developer convenience; the installers do not use it):
+
+```bash
+scripts/dev/no-docker/toolchain.sh all     # builds Python, PostgreSQL, Redis, Erlang + RabbitMQ, Chromium (once)
+scripts/dev/no-docker/infra.sh up          # PostgreSQL, Redis, RabbitMQ
+scripts/dev/no-docker/test-backend.sh      # the backend suite (tests that need a Docker daemon skip or fail)
+scripts/dev/no-docker/e2e-stack.sh up      # API, worker, Browser Bridge, FAKE Arena bridge, web app (own database)
+cd frontend && eval "$(../scripts/dev/no-docker/e2e-stack.sh env)" && npx playwright test
+scripts/dev/no-docker/e2e-stack.sh down
+```
+
 ## Conventions
 
 - Requirements: `docs/requirements.json`; progress is updated only with evidence:

@@ -51,6 +51,34 @@ to `docs/requirements.json`.
   - History (`/objectives/{id}/history`): Manager steps, tasks, workers, attempts, provider request ids, retries and
     errors; usage only where a provider reported it.
   - Attachments of Human-Assisted results are stored in the new `workforce-attachments` volume.
+- **AI Workforce pages** (WF-16, Arabic and English, second item of the navigation):
+  - *Overview* (`/workforce`): the prompt form, what is waiting for you, the Manager and the four workers with their
+    mode and account binding, bridge status, latest objectives, recent activity. Without a Manager model the form is
+    disabled and says why.
+  - *Tasks* (`/workforce/tasks`): a board with six columns, queues (offered to me, accepted by me, needs a person's
+    review, open) and filters by objective, worker, mode, state and text. Filters live in the address.
+  - *Task card*: the exact brief with a copy button, accept / decline, submit text, notes and files, every version
+    with its review, the person's review box, reassign / reopen / cancel, failures and the state history.
+  - *Manager & workers* (`/workforce/workers`): the Manager's model, fallback and review policy; each worker's mode,
+    provider, session, person, timeout and attempts.
+  - *Arena Local Bridge* (`/workforce/bridge`): add, test with step-by-step diagnostics, terms acknowledgement,
+    session discovery, masked accounts, replace the key, disable, delete. The key is never shown again.
+  - *Objective* (`/workforce/objectives/{id}`): the plan, the consolidated result (the six classes, the platform's
+    own statements in the reader's language, the Manager's summary labelled as model text, Markdown download) and the
+    history (identifiers, Manager steps, automatic attempts, versions, state changes).
+  - Everything mock is labelled: the mock Manager, the fake bridge, and each result that passed through them.
+- **Approval Center**: an approval raised by the AI Workforce links to the workforce task card and says which version
+  of the result it accepts.
+- `scripts/dev/no-docker/e2e-stack.sh`: the whole platform plus the fake bridge as plain processes, for the browser
+  suite on a machine without Docker.
+
+### Fixed
+- **Page title during navigation.** The title came from asynchronous metadata, which is streamed: after every change
+  of the address the document had no `<title>` for a moment (measured: 85 empty readings over 24 navigations, 0 after
+  the fix). The accessibility check `document-title` failed intermittently because of it. The title is now rendered
+  by the root layout.
+- **Agent state chip contrast.** Green and amber text on a tinted chip measured 4.38:1 (4.5:1 is required for small
+  text). The chip is now neutral with full-contrast text; the colour tints only the icon, as on the task board.
 
 ### Changed
 - Executions and usage records can carry *unknown* usage: token counters and cost are empty instead of 0 when the
@@ -64,6 +92,9 @@ to `docs/requirements.json`.
 ### Not verified
 - The Manager on a real Claude model and Automatic workers on a real Arena Local Bridge. Every test used the built-in
   mock provider as the Manager and the fake bridge; both are labelled as such in results and reports.
+- Colour contrast of **Arabic** text is not checked by the automated accessibility tests: axe-core skips text it
+  takes for an icon ligature, and joined Arabic letters match that heuristic (see `docs/DEVELOPMENT.md`). The same
+  components with the same colours are checked in the English run.
 - Development tasks from text workers (files applied to a worktree, WF-14) are not implemented, so the report class
   "verified" stays empty for now.
 
