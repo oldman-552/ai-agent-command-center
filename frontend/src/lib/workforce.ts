@@ -221,15 +221,24 @@ export type BridgeSettings = {
   idle_timeout_s: number; request_timeout_s: number; replay_window_s: number; read_session_registry: boolean;
   max_prompt_chars: number; max_concurrent: number;
 };
+/** A bridge error as the API reports it (BridgeError.as_dict); older readings may hold a plain string. */
+export type BridgeErrorInfo = { code?: string | null; message?: string | null; status?: number | null; category?: string | null };
 export type BridgeHealth = {
   checked_at: string; reachable: boolean; ok?: boolean; ready?: boolean; key_ok?: boolean | null; service?: string | null;
-  version?: string | null; mock?: boolean; error?: string | null;
+  version?: string | null; mock?: boolean; error?: BridgeErrorInfo | string | null; sessions_error?: BridgeErrorInfo | null;
   queue?: { depth: number; active: number; max_depth: number } | null;
   accounts?: { account: string; hash: string; priority: number | null; disabled: boolean; error: string | null }[];
   sessions?: { session_id: string; model: string | null; title: string | null; account: string | null;
     account_hash: string | null; state: string }[];
   sessions_read?: boolean;
 };
+/** One line of text for a bridge error, whatever shape it arrived in. */
+export function bridgeErrorText(e: BridgeErrorInfo | string | null | undefined): string {
+  if (!e) return "";
+  if (typeof e === "string") return e;
+  const head = [e.code, e.status ? `HTTP ${e.status}` : null].filter(Boolean).join(" · ");
+  return [head, e.message].filter(Boolean).join(" — ");
+}
 export type Bridge = {
   id: number; name: string; kind: string; base_url: string; enabled: boolean; is_mock: boolean; status: string;
   last_tested_at: string | null; last_error: string | null; has_key: boolean; key_hint: string | null;
