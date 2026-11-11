@@ -169,6 +169,17 @@ def all_automatic(db, admin_client, fake_bridge, **settings) -> dict:
     return b
 
 
+def second_person(make_user, username: str = "wf_second_person", role: str = "ORGANIZATION_ADMIN"):
+    """Another signed-in person who may decide approvals: the author of a critical result cannot approve it."""
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    from tests.conftest import login_as
+
+    make_user(username, role)
+    return login_as(TestClient(app), username, "user-password-123")
+
+
 def task(db, task_id: int) -> Task:
     """The task as it is in the database now."""
     db.expire_all()

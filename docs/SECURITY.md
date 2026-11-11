@@ -12,7 +12,8 @@ tests that verify it (`backend/tests`, `frontend/e2e`).
 - **RBAC** with six roles: Super Admin, Organization Admin, Project Manager, Developer, Reviewer, Viewer. Callers can
   only grant roles whose permissions they hold (no escalation). Exactly one Super Admin is bootstrapped.
 - **Human-only permissions** — never held by agents or API keys: `approvals.decide`, `security.manage`,
-  `users.manage`, `credentials.manage`, `browser_bridge.manage` (the last one only by the Super Admin).
+  `users.manage`, `credentials.manage`, `workforce.manage`, `browser_bridge.manage` and `workforce.bridge` (the last
+  two only by the Super Admin).
 - **Tenancy**: every query is scoped by `organization_id`; objects of another organization answer 404.
 - Machine access only through scoped keys: A2A keys (listed agents only) and MCP keys (listed tools only); only a
   SHA-256 of each token is stored, the token is shown once, keys can be revoked.
@@ -59,6 +60,47 @@ tests that verify it (`backend/tests`, `frontend/e2e`).
   controls above are what actually prevent damage.
 - Skills and MCP servers are statically inspected before they can be enabled; HIGH risk needs an audited acceptance.
 - The Browser Bridge never reads cookies, storage or credentials, never solves CAPTCHAs, and is disabled by default.
+
+## AI Workforce and Arena Local Bridge
+
+Tests: `test_workforce_security.py`, `test_arena_bridge_api.py`, `test_workforce_review.py`,
+`test_arena_bridge_probe.py`, `e2e/workforce.spec.ts`.
+
+- **Permissions** `workforce.read|run|work|review|manage|bridge`. Only the Super Admin holds `workforce.bridge`;
+  adding a bridge or replacing its key also needs `credentials.manage`. `workforce.manage` and `workforce.bridge`
+  are human-only. Another organization's workforce, tasks, results and bridges answer 404.
+- **The bridge key** is encrypted at rest, write-only, shown only as its last four characters and never logged. The
+  platform never calls the bridge route that returns the key (`/api/status`).
+- **No Arena credential ever reaches the platform.** Passwords, cookies and sign-ins stay in Arena Local Bridge and
+  your browser. The platform does not sign in, solve CAPTCHAs or work around rate limits or quotas.
+- **Terms gate.** Nothing is sent to Arena through a bridge until a person acknowledges the exact statement shown
+  for that bridge. The acknowledgement is audited and is revoked when the bridge's address changes.
+- **Bridge addresses** must be loopback, `host.docker.internal` or a private IPv4 address; anything else is refused
+  unless listed in `ARENA_BRIDGE_ALLOWED_HOSTS`. Addresses with a user name, path or query are refused.
+- **Account addresses are masked** before they are stored or shown; accounts are told apart by a salted hash.
+- **A worker's answer is untrusted data.** It reaches the next worker and the Manager inside a fenced block. A
+  result that looks like an instruction to the platform, or like a credential, is held for a person.
+- **The Manager's verdict is advice.** Fixed platform rules decide: an unmet criterion is never an approval, HTTP
+  200 is never acceptance, and a critical task is completed only by a human approval of the frozen payload
+  (task, version, fingerprint of the text).
+- **Two people on the critical path.** When a person did the work, that person is the requester of the approval, and
+  the Approval Center never lets a requester decide their own request — whatever their role. An Automatic worker's
+  result is requested by the platform; agents hold no approval right. Not enforced: a person may review their own
+  **non-critical** result when the Manager hands it to a person (a one-person installation could not work
+  otherwise); the history and the result page show who submitted and who accepted.
+- **A prompt is redacted** like every other input before it is stored or sent; the response says when that happened.
+- **No blind resend.** A request whose outcome is unknown is resent only inside the bridge's replay window, with the
+  same idempotency key. After that a person decides.
+- **Attachments** are size- and type-limited, stored outside the web root, named by the platform, and only ever
+  served as downloads.
+- **Mock is labelled.** The mock Manager and the fake bridge mark every result, usage record and report they touch.
+- **Owner-run tests** (`REAL-TESTS.bat`) use a separate database and reach neither the broker nor Redis of the
+  installation. The test suite refuses to run against a database whose name does not end in `_test`, because it
+  erases the database it uses.
+
+Residual risks: the bridge does not name the account that answered, so the account binding is configuration, not
+proof. A request the platform abandoned keeps running inside the bridge. Whoever can reach the bridge's port with
+its key can use your Arena sessions — keep it on loopback.
 
 ## HTTP hardening
 

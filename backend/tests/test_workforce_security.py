@@ -471,6 +471,9 @@ def test_an_approval_is_bound_to_the_exact_result_and_cannot_be_decided_by_just_
     assert dev.post(f"/api/approvals/{ap.id}/decide", json={"decision": "approve"}).status_code == 403
     viewer = as_user(make_user, "wf_sec_viewer", "VIEWER")
     assert viewer.post(f"/api/approvals/{ap.id}/decide", json={"decision": "approve"}).status_code == 403
+    # the person who submitted the result cannot approve it, whatever their role
+    r = admin_client.post(f"/api/approvals/{ap.id}/decide", json={"decision": "approve"})
+    assert r.status_code == 403 and r.json()["detail"] == "self_approval_forbidden"
     db.expire_all()
     assert db.get(Approval, ap.id).status == "pending" and h.task(db, t.id).lifecycle == "APPROVED"
     # another organization cannot even see it

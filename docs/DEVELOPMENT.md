@@ -31,6 +31,23 @@ The test suite needs PostgreSQL, RabbitMQ, Redis and a Docker daemon (sandbox te
 Bridge tests (pre-installed for Playwright). It must not see your development `backend/.env` values (move it aside
 while testing — the suite sets its own environment).
 
+**The suite erases its database.** It drops and rebuilds the schema at the start of every run, so it refuses any
+database whose name does not end in `_test` (`TEST_DATABASE_URL`, default `…/acc_test`).
+
+**Test tiers.** Say which tier a result comes from whenever you report one.
+
+| Tier | How it runs | What it proves |
+|---|---|---|
+| Mock | default | Logic, with the built-in mock provider (answers written by hand) and the fake Arena bridge. |
+| Local integration | default | The same over real PostgreSQL, RabbitMQ, Redis and real HTTP to the fake bridge. |
+| Real provider | `pytest -m real_provider`, skipped without `REAL_MANAGER_API_KEY` and `REAL_MANAGER_MODEL` | The Manager's prompts on a real model. Costs money. |
+| Real Arena | `pytest -m real_arena`, skipped without `REAL_ARENA_BRIDGE_URL`, `REAL_ARENA_BRIDGE_KEY`, `REAL_ARENA_ACCEPT_TERMS=yes` | Automatic workers through a real Arena Local Bridge. Sends prompts to Arena through your accounts. |
+
+The two real tiers were never run in development. `tests/test_real_tiers_selftest.py` runs their steps on the mock
+provider and the fake bridge, so a broken step is found before it reaches the owner. On a machine with Docker only,
+`REAL-TESTS.bat` (or `docker compose run --rm -T realtests …`) runs them in a container; with
+`REAL_TIER_REQUIRED=<tier>` a run with missing settings fails instead of skipping.
+
 ```bash
 cd frontend
 npm run check                        # i18n completeness + hardcoded-text guard + TypeScript

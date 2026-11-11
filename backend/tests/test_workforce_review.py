@@ -11,7 +11,7 @@ import json
 import pytest
 from sqlalchemy import select
 
-from app.models import Approval, AuditLog, Execution, ManagerStep, TaskSubmission
+from app.models import Approval, AuditLog, Execution, ManagerStep, TaskSubmission, User
 from app.workforce import prompts
 from app.workforce.review import outcome_of, quote_in
 from tests import wf as h
@@ -266,29 +266,56 @@ def critical(db, admin_client):
     return wf, task, sub, db.get(Approval, task.result["approval_id"])
 
 
-def test_a_critical_task_is_completed_only_by_a_human_approval_of_exactly_that_result(admin_client, db, force):
+def test_a_critical_task_is_completed_only_by_a_human_approval_of_exactly_that_result(admin_client, db, force,
+                                                                                      make_user):
     wf, task, sub, ap = critical(db, admin_client)
+    author = f"user:{h.admin(db).id}"
     assert task.lifecycle == "APPROVED" and task.status == "APPROVAL"  # reviewed, not completed
-    assert ap.status == "pending" and ap.operation == "exposure.public" and ap.requested_by == "workforce"
+    # a person did the work, so that person is the requester
+    assert ap.status == "pending" and ap.operation == "exposure.public" and ap.requested_by == author
     assert ap.payload == {"task_id": task.id, "operation": "exposure.public", "submission_id": sub["id"],
                           "version": 1, "content_sha256": sub["sha256"]}
+    assert {"kind": "submission", "submitted_by": author}.items() <= ap.evidence[-1].items()
     assert admin_client.get(f"{API}/tasks/{task.id}").json()["approval_id"] == ap.id
     assert h.tick(wf)["finished"] is False
+    # the author of the result cannot be the one who approves it — not even the Super Admin
     r = admin_client.post(f"/api/approvals/{ap.id}/decide", json={"decision": "approve"})
+    assert r.status_code == 403 and r.json()["detail"] == "self_approval_forbidden"
+    db.expire_all()
+    assert db.get(Approval, ap.id).status == "pending" and h.task(db, task.id).lifecycle == "APPROVED"
+    # another person can
+    other = h.second_person(make_user)
+    r = other.post(f"/api/approvals/{ap.id}/decide", json={"decision": "approve"})
     assert r.status_code == 200 and r.json()["status"] == "approved"
     db.expire_all()
     task = h.task(db, task.id)
     assert task.lifecycle == "COMPLETED"
+    approver = db.scalar(select(User).where(User.username == "wf_second_person"))
     last = admin_client.get(f"{API}/tasks/{task.id}").json()["transitions"][-1]
-    assert (last["from"], last["to"], last["actor"]) == ("APPROVED", "COMPLETED", f"user:{h.admin(db).id}")
+    assert (last["from"], last["to"], last["actor"]) == ("APPROVED", "COMPLETED", f"user:{approver.id}")
     assert last["details"]["approval_id"] == ap.id
     assert h.tick(wf)["status"] == "completed"
 
 
+def test_a_critical_result_of_an_automatic_worker_is_requested_by_the_platform(admin_client, db, force, fake_bridge):
+    """No person wrote it, so any person with the approval right may decide — the worker's agent never can."""
+    h.all_automatic(db, admin_client, fake_bridge)
+    wf = h.planned(db, "1. Release notes for the public launch [documentation] {exposure.public}")
+    h.drive(db, wf)
+    task = next(iter(h.tasks_of(db, wf).values()))
+    assert task.lifecycle == "APPROVED", (task.lifecycle, task.error)
+    ap = db.get(Approval, task.result["approval_id"])
+    assert ap.requested_by == "workforce" and ap.evidence[-1]["submitted_by"].startswith("agent:")
+    r = admin_client.post(f"/api/approvals/{ap.id}/decide", json={"decision": "approve"})
+    assert r.status_code == 200, r.text
+    assert h.task(db, task.id).lifecycle == "COMPLETED"
+
+
 @pytest.mark.parametrize("decision,expected", [("reject", "REJECTED"), ("changes_requested", "REVISION_REQUESTED")])
-def test_a_refused_approval_never_completes_the_task(admin_client, db, force, decision, expected):
+def test_a_refused_approval_never_completes_the_task(admin_client, db, force, make_user, decision, expected):
     wf, task, _sub, ap = critical(db, admin_client)
-    r = admin_client.post(f"/api/approvals/{ap.id}/decide", json={"decision": decision, "reason": "not yet"})
+    other = h.second_person(make_user)
+    r = other.post(f"/api/approvals/{ap.id}/decide", json={"decision": decision, "reason": "not yet"})
     assert r.status_code == 200
     db.expire_all()
     task = h.task(db, task.id)
@@ -303,11 +330,11 @@ def test_a_refused_approval_never_completes_the_task(admin_client, db, force, de
         assert ap2.id != ap.id and ap2.payload["content_sha256"] == sub2["sha256"] and ap2.payload["version"] == 2
 
 
-def test_an_approval_that_no_longer_matches_the_reviewed_result_is_not_honoured(admin_client, db, force):
+def test_an_approval_that_no_longer_matches_the_reviewed_result_is_not_honoured(admin_client, db, force, make_user):
     _wf, task, _sub, ap = critical(db, admin_client)
     ap.payload = {**ap.payload, "content_sha256": "f" * 64}  # someone swapped what is being approved
     db.commit()
-    admin_client.post(f"/api/approvals/{ap.id}/decide", json={"decision": "approve"})
+    assert h.second_person(make_user).post(f"/api/approvals/{ap.id}/decide", json={"decision": "approve"}).status_code == 200
     db.expire_all()
     task = h.task(db, task.id)
     assert task.lifecycle == "REJECTED" and "does not match" in task.error

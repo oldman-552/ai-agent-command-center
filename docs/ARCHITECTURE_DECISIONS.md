@@ -617,3 +617,14 @@ kept small by sharing everything below it.
   have been answered in the Arena session; the person who takes the task over is told so.
 **Not verified in development:** the Manager on a real Claude model (WF-21) and Automatic workers on a real Arena
 Local Bridge with four accounts (WF-20). Every test used the mock provider as the Manager and the fake bridge.
+
+**Addendum (2026-11-11) — two people on the critical path.** The approval of a critical task was first requested by
+`workforce`, whoever did the work. A person who did a Human-Assisted task could therefore submit a result and then
+approve it alone, which contradicts the platform rule that a requester never decides their own request. Now the
+requester of that approval is the person who submitted the result (`user:<id>`), so the existing
+`self_approval_forbidden` check applies; an Automatic worker's result is still requested by `workforce`. The evidence
+of the approval names who submitted. Not changed: a person may review their own **non-critical** result when the
+Manager hands it to a person — forbidding that would stop a one-person installation whenever the Manager escalates.
+The history and the result show who submitted and who accepted. Tests: `test_workforce_review.py`
+(`…only_by_a_human_approval…`, `…automatic_worker_is_requested_by_the_platform`), `test_workforce_security.py`,
+`e2e/workforce.spec.ts`.

@@ -27,7 +27,16 @@ The supported deployment is Docker Compose on one host (Windows with Docker Desk
 Named volumes: `pgdata` (database — everything important), `rabbitdata` (broker state), `workspaces` (project
 repositories and task worktrees), `workforce-attachments` (files people attach to Human-Assisted results; the database
 holds their names and hashes, this volume holds the bytes), `browser-profiles` (bridge profiles). `STOP`/`stop.sh`
-never remove volumes; only `RESET-DEV.bat` (after typing `RESET`) does.
+never remove volumes; only `RESET.bat` (after typing `RESET`) does.
+
+`workforce-attachments` is mounted on the `api` service only: the API stores and serves the files, the worker never
+reads them. Several API containers on one host share the named volume. API replicas on **different hosts** need
+this path on shared storage, or a file uploaded through one replica cannot be downloaded through another.
+
+The compose file also defines `realtests`, a service with its own profile that `START` never starts. It runs the
+owner's checks against a real model and a real Arena Local Bridge (`REAL-TESTS.bat`) on a separate database,
+`acc_owner_test`, which it creates inside the same PostgreSQL on first use. Drop that database when you no longer
+need it; `RESET.bat` removes it with everything else.
 
 Back up the database (`docker compose exec postgres pg_dump -U acc acc > backup.sql`), the `workspaces` and
 `workforce-attachments` volumes, and `.env` — **`APP_ENCRYPTION_KEY` is required to read stored credentials**.

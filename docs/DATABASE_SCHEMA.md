@@ -461,6 +461,7 @@ The execution contract of spec Phase 2 — one row per agent run.
 | `latest_checkpoint_seq` | INTEGER | yes |  |
 | `cancel_requested` | BOOLEAN | no |  |
 | `is_mock` | BOOLEAN | no |  |
+| `provider_request_id` | VARCHAR(128) | yes |  |
 | `created_at` | DATETIME | no |  |
 | `updated_at` | DATETIME | no |  |
 
@@ -632,8 +633,6 @@ Constraints: `uq_processed_messages_consumer`
 
 ## `project_agents`
 
-The type of the None singleton.
-
 | Column | Type | Null | Notes |
 |---|---|---|---|
 | `project_id` | INTEGER | no | PK, FK → `projects.id` (CASCADE) |
@@ -680,6 +679,8 @@ Constraints: `ck_projects_mode_valid`, `fk_projects_organization_id_organization
 | `last_error` | TEXT | yes |  |
 | `rate_limits` | JSONB | no |  |
 | `priority` | INTEGER | no |  |
+| `settings` | JSONB | no |  |
+| `health` | JSONB | yes |  |
 | `created_at` | DATETIME | no |  |
 | `updated_at` | DATETIME | no |  |
 
@@ -727,8 +728,6 @@ Constraints: `fk_pull_requests_organization_id_organizations`, `fk_pull_requests
 Constraints: `fk_repositories_credential_id_api_credentials`, `fk_repositories_organization_id_organizations`, `fk_repositories_webhook_credential_id_api_credentials`, `uq_repositories_organization_id`
 
 ## `role_permissions`
-
-The type of the None singleton.
 
 | Column | Type | Null | Notes |
 |---|---|---|---|
@@ -807,6 +806,26 @@ Constraints: `uq_supervisor_findings_fingerprint`
 
 Constraints: `fk_system_settings_organization_id_organizations`, `uq_system_settings_organization_id`
 
+## `task_attachments`
+
+A file a person attached to a Human-Assisted submission. Stored outside the web root; served only to members of the same organization.
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `id` | VARCHAR(36) | no | PK |
+| `organization_id` | INTEGER | no | FK → `organizations.id` (CASCADE), indexed |
+| `task_id` | INTEGER | no | FK → `tasks.id` (CASCADE), indexed |
+| `submission_id` | INTEGER | yes | FK → `task_submissions.id` (SET NULL) |
+| `filename` | VARCHAR(255) | no |  |
+| `content_type` | VARCHAR(128) | no |  |
+| `size` | INTEGER | no |  |
+| `sha256` | VARCHAR(64) | no |  |
+| `storage_path` | VARCHAR(1024) | no |  |
+| `uploaded_by_user_id` | INTEGER | yes | FK → `users.id` (SET NULL) |
+| `created_at` | DATETIME | no |  |
+
+Constraints: `fk_task_attachments_organization_id_organizations`, `fk_task_attachments_submission_id_task_submissions`, `fk_task_attachments_task_id_tasks`, `fk_task_attachments_uploaded_by_user_id_users`
+
 ## `task_dependencies`
 
 | Column | Type | Null | Notes |
@@ -815,6 +834,56 @@ Constraints: `fk_system_settings_organization_id_organizations`, `uq_system_sett
 | `depends_on_id` | INTEGER | no | PK, FK → `tasks.id` (CASCADE) |
 
 Constraints: `ck_task_dependencies_no_self_dependency`, `fk_task_dependencies_depends_on_id_tasks`, `fk_task_dependencies_task_id_tasks`
+
+## `task_submissions`
+
+One result of one attempt, exactly as it arrived. Never edited: a revision is a new version.
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `organization_id` | INTEGER | no | FK → `organizations.id` (CASCADE), indexed |
+| `task_id` | INTEGER | no | FK → `tasks.id` (CASCADE), indexed |
+| `version` | INTEGER | no |  |
+| `attempt` | INTEGER | no |  |
+| `execution_id` | VARCHAR(36) | yes | FK → `executions.id` (SET NULL) |
+| `agent_id` | INTEGER | yes | FK → `agents.id` (SET NULL) |
+| `worker_id` | INTEGER | yes | FK → `workforce_workers.id` (SET NULL) |
+| `mode` | VARCHAR(16) | no |  |
+| `source` | VARCHAR(32) | no |  |
+| `submitted_by` | VARCHAR(64) | no |  |
+| `content` | TEXT | no |  |
+| `content_sha256` | VARCHAR(64) | no |  |
+| `notes` | TEXT | no |  |
+| `attachments` | JSONB | no |  |
+| `provider` | JSONB | no |  |
+| `is_mock` | BOOLEAN | no |  |
+| `evaluation_id` | INTEGER | yes | FK → `evaluation_results.id` (SET NULL) |
+| `review` | JSONB | yes |  |
+| `decision` | VARCHAR(24) | yes |  |
+| `decided_by` | VARCHAR(64) | yes |  |
+| `decided_at` | DATETIME | yes |  |
+| `created_at` | DATETIME | no | indexed |
+
+Constraints: `ck_task_submissions_mode_valid`, `fk_task_submissions_agent_id_agents`, `fk_task_submissions_evaluation_id_evaluation_results`, `fk_task_submissions_execution_id_executions`, `fk_task_submissions_organization_id_organizations`, `fk_task_submissions_task_id_tasks`, `fk_task_submissions_worker_id_workforce_workers`, `uq_task_submissions_execution_id`, `uq_task_submissions_task_id`
+
+## `task_transitions`
+
+Every lifecycle change of a task. Progress shown anywhere comes from tasks and these rows only.
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `id` | BIGINT | no | PK |
+| `organization_id` | INTEGER | no | FK → `organizations.id` (CASCADE), indexed |
+| `task_id` | INTEGER | no | FK → `tasks.id` (CASCADE), indexed |
+| `from_state` | VARCHAR(24) | yes |  |
+| `to_state` | VARCHAR(24) | no |  |
+| `actor` | VARCHAR(64) | no |  |
+| `reason` | TEXT | no |  |
+| `details` | JSONB | no |  |
+| `ts` | DATETIME | no | indexed |
+
+Constraints: `fk_task_transitions_organization_id_organizations`, `fk_task_transitions_task_id_tasks`
 
 ## `tasks`
 
@@ -830,6 +899,15 @@ Constraints: `ck_task_dependencies_no_self_dependency`, `fk_task_dependencies_de
 | `task_type` | VARCHAR(32) | no |  |
 | `required_skills` | JSONB | no |  |
 | `status` | VARCHAR(16) | no | indexed |
+| `lifecycle` | VARCHAR(24) | no | indexed |
+| `objective` | TEXT | yes |  |
+| `instructions` | TEXT | no |  |
+| `expected_output` | TEXT | no |  |
+| `timeout_seconds` | INTEGER | yes |  |
+| `execution_mode` | VARCHAR(16) | yes |  |
+| `assignment_source` | VARCHAR(16) | yes |  |
+| `accepted_by_user_id` | INTEGER | yes | FK → `users.id` (SET NULL) |
+| `accepted_at` | DATETIME | yes |  |
 | `priority` | INTEGER | no |  |
 | `assigned_agent_id` | INTEGER | yes | FK → `agents.id` (SET NULL), indexed |
 | `acceptance_criteria` | JSONB | no |  |
@@ -852,11 +930,9 @@ Constraints: `ck_task_dependencies_no_self_dependency`, `fk_task_dependencies_de
 | `created_at` | DATETIME | no |  |
 | `updated_at` | DATETIME | no |  |
 
-Constraints: `ck_tasks_max_attempts_positive`, `ck_tasks_status_valid`, `fk_tasks_assigned_agent_id_agents`, `fk_tasks_created_by_agent_id_agents`, `fk_tasks_created_by_user_id_users`, `fk_tasks_organization_id_organizations`, `fk_tasks_parent_task_id_tasks`, `fk_tasks_project_id_projects`, `fk_tasks_workflow_id_workflows`, `uq_tasks_idempotency_key`
+Constraints: `ck_tasks_execution_mode_valid`, `ck_tasks_lifecycle_matches_status`, `ck_tasks_lifecycle_valid`, `ck_tasks_max_attempts_positive`, `ck_tasks_status_valid`, `fk_tasks_accepted_by_user_id_users`, `fk_tasks_assigned_agent_id_agents`, `fk_tasks_created_by_agent_id_agents`, `fk_tasks_created_by_user_id_users`, `fk_tasks_organization_id_organizations`, `fk_tasks_parent_task_id_tasks`, `fk_tasks_project_id_projects`, `fk_tasks_workflow_id_workflows`, `uq_tasks_idempotency_key`
 
 ## `team_agents`
-
-The type of the None singleton.
 
 | Column | Type | Null | Notes |
 |---|---|---|---|
@@ -866,8 +942,6 @@ The type of the None singleton.
 Constraints: `fk_team_agents_agent_id_agents`, `fk_team_agents_team_id_teams`
 
 ## `team_users`
-
-The type of the None singleton.
 
 | Column | Type | Null | Notes |
 |---|---|---|---|
@@ -913,6 +987,8 @@ Constraints: `fk_teams_lead_agent_id_agents`, `fk_teams_organization_id_organiza
 | `duration_ms` | INTEGER | yes |  |
 | `retry_count` | INTEGER | no |  |
 | `is_mock` | BOOLEAN | no |  |
+| `usage_known` | BOOLEAN | no |  |
+| `provider_request_id` | VARCHAR(128) | yes |  |
 
 Constraints: `fk_usage_records_agent_id_agents`, `fk_usage_records_execution_id_executions`, `fk_usage_records_organization_id_organizations`, `fk_usage_records_project_id_projects`, `fk_usage_records_provider_id_providers`, `fk_usage_records_task_id_tasks`
 
@@ -950,10 +1026,103 @@ One user objective planned by the orchestrator into a task graph.
 | `thread_id` | VARCHAR(64) | yes | unique |
 | `created_by_user_id` | INTEGER | yes | FK → `users.id` |
 | `error` | TEXT | yes |  |
+| `kind` | VARCHAR(16) | no | indexed |
+| `workforce_id` | INTEGER | yes | FK → `workforces.id` (SET NULL), indexed |
+| `review_policy` | VARCHAR(16) | yes |  |
 | `created_at` | DATETIME | no |  |
 | `updated_at` | DATETIME | no |  |
 
-Constraints: `fk_workflows_created_by_user_id_users`, `fk_workflows_organization_id_organizations`, `fk_workflows_project_id_projects`, `uq_workflows_thread_id`
+Constraints: `fk_workflows_created_by_user_id_users`, `fk_workflows_organization_id_organizations`, `fk_workflows_project_id_projects`, `fk_workflows_workforce_id_workforces`, `uq_workflows_thread_id`
+
+## `workforce_manager_steps`
+
+One piece of Manager work (analysis, plan, review, consolidation): what ran, on which model, how it ended.
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `id` | VARCHAR(36) | no | PK |
+| `organization_id` | INTEGER | no | FK → `organizations.id` (CASCADE), indexed |
+| `workflow_id` | INTEGER | no | FK → `workflows.id` (CASCADE), indexed |
+| `task_id` | INTEGER | yes | FK → `tasks.id` (SET NULL), indexed |
+| `submission_id` | INTEGER | yes | FK → `task_submissions.id` (SET NULL) |
+| `kind` | VARCHAR(16) | no |  |
+| `status` | VARCHAR(16) | no |  |
+| `agent_id` | INTEGER | yes | FK → `agents.id` (SET NULL) |
+| `provider` | VARCHAR(64) | yes |  |
+| `model` | VARCHAR(128) | yes |  |
+| `is_mock` | BOOLEAN | no |  |
+| `attempt` | INTEGER | no |  |
+| `started_at` | DATETIME | no | indexed |
+| `ended_at` | DATETIME | yes |  |
+| `duration_ms` | INTEGER | yes |  |
+| `error` | TEXT | yes |  |
+| `trace_id` | VARCHAR(32) | yes |  |
+| `provider_request_id` | VARCHAR(128) | yes |  |
+| `summary` | JSONB | no |  |
+
+Constraints: `ck_workforce_manager_steps_kind_valid`, `fk_workforce_manager_steps_agent_id_agents`, `fk_workforce_manager_steps_organization_id_organizations`, `fk_workforce_manager_steps_submission_id_task_submissions`, `fk_workforce_manager_steps_task_id_tasks`, `fk_workforce_manager_steps_workflow_id_workflows`
+
+## `workforce_reports`
+
+The consolidated result of an objective. Versioned: consolidating again after a change adds a version.
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `organization_id` | INTEGER | no | FK → `organizations.id` (CASCADE), indexed |
+| `workflow_id` | INTEGER | no | FK → `workflows.id` (CASCADE), indexed |
+| `version` | INTEGER | no |  |
+| `status` | VARCHAR(24) | no |  |
+| `state_hash` | VARCHAR(64) | no |  |
+| `content` | JSONB | no |  |
+| `markdown` | TEXT | no |  |
+| `is_mock` | BOOLEAN | no |  |
+| `manager_step_id` | VARCHAR(36) | yes | FK → `workforce_manager_steps.id` (SET NULL) |
+| `created_at` | DATETIME | no |  |
+
+Constraints: `fk_workforce_reports_manager_step_id_workforce_manager_steps`, `fk_workforce_reports_organization_id_organizations`, `fk_workforce_reports_workflow_id_workflows`, `uq_workforce_reports_state_hash`, `uq_workforce_reports_workflow_id`
+
+## `workforce_workers`
+
+A worker slot. Identity, prompt, model/session, timeout and retry policy live on its agent; this row adds the execution mode and what the platform knows about the Arena account behind it.
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `organization_id` | INTEGER | no | FK → `organizations.id` (CASCADE), indexed |
+| `workforce_id` | INTEGER | no | FK → `workforces.id` (CASCADE), indexed |
+| `slot` | INTEGER | no |  |
+| `agent_id` | INTEGER | no | FK → `agents.id` (CASCADE) |
+| `mode` | VARCHAR(16) | no |  |
+| `client_session_id` | VARCHAR(128) | no |  |
+| `account_label` | VARCHAR(128) | yes |  |
+| `account_binding` | JSONB | yes |  |
+| `fallback_to_human` | BOOLEAN | no |  |
+| `assignee_user_id` | INTEGER | yes | FK → `users.id` (SET NULL) |
+| `health` | JSONB | yes |  |
+| `created_at` | DATETIME | no |  |
+| `updated_at` | DATETIME | no |  |
+
+Constraints: `ck_workforce_workers_mode_valid`, `ck_workforce_workers_slot_positive`, `fk_workforce_workers_agent_id_agents`, `fk_workforce_workers_assignee_user_id_users`, `fk_workforce_workers_organization_id_organizations`, `fk_workforce_workers_workforce_id_workforces`, `uq_workforce_workers_agent_id`, `uq_workforce_workers_workforce_id`
+
+## `workforces`
+
+One Manager and its workers. One per organization for now; the schema does not depend on that.
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `organization_id` | INTEGER | no | FK → `organizations.id` (CASCADE), indexed |
+| `name` | VARCHAR(128) | no |  |
+| `manager_agent_id` | INTEGER | yes | FK → `agents.id` (SET NULL) |
+| `project_id` | INTEGER | yes | FK → `projects.id` (SET NULL) |
+| `review_policy` | VARCHAR(16) | no |  |
+| `max_revisions` | INTEGER | no |  |
+| `settings` | JSONB | no |  |
+| `created_at` | DATETIME | no |  |
+| `updated_at` | DATETIME | no |  |
+
+Constraints: `ck_workforces_max_revisions_range`, `ck_workforces_review_policy_valid`, `fk_workforces_manager_agent_id_agents`, `fk_workforces_organization_id_organizations`, `fk_workforces_project_id_projects`, `uq_workforces_organization_id`
 
 ## `worktrees`
 

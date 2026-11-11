@@ -71,8 +71,35 @@ to `docs/requirements.json`.
   of the result it accepts.
 - `scripts/dev/no-docker/e2e-stack.sh`: the whole platform plus the fake bridge as plain processes, for the browser
   suite on a machine without Docker.
+- **Bridge probe** `python -m app.connectivity.arena_bridge.probe`: the diagnostics of the bridge page from the
+  command line, for every configured bridge, or for the default address when none is configured. Sends nothing to
+  Arena; prints no key and no account address.
+- **Launch scripts** (WF-17; Windows files checked as text only, never executed):
+  - `HEALTH-CHECK.bat` / `health-check.sh` run the probe **inside the API container and the worker container** and
+    show the `arena_local_bridge` line of the health report. An unusable bridge is a warning, not a failure.
+  - `INSTALL.bat` (same as `INSTALL.ps1`) and `RESET.bat` (same as `RESET-DEV.bat`; the warning now lists what is
+    deleted, including bridge settings and stored keys, and says that Arena Local Bridge itself is not touched).
+  - `REAL-TESTS.bat`: the two checks that leave the machine, each after a typed confirmation — the Manager on a real
+    model (WF-21) and four workers on a real Arena Local Bridge (WF-20). Keys are typed hidden and never written.
+  - Compose service `realtests` (own profile; never started by START): runs those checks in a throwaway container
+    on a separate database, without access to the installation's broker or Redis.
+- **Test tiers `real_provider` and `real_arena`** (`tests/test_real_provider.py`, `tests/test_real_arena.py`),
+  skipped unless the owner supplies the settings. `tests/test_real_tiers_selftest.py` runs the same steps on the
+  mock provider and the fake bridge.
+- `docs/AI_WORKFORCE.md`: the user guide, including Human-Assisted work step by step.
 
 ### Fixed
+- **Two people on the critical path** (ADR-033 addendum). A person who did a Human-Assisted task could submit a
+  result for a critical task and then approve it alone in the Approval Center, because the approval was requested
+  by `workforce`. The requester is now the person who submitted the result, so the Approval Center refuses their
+  own decision (`self_approval_forbidden`); the task card says that someone else has to approve. An Automatic
+  worker's result is unchanged.
+- **The test suite could erase a real database.** It drops and rebuilds the schema of whatever
+  `TEST_DATABASE_URL` names. It now refuses any database whose name does not end in `_test`.
+- **Windows launcher and program output.** `docker` and `git` write normal progress to the error stream. Under
+  Windows PowerShell 5.1 with `$ErrorActionPreference = "Stop"`, a redirected error stream can end the script at the
+  first such line. Every program call now goes through a wrapper that relaxes the preference for that call and
+  decides by the exit code. Not observed in a run — the scripts were never executed — but it is a known behaviour.
 - **Page title during navigation.** The title came from asynchronous metadata, which is streamed: after every change
   of the address the document had no `<title>` for a moment (measured: 85 empty readings over 24 navigations, 0 after
   the fix). The accessibility check `document-title` failed intermittently because of it. The title is now rendered
@@ -92,6 +119,10 @@ to `docs/requirements.json`.
 ### Not verified
 - The Manager on a real Claude model and Automatic workers on a real Arena Local Bridge. Every test used the built-in
   mock provider as the Manager and the fake bridge; both are labelled as such in results and reports.
+- **The Windows scripts** (`*.bat`, `scripts/windows/acc.ps1`), including `HEALTH-CHECK.bat` and `REAL-TESTS.bat`:
+  never executed. No Windows and no Docker were available. Checked as text only
+  (`backend/tests/test_launch_scripts.py`); the Linux health check ran against stand-ins for `docker` and `curl`;
+  the command the `realtests` container runs was executed outside Docker in a folder laid out like the image.
 - Colour contrast of **Arabic** text is not checked by the automated accessibility tests: axe-core skips text it
   takes for an icon ligature, and joined Arabic letters match that heuristic (see `docs/DEVELOPMENT.md`). The same
   components with the same colours are checked in the English run.

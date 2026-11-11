@@ -154,6 +154,11 @@ it, the execution fails with `outcome_unknown` and is not sent to another model 
 policy decides (bounded retry as a new request, or hand the task to a human). ALB's source states that a send with
 an unknown outcome can still be delivered twice in rare cases; the platform cannot rule that out.
 
+**An abandoned request keeps running.** When the platform gives up on a request (timeout, cancelled task, lost
+connection), ALB is not told to stop: the turn goes on in the browser, and its answer may still appear in the Arena
+conversation. The platform does not pick that answer up later. The person who takes the task over is told that the
+answer may have arrived and where to look.
+
 **One request at a time.** ALB runs one turn at a time and refuses with `bridge_queue_full` when eight are waiting.
 Each platform worker process keeps at most "Max concurrent" (default 1) requests in flight per bridge and lets the
 rest wait before sending. The wait is written on the execution (`waited_for_bridge_slot_ms`). For real parallelism,
@@ -190,6 +195,20 @@ reachable, the key is accepted and an account is ready. Changes are written to t
 
 `GET /api/health` (the platform's own health report) includes an `arena_local_bridge` entry with counts only —
 no address, account or version, because that report needs no sign-in.
+
+**From the command line: `HEALTH-CHECK.bat` / `./health-check.sh`.** After the usual service report, the script
+runs the diagnostics of section 3 **inside the API container and inside the worker container**:
+
+```
+docker compose exec -T api python -m app.connectivity.arena_bridge.probe
+```
+
+That is the only place where the answer means something: an address that opens the bridge in a browser on the host
+is not the address a container has to use. The probe sends nothing to Arena and prints no key and no account
+address (counts only). With no bridge configured it tries the default address — name resolution, connection,
+`/health` — and says whether a bridge answers there. The bridge is optional, so an unusable bridge is reported as a
+warning and does not fail the health check. Exit codes of the probe: `0` nothing configured or everything ready,
+`10` a configured bridge cannot be used, `11` the probe could not run. `--json` prints the report as JSON.
 
 ---
 
@@ -242,6 +261,38 @@ so is every execution, usage record and report that came through it. It can neve
 
 ---
 
+## 11. Checking a real bridge on your machine
+
+Nobody ran the platform against a real ALB during development. Two ways to do it, from least to most involved.
+
+**A. By hand, in the web app** (sends nothing until step 5):
+
+1. `HEALTH-CHECK.bat`. With no bridge configured, the probe should show `OK dns`, `OK tcp`, `OK health` for the
+   default address while ALB is running.
+2. Add the bridge on the bridge page. Press **Test connection**: every step up to `terms` should be green and the
+   account count should be what you expect.
+3. Acknowledge the terms. Press **Discover sessions**.
+4. Give W1 one session (Manager & workers → *Configure*). Its card should read *One session of one account*.
+5. Submit a prompt with one small research task. The task should complete as *Automatic*, the result should not be
+   labelled mock, and usage should read *not reported*.
+6. Repeat step 4 for W2–W4 with sessions of the other accounts. The Overview should count four different accounts.
+
+**B. The automated tier: `REAL-TESTS.bat`, choice 2** (`pytest -m real_arena`). It connects, checks that four
+accounts are ready, binds four workers to four sessions of four different accounts, runs one objective with four
+tasks, and repeats one request to see that the bridge replays it instead of sending it twice. It sends five short
+prompts to Arena and asks you to type `YES` first. It uses a separate test database. Details and settings:
+`backend/tests/test_real_arena.py`. On Linux or macOS:
+
+```
+REAL_TIER_REQUIRED=real_arena REAL_ARENA_ACCEPT_TERMS=yes REAL_ARENA_BRIDGE_KEY=<key> \
+  docker compose run --rm -T realtests -m real_arena tests/test_real_arena.py -v -s
+```
+
+The same steps run in the regular test suite against the fake bridge (`tests/test_real_tiers_selftest.py`), so the
+steps themselves are known to work. What they find on a real bridge is not known.
+
+---
+
 ## What is not verified
 
 Built from ALB's source and tested only against the fake bridge. These need your Windows machine, a running ALB and
@@ -254,5 +305,6 @@ your own Arena accounts:
 - idempotent replay with the real cache;
 - four sessions owned by four different accounts, and one ALB instance per account.
 
-`HEALTH-CHECK` reports the bridge step from inside the API container, so you can check the networking part without
-sending anything to Arena.
+`HEALTH-CHECK` reports each step from inside the API and worker containers, so you can check the networking part
+without sending anything to Arena. Section 11 describes how to check the rest. Neither `HEALTH-CHECK.bat` nor
+`REAL-TESTS.bat` has been run on Windows.

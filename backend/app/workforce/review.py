@@ -229,14 +229,19 @@ def _accept(db: Session, wf: Workflow, task: Task, sub: TaskSubmission, *, decid
     if task.critical_operation:
         payload = {"task_id": task.id, "operation": task.critical_operation, "submission_id": sub.id,
                    "version": sub.version, "content_sha256": sub.content_sha256}
+        # Who asks: the person who submitted the result, when a person did the work — the Approval Center never
+        # lets a requester decide their own request, so the author of a critical result cannot be the one who
+        # approves it. An Automatic worker's result is requested by the platform; agents hold no approval right.
+        requester = sub.submitted_by if (sub.submitted_by or "").startswith("user:") else "workforce"
         ap = request_approval(
             db, organization_id=task.organization_id, operation=task.critical_operation,
-            title=f"Task #{task.id}: {task.title}", requested_by="workforce",
+            title=f"Task #{task.id}: {task.title}", requested_by=requester,
             summary=f"Accepting version {sub.version} of this result authorizes: {task.critical_operation}",
             payload=payload,
             evidence=[{"kind": "review", "by": decided_by, "note": note[:2000]},
                       {"kind": "submission", "submission_id": sub.id, "version": sub.version,
-                       "sha256": sub.content_sha256, "mode": sub.mode, "source": sub.source, "is_mock": sub.is_mock}],
+                       "sha256": sub.content_sha256, "mode": sub.mode, "source": sub.source, "is_mock": sub.is_mock,
+                       "submitted_by": sub.submitted_by}],
             agent_id=task.assigned_agent_id, project_id=task.project_id, task_id=task.id,
             execution_id=sub.execution_id, idempotency_key=f"wf-task:{task.id}:v{sub.version}:approval")
         task.result = {**task.result, "approval_id": ap.id}

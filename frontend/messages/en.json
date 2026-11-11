@@ -1844,6 +1844,7 @@
       "fallback": "This task was handed to a person because automatic work was not possible: {reason}.",
       "fallbackMayHaveArrived": "The request may have reached the Arena session. Look there first: the answer may already be waiting.",
       "needsApproval": "The result passed review. The task is completed only when a person approves it in the Approval Center.",
+      "needsApprovalOther": "It has to be someone other than the person who submitted the result.",
       "openApproval": "Open approval #{id}",
       "what": "The task",
       "objective": "Goal",

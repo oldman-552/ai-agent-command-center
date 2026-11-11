@@ -221,7 +221,7 @@ def test_nothing_in_a_text_only_run_is_ever_verified(admin_client, db, force):
     assert admin_client.get(f"{API}/objectives/{wf.id}/report").json()["content"]["counts"]["verified"] == 0
 
 
-def test_a_critical_result_is_human_approved_through_the_approval_center(admin_client, db, force):
+def test_a_critical_result_is_human_approved_through_the_approval_center(admin_client, db, force, make_user):
     wf = h.planned(db, "1. Release notes for the public launch [documentation] {exposure.public}")
     t = next(iter(h.tasks_of(db, wf).values()))
     h.tick(wf)
@@ -230,7 +230,9 @@ def test_a_critical_result_is_human_approved_through_the_approval_center(admin_c
     assert out["finished"] is False and out.get("report_version") is None  # no report while an approval is open
     assert admin_client.get(f"{API}/objectives/{wf.id}/report").status_code == 404
     ap = h.task(db, t.id).result["approval_id"]
-    assert admin_client.post(f"/api/approvals/{ap}/decide", json={"decision": "approve"}).status_code == 200
+    # the author (admin) cannot approve their own critical result; another person does
+    assert admin_client.post(f"/api/approvals/{ap}/decide", json={"decision": "approve"}).status_code == 403
+    assert h.second_person(make_user).post(f"/api/approvals/{ap}/decide", json={"decision": "approve"}).status_code == 200
     assert h.tick(wf)["status"] == "completed"
     i = admin_client.get(f"{API}/objectives/{wf.id}/report").json()["content"]["items"][0]
     assert i["class"] == "human_approved" and i["basis"]["approval_id"] == ap and i["critical_operation"] == (

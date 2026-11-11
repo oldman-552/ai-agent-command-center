@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, request, test } from "@playwright/test";
 import { login, PASS } from "./helpers";
 
 // WF-16 / WF-09: the AI Workforce pages, in Arabic and English, with axe on every view.
@@ -42,6 +42,23 @@ async function reset(page: Page, opts: { manager: "mock" | "none" }) {
   const patch = opts.manager === "mock" ? { provider_id: mock.id, model: "mock-model" } : { provider_id: null };
   expect((await send(page, "PATCH", `${W}/manager`, { ...patch, review_policy: "manager", max_revisions: 2 })).ok()).toBeTruthy();
   return { mockId: mock.id as number, force };
+}
+
+/** Another person with the approval right decides: the author of a critical result cannot approve it. */
+async function approveAsSecondPerson(page: Page, baseURL: string, approvalId: number) {
+  const username = "e2e-approver";
+  const password = "e2e-approver-password-1";
+  const created = await send(page, "POST", "/api/users", { username, password, role: "ORGANIZATION_ADMIN", language: "en" });
+  expect([201, 409], await created.text()).toContain(created.status());  // 409: created by an earlier run
+  const api = await request.newContext({ baseURL });
+  try {
+    expect((await api.post("/api/auth/login", { data: { username, password } })).ok()).toBeTruthy();
+    const csrf = (await api.storageState()).cookies.find((c) => c.name === "acc_csrf")?.value ?? "";
+    const r = await api.post(`/api/approvals/${approvalId}/decide`, { data: { decision: "approve", reason: "" }, headers: { "X-CSRF-Token": csrf } });
+    expect(r.status(), await r.text()).toBe(200);
+  } finally {
+    await api.dispose();
+  }
 }
 
 const dialog = (page: Page) => page.getByTestId("wf-task-dialog");
@@ -271,7 +288,7 @@ for (const lang of ["ar", "en"] as const) {
     await expect(page.locator("[data-testid^='wf-bridge-card-']", { hasText: name })).toHaveCount(0);
   });
 
-  test(`workforce: a critical task is completed only in the Approval Center; board filters (${lang})`, async ({ page }) => {
+  test(`workforce: a critical task is completed only in the Approval Center, by another person; board filters (${lang})`, async ({ page, baseURL }) => {
     test.setTimeout(240_000);
     await login(page, lang);
     await reset(page, { manager: "mock" });
@@ -317,6 +334,7 @@ for (const lang of ["ar", "en"] as const) {
     await expect(state(page)).toHaveText(en ? "Reviewed — awaiting approval" : "روجعت — بانتظار الموافقة");
     const notice = dialog(page).getByTestId("wf-approval");
     await expect(notice).toContainText(en ? "only when a person approves it in the Approval Center" : "إلا عندما يوافق عليها شخص في مركز الموافقات");
+    await expect(notice).toContainText(en ? "someone other than the person who submitted the result" : "شخصاً غير الذي قدّم النتيجة");
     await axe(page);
 
     // the Approval Center: the frozen payload names the version and the fingerprint of the text, and links back
@@ -329,8 +347,16 @@ for (const lang of ["ar", "en"] as const) {
     await expect(ap.getByTestId("approval-task-link")).toHaveAttribute("href", /\/workforce\/tasks\?task=\d+$/);
     await expect(ap.getByTestId("approval-evidence")).toContainText(en ? "Result version" : "نسخة النتيجة");
     await axe(page);
+
+    // the person who submitted the result cannot be the one who approves it: refused, with the reason
     await ap.getByTestId("ap-approve").click();
-    await expect(page.getByRole("status").filter({ hasText: en ? "Approved" : "تمت الموافقة" }).first()).toBeVisible();
+    await expect(ap.getByRole("alert")).toHaveText(en ? "You cannot decide on a request you made yourself." : "لا يمكنك اتخاذ القرار في طلب قدّمته بنفسك.");
+    await axe(page);
+    const approvalId = Number(new URL(page.url()).searchParams.get("id"));
+    expect(approvalId).toBeGreaterThan(0);
+    const before = await (await page.request.get(`${W}/objectives/${objective.id}`)).json();
+    expect(before.tasks[0].lifecycle).toBe("APPROVED");  // still not completed
+    await approveAsSecondPerson(page, baseURL!, approvalId);
 
     // only now is the task completed, and the report counts it as approved by a person
     await page.goto(`/workforce/objectives/${objective.id}?view=report`);

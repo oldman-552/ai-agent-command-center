@@ -118,6 +118,7 @@ function TaskBody({ d }: { d: TaskDetail }) {
       {d.approval_id && (
         <Notice testid="wf-approval">
           <p>{t("needsApproval")}</p>
+          {d.submissions[d.submissions.length - 1]?.submitted_by.startsWith("user:") && <p>{t("needsApprovalOther")}</p>}
           <Link href={`/approvals?id=${d.approval_id}`} className="w-fit font-medium text-primary underline underline-offset-4">{t("openApproval", { id: d.approval_id })}</Link>
         </Notice>
       )}

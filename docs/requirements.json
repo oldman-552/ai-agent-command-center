@@ -1672,7 +1672,7 @@
           "depends": [
             "WF-04"
           ],
-          "status": "pending",
+          "status": "in_progress",
           "evidence": ""
         },
         {
@@ -1697,8 +1697,8 @@
             "WF-02",
             "WF-17"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "inspection + automated checks: backend tests/test_docs_consistency.py 26 passed (every link between the guides resolves to a file and a heading; every script a guide names exists; limits, permissions, role table, report classes, probe exit codes and diagnostic steps named in the guides match the code; no guide points to the removed Arena site of the Browser Bridge - Arena appears in BROWSER_BRIDGE.md only as removed/refused, and in the archived v1 documents). New: docs/AI_WORKFORCE.md (user guide incl. Human-Assisted work); updated ARENA_LOCAL_BRIDGE, SECURITY, TROUBLESHOOTING, WINDOWS_SETUP, README, DEPLOYMENT, DEVELOPMENT, RELEASE_READINESS, HANDOFF; API_REFERENCE and DATABASE_SCHEMA regenerated from the code. Limit: the Windows instructions describe scripts that were never executed, and the guides say so."
         },
         {
           "id": "WF-20",
@@ -1732,12 +1732,21 @@
     "Executing the UI UX Pro Max search.py script is blocked by the environment's safety policy; skill files are installed and its rules/data applied manually"
   ],
   "requires_approval": [
-    "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
+    "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access.",
+    "To verify the Manager on a real Claude model (WF-21): double-click REAL-TESTS.bat, choice 1, enter the model id and your API key (about 5 to 8 paid requests; nothing goes to Arena).",
+    "To verify Automatic workers on a real Arena Local Bridge (WF-20): start the bridge with four signed-in accounts and one conversation each, double-click REAL-TESTS.bat, choice 2, type YES (sends 5 short prompts to Arena through your accounts)."
   ],
   "in_progress": [],
-  "next_step": "M16 AI Workforce: remove the Arena path from the Browser Bridge (WF-02), then the Arena Local Bridge adapter (WF-03/04), workers, Manager, hybrid execution, UI, recovery, Windows scripts",
+  "next_step": "AI Workforce (M16): the owner runs REAL-TESTS.bat (WF-20 real Arena Local Bridge with four accounts, WF-21 Manager on a real Claude model) and INSTALL/START/HEALTH-CHECK/STOP.bat on Windows with Docker Desktop (WF-17, FI-01). Then WF-14: development tasks from text workers (file blocks applied to a worktree, tests run by the platform, protected merge)",
   "tests": {
     "passed": [
+      "2026-11-11, AI Workforce, environment WITHOUT Docker and without Windows; tiers: mock + local integration only (mock Manager, FAKE Arena bridge; no real model, no Arena):",
+      "backend: 950 passed, 1 failed, 19 skipped (whole suite, PostgreSQL + RabbitMQ + Redis as user processes). 15 skips need Docker, nginx or root control of the broker; 4 skips are the owner-run tiers real_provider / real_arena",
+      "backend AI Workforce: 460 passed in 12 files; Arena Local Bridge adapter + settings API + probe: 108 passed; launch scripts (text checks, Linux health check against stand-ins): 34 passed; documents: 26 passed; steps of the real tiers on mock/fake: 10 passed",
+      "ruff: clean (app devtools tests); alembic check: no new operations",
+      "frontend: i18n guard (1766 keys, ar = en), tsc, contrast tokens, next build",
+      "frontend: 74/74 Playwright (Arabic + English, axe WCAG 2.2 AA) against API + worker + FAKE bridge as user processes; 8 are e2e/workforce.spec.ts. axe does not test the contrast of Arabic text (documented in DEVELOPMENT.md)",
+      "earlier evidence (before the AI Workforce, environment with Docker) follows:",
       "backend: 181/181 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox + real git — full suite twice and every module in isolation — 2026-11-10",
       "migrations: 10 revisions (46 tables + langgraph schema); base → head → -1 → head; alembic check clean",
       "frontend: i18n guard (587 keys), contrast, tsc, next build",
@@ -1745,7 +1754,9 @@
       "frontend: 49/49 Playwright in real Chrome against API + worker in bus mode — tasks, approvals, audit, evaluations, GitHub, supervisor, axe WCAG 2.2 AA × ar/en incl. dialogs",
       "security: scripts/security-scan.sh — pip-audit on backend lock (no known vulnerabilities), npm audit --omit=dev (0 vulnerabilities); --strict exits 2 when a scanner is missing (verified)"
     ],
-    "failed": []
+    "failed": [
+      "2026-11-11: backend tests/test_cli_engine.py::test_secrets_reach_the_container_by_name_only — needs the docker program, which this environment did not have (not caused by a code change)"
+    ]
   },
   "files_changed": [],
   "known_issues": [
@@ -1756,6 +1767,12 @@
     "Sandbox in Docker deployments: the worker container has no Docker daemon access yet (docker.sock would be root-equivalent); see ADR-019 deployment note",
     "Sandbox image here was built offline (debootstrap + docker import); docker/sandbox/Dockerfile (ubuntu:24.04 base) must be built and verified on the owner's machine",
     "SEC-08: container image scanning (Trivy) is scripted but has never run — Trivy and vulnerability feeds are unreachable here; run scripts/security-scan.sh --strict on the owner's machine/CI",
-    "GitHub integration verified against an in-memory HTTP fake + local bare remote only (github.com unreachable here); verify against a real repository on the owner's machine"
+    "GitHub integration verified against an in-memory HTTP fake + local bare remote only (github.com unreachable here); verify against a real repository on the owner's machine",
+    "AI Workforce: WF-14 (development tasks from text workers: files into a worktree, tests run by the platform, protected merge) is not built; the result class 'verified' is therefore always empty",
+    "AI Workforce: never run against a real Claude model (WF-21) or a real Arena Local Bridge with four accounts (WF-20); REAL-TESTS.bat exists for it and was itself never executed",
+    "Windows scripts (INSTALL/START/STOP/UPDATE/HEALTH-CHECK/RESET/REAL-TESTS.bat, scripts/windows/acc.ps1) were checked as text only; never executed (no Windows, no Docker)",
+    "Arena Local Bridge limits that the platform cannot fix: it does not name the account that answered (bindings are configuration, not proof), reports no usage, runs one request at a time, and an abandoned request keeps running inside it",
+    "A person may review their own non-critical Human-Assisted result when the Manager hands it to a person (needed for one-person installations); only the critical path enforces a second person",
+    "Accessibility tests: axe-core skips the colour contrast of Arabic text (ligature heuristic); contrast is covered by the English runs and scripts/check-contrast.mjs"
   ]
 }

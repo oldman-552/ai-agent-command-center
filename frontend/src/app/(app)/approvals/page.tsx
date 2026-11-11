@@ -33,8 +33,9 @@ const STATUS_ICON = {
   changes_requested: RotateCcw, expired: ShieldQuestion,
 } as const;
 
-/** An approval raised by the AI Workforce: it accepts one version of one task's result. */
-const fromWorkforce = (a: Approval) => a.requested_by === "workforce";
+/** An approval raised by the AI Workforce: it accepts one version of one task's result. (The requester is the
+ *  person who submitted that result, or "workforce" for an Automatic worker — so it cannot be told by who asked.) */
+const fromWorkforce = (a: Approval) => typeof a.payload?.submission_id === "number" && typeof a.payload?.version === "number";
 /** Where the task behind an approval can be read: the workforce task card, or the generic task board. */
 const taskHref = (a: Approval) => (fromWorkforce(a) ? `/workforce/tasks?task=${a.task_id}` : `/tasks?task=${a.task_id}`);
 
