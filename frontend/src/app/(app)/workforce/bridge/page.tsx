@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { accountTag, MockBadge, PageHeader, useActor, useFail, WorkforceTabs } from "@/components/workforce/shared";
 import { useToasts } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { type Bridge, type Diagnosis, type DiagStep, useBridges, useWorkforceActions } from "@/lib/workforce";
+import { type Bridge, bridgeErrorText, type Diagnosis, type DiagStep, useBridges, useWorkforceActions } from "@/lib/workforce";
 
 export default function WorkforceBridgePage() {
   const t = useTranslations("workforce.bridge");
@@ -128,7 +128,8 @@ function BridgeCard({ b }: { b: Bridge }) {
         <Flag ok={b.terms.acknowledged} label={b.terms.acknowledged ? t("flag.terms") : t("flag.noTerms")} />
       </div>
       {h && !fresh && <p className="text-sm text-muted-foreground">{t("stale", { when: fmt.relativeTime(new Date(h.checked_at)) })}</p>}
-      {h?.error && <p className="break-words text-sm text-destructive" lang="en" dir="ltr">{h.error}</p>}
+      {h?.error && <p className="break-words text-sm text-destructive" lang="en" dir="ltr" data-testid={`wf-bridge-error-${b.id}`}>{bridgeErrorText(h.error)}</p>}
+      {h?.sessions_error && <p className="break-words text-sm text-muted-foreground" lang="en" dir="ltr">{bridgeErrorText(h.sessions_error)}</p>}
       {b.is_mock && <p className="text-sm">{t("fake")}</p>}
 
       {!b.terms.acknowledged && (
