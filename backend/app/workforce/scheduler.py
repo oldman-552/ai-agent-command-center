@@ -100,10 +100,14 @@ def brief(db: Session, task: Task, agent: Agent | None) -> dict[str, Any]:
     dep_ids = _deps(db, [task.id])[task.id]
     deps = list(db.scalars(select(Task).where(Task.id.in_(dep_ids)).order_by(Task.id))) if dep_ids else []
     ctx = for_task(db, task, deps, agent)
+    prompt = ctx.prompt
+    if (task.result or {}).get("kind") == "code":  # WF-14: how to deliver files, and what the repository holds
+        from app.workforce import devtasks
+        prompt = f"{prompt}\n\n{devtasks.brief_section(db, task)}"
     system = system_message(agent.system_instructions if agent else "")
     # one message, as a bridge session or a person pasting into Arena would receive it
-    single = fold_prompt(system, [{"role": "user", "content": ctx.prompt}])
-    return {"prompt": ctx.prompt, "system": system, "single_message": single, "manifest": ctx.manifest,
+    single = fold_prompt(system, [{"role": "user", "content": prompt}])
+    return {"prompt": prompt, "system": system, "single_message": single, "manifest": ctx.manifest,
             "sha256": hashlib.sha256(single.encode()).hexdigest()}
 
 

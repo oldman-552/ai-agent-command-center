@@ -53,11 +53,15 @@ Reply with ONE JSON object and nothing else:
              "depends_on": ["<keys of tasks whose results this task needs>"],
              "timeout_seconds": null,
              "acceptance_criteria": ["<a statement a reviewer can check by reading the result>"],
-             "critical_operation": null}}]}}
+             "critical_operation": null, "kind": "text", "files": []}}]}}
 Rules:
 - At most {MAX_TASKS} tasks. Prefer few, substantial tasks.
 - Workers are text-only. They cannot run code, open links or change files, so every task must be answerable with a
   written result. Never plan a task that needs something to be executed, deployed or looked up live.
+- "kind" is "text" unless DEVELOPMENT below says development tasks are enabled. Then a task whose result is source
+  code is "code": the worker delivers complete files, the platform applies them to a branch of the repository and
+  runs the project's tests itself, and a person approves the merge. List in "files" the existing repository paths
+  the worker needs to see (at most 12). Make acceptance criteria of a code task checkable in the delivered files.
 - Assign by specialty. Never assign to a worker whose mode is DISABLED.
 - A worker receives the approved results of the tasks in depends_on. Tasks that do not need each other's results
   must not depend on each other.
@@ -128,6 +132,22 @@ class PlannedTask(BaseModel):
     timeout_seconds: int | None = Field(default=None, ge=60, le=7200)
     acceptance_criteria: list[str] = Field(min_length=1, max_length=6)
     critical_operation: str | None = None
+    kind: Literal["text", "code"] = "text"
+    files: list[str] = Field(default_factory=list, max_length=12)
+
+    @field_validator("kind", mode="before")
+    @classmethod
+    def _kind(cls, v: Any) -> Any:
+        return "text" if v in (None, "") else str(v).strip().lower()
+
+    @field_validator("files")
+    @classmethod
+    def _files(cls, v: list[Any]) -> list[str]:
+        out = [str(x).strip().removeprefix("./") for x in v if str(x).strip()]
+        for p in out:
+            if p.startswith("/") or ".." in p.split("/") or ".git" in p.split("/"):
+                raise ValueError(f"file {p!r} must be a path inside the repository")
+        return out[:12]
 
     @field_validator("worker", mode="before")
     @classmethod
@@ -154,9 +174,11 @@ class Plan(BaseModel):
     summary: str = Field(default="", max_length=2000)
     tasks: list[PlannedTask] = Field(min_length=1, max_length=MAX_TASKS)
 
-    def check(self, worker_labels: set[str]) -> None:
+    def check(self, worker_labels: set[str], *, development: bool = False) -> None:
         """Graph and roster checks that the schema cannot express. Raises ValueError with a message the Manager can
         act on."""
+        if not development and any(t.kind == "code" for t in self.tasks):
+            raise ValueError('development tasks are not enabled: every task must have "kind": "text"')
         keys = [t.key for t in self.tasks]
         if len(set(keys)) != len(keys):
             raise ValueError("duplicate task keys")
@@ -270,10 +292,11 @@ def analyze_user(objective: str, error: str | None = None) -> str:
     return text
 
 
-def plan_user(objective: str, analysis: dict[str, Any], roster: list[dict[str, Any]], error: str | None = None
-              ) -> str:
+def plan_user(objective: str, analysis: dict[str, Any], roster: list[dict[str, Any]], error: str | None = None,
+              development: str | None = None) -> str:
     text = (f"OBJECTIVE:\n{objective}\n\nANALYSIS (yours, from the previous step):\n"
-            f"{json.dumps(analysis, ensure_ascii=False)}\n\nWORKERS:\n{roster_lines(roster)}")
+            f"{json.dumps(analysis, ensure_ascii=False)}\n\nWORKERS:\n{roster_lines(roster)}"
+            f"\n\nDEVELOPMENT:\n{development or 'Development tasks are NOT enabled: every task is kind text.'}")
     if error:
         text += f"\n\nYour previous reply was rejected: {error}\nReply again with corrected JSON only."
     return text

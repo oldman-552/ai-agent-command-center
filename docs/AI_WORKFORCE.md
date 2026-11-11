@@ -18,10 +18,11 @@ Decision records: ADR-032 (Arena Local Bridge) and ADR-033 (workforce) in
 
 ## 1. The pages
 
-Open **AI Workforce** in the navigation (second item).
+Open **AI Workforce** in the navigation (second item). It opens on the **Operations room**.
 
 | Page | What it is for |
 |---|---|
+| **Operations room** `/workforce/room` | The team as a live map: you → Manager → queue → the four workers → review → done. Each worker's ring shows the step of its current task; click a worker to see its screen (the task's steps, an Automatic worker's output as it streams, a person's pasted result, the platform's check of code). "Needs you" lets you accept a result or approve a merge on the spot. Also: today's timeline, a day summary, a big-screen mode for a wall display, optional sounds, and a background that reacts to what the team does. Effects fire only on real changes between two readings. |
 | **Overview** `/workforce` | Write the prompt. See what waits for you, the Manager, the four workers and the latest objectives. |
 | **Tasks** `/workforce/tasks` | The board of all tasks, with queues and filters. Open a task to work on it. |
 | **Manager & workers** `/workforce/workers` | Choose the Manager's model. Set each worker's mode, provider, session and person. |
@@ -195,6 +196,33 @@ In a person's review you can **approve**, **ask for changes** or **reject**. A n
 **The same HTTP answer is never enough.** A worker that returns "200 OK" with an empty or unusable text has not
 completed anything.
 
+### Development tasks (code) — WF-14
+
+Workers are text-only, so code reaches the project through the platform, never through the worker. Turn it on in
+**Manager & workers → Development tasks**: tick *Enable development tasks* and give the test command the platform
+runs (for example `python3 -m pytest -q`; only commands on the sandbox allow-list are accepted). Then:
+
+1. The Manager may plan a task as **code** and name repository files the worker needs to see. The worker's message
+   (the same for a model and for a person) explains the delivery format and lists the repository.
+2. The worker delivers every created or changed file **in full**, each in a block that starts with
+   ```` ```file:<path> ```` (or `delete:<path>` to delete a file).
+3. The platform applies exactly that version to the task's own branch `agent/<worker>/task-<id>`, on top of the
+   main branch as it is now, commits it, and runs the test command in the sandbox (no network, resource limits).
+4. No file blocks, an unsafe path, no change, or failing tests: the result goes back for revision with the
+   platform's own output. **No model is asked** in that case.
+5. Tests passed (or no test command is set): the Manager reviews as usual. Accepting the result does **not** merge
+   it — it requests **Merge … into main** in the Approval Center for exactly the tested commit. As for critical tasks,
+   the person who submitted the result cannot approve it.
+6. Only after that approval does the platform merge. If the merge fails (the main branch changed meanwhile), the task
+   goes back for revision with the reason; the next version is applied on top of the new main branch.
+
+A code task whose tests really ran and passed on the accepted version is the only thing that lands in the report's
+class **Verified by the platform**. Without a test command the code is still applied and merged after approval, but it
+is never classified *Verified*.
+
+The merge goes into the platform's own copy of the project repository (`<WORKSPACES_DIR>/<org>/<project>/repo`). Opening
+a GitHub pull request for workforce code tasks is not built yet.
+
 ### Critical tasks
 
 A task can carry a critical operation, for example a production deployment or a public release. For such a task:
@@ -223,7 +251,7 @@ is not taken from any model's text.
 
 | Class | Meaning |
 |---|---|
-| **Verified by the platform** | The platform itself checked the result (for example, tests ran). **Nothing produces this class yet** — see section 12. |
+| **Verified by the platform** | The platform itself checked the result: the files of a code task were applied to its branch and the project's tests passed on exactly the accepted version (see *Development tasks*). Text results never land here. |
 | **Approved by a person** | A person accepted this exact version. |
 | **Worker proposals** | The Manager accepted it. No person and no automatic check confirmed it. |
 | **Unverified claims** | Accepted although a criterion was not shown to be met, or with no evidence. |
@@ -339,7 +367,7 @@ For Automatic workers without Arena, developers can start the **fake bridge**
 | The Manager on a real Claude model (WF-21) | **Not run.** Run `REAL-TESTS.bat`, choice 1, with your API key. |
 | Automatic workers on a real Arena Local Bridge with four accounts (WF-20) | **Not run.** Run `REAL-TESTS.bat`, choice 2. |
 | The Windows scripts (WF-17) | Checked as text only. **Never executed**: no Windows and no Docker were available. |
-| Development tasks from text workers: files applied to a git worktree, tests run by the platform (WF-14) | **Not implemented.** This is why the class *Verified* is always empty. |
+| Development tasks (WF-14) | Built and tested with the mock Manager, people's submissions, real git and the real Docker sandbox. **Not run** with a real model or Arena worker writing the code. GitHub pull requests for these tasks are not opened (the merge is local). |
 | Colour contrast of Arabic text | Not covered by the automated accessibility check. The same colours are checked on the English pages. |
 
 Limits that come from the bridge and cannot be fixed in the platform:

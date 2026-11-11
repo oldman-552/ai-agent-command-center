@@ -21,7 +21,7 @@ type NavKey = "dashboard" | "workforce" | "projects" | "agents" | "teams" | "tas
   "analytics" | "audit" | "settings";
 const NAV: { href: string; key: NavKey; icon: LucideIcon; perm?: string }[] = [
   { href: "/", key: "dashboard", icon: LayoutDashboard },
-  { href: "/workforce", key: "workforce", icon: Waypoints, perm: "workforce.read" },
+  { href: "/workforce/room", key: "workforce", icon: Waypoints, perm: "workforce.read" },
   { href: "/projects", key: "projects", icon: FolderKanban, perm: "projects.read" },
   { href: "/agents", key: "agents", icon: Bot },
   { href: "/teams", key: "teams", icon: Users, perm: "teams.read" },
@@ -51,7 +51,8 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <ul className="flex flex-col gap-1">
       {NAV.filter((n) => !n.perm || can(n.perm)).map(({ href, key, icon: Icon }) => {
-        const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+        const section = href.startsWith("/workforce") ? "/workforce" : href;  // every AI Workforce page
+        const active = href === "/" ? pathname === "/" : pathname.startsWith(section);
         return (
           <li key={href}>
             <Link

@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import type { Lifecycle, Mode } from "@/lib/workforce";
 
 const TABS = [
+  { href: "/workforce/room", key: "room" },
   { href: "/workforce", key: "overview" },
   { href: "/workforce/tasks", key: "tasks" },
   { href: "/workforce/workers", key: "workers" },

@@ -1633,8 +1633,8 @@
           "depends": [
             "WF-11"
           ],
-          "status": "pending",
-          "evidence": ""
+          "status": "done",
+          "evidence": "pytest tests/test_workforce_devtasks.py 11 passed (real git + real Docker sandbox): file blocks applied to agent/<worker>/task-<id>, tests run in the sandbox, failing/unusable results returned with the platform's output, accepted code requests git.merge_protected for the tested head and merges only after a person approves; verified class only on passed tests. E2E workforce-room.spec ar/en passed (code task delivered by a person, applied, tested, merge request in Needs you). Whole backend 977 passed, browser suite 76/76. Tier: mock Manager, no real model writing code."
         },
         {
           "id": "WF-15",
@@ -1768,7 +1768,7 @@
     "Sandbox image here was built offline (debootstrap + docker import); docker/sandbox/Dockerfile (ubuntu:24.04 base) must be built and verified on the owner's machine",
     "SEC-08: container image scanning (Trivy) is scripted but has never run — Trivy and vulnerability feeds are unreachable here; run scripts/security-scan.sh --strict on the owner's machine/CI",
     "GitHub integration verified against an in-memory HTTP fake + local bare remote only (github.com unreachable here); verify against a real repository on the owner's machine",
-    "AI Workforce: WF-14 (development tasks from text workers: files into a worktree, tests run by the platform, protected merge) is not built; the result class 'verified' is therefore always empty",
+    "AI Workforce: WF-14 code tasks are tested only with the mock Manager and people's submissions; a real model or Arena worker writing code was never run, and workforce merges go into the platform's local project repository (no GitHub pull request yet)",
     "AI Workforce: never run against a real Claude model (WF-21) or a real Arena Local Bridge with four accounts (WF-20); REAL-TESTS.bat exists for it and was itself never executed",
     "Windows scripts (INSTALL/START/STOP/UPDATE/HEALTH-CHECK/RESET/REAL-TESTS.bat, scripts/windows/acc.ps1) were checked as text only; never executed (no Windows, no Docker)",
     "Arena Local Bridge limits that the platform cannot fix: it does not name the account that answered (bindings are configuration, not proof), reports no usage, runs one request at a time, and an abandoned request keeps running inside it",

@@ -45,8 +45,10 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
   Frontend: `src/app/(app)/workforce/*`, `src/components/workforce/*`, `src/lib/workforce.ts`.
 - The Arena site of the Browser Bridge is gone (ADR-032); Arena is reached only through Arena Local Bridge.
 - **Not verified, owner only:** WF-20 (real bridge, four accounts), WF-21 (real Claude Manager) — `REAL-TESTS.bat`;
-  WF-17 real run of the Windows scripts. **Not built:** WF-14 (file blocks from text workers into a worktree; the
-  report class `verified` stays empty until then).
+  WF-17 real run of the Windows scripts. WF-14 is built (ADR-034, `app/workforce/devtasks.py`): file blocks
+  from text workers are applied to the task branch, tested in the sandbox and merged only after approval.
+- Operations Room `/workforce/room` (the AI Workforce entry in the navigation): live map, worker screen, timeline,
+  day summary, big screen, optional sounds and a reactive background, all from persisted state.
 - This session had **no Docker and no Windows**. `scripts/dev/no-docker/` builds PostgreSQL, Redis, RabbitMQ, Python
   and Chromium as user processes: `toolchain.sh all`, `infra.sh up`, `test-backend.sh`, `e2e-stack.sh up`
   (see `docs/DEVELOPMENT.md`). Docker-dependent tests fail or skip there; they are not regressions.
@@ -110,8 +112,7 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - The dev DB is disposable; the super admin password in the dev container is `dev-only-password-123` (backend/.env, not committed).
 
 ### Next steps (in order)
-0. AI Workforce: WF-14 (development tasks from text workers) is the only unbuilt requirement. WF-20, WF-21 and the
-   real run of WF-17 need the owner's machine (`REAL-TESTS.bat`, `HEALTH-CHECK.bat`).
+0. AI Workforce: every requirement is built. WF-20, WF-21 and the real run of WF-17 need the owner's machine (`REAL-TESTS.bat`, `HEALTH-CHECK.bat`).
 1. Remaining items need the owner (see docs/RELEASE_READINESS.md): GW-10 live API call, FI-06 real provider +
    GitHub run, SEC-08 Trivy image scan, FI-01 real Windows run. Everything else is implemented and verified; keep
    docs in sync (`scripts/gen-docs.py` for API/schema).

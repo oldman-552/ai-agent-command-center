@@ -154,6 +154,7 @@ function TaskBody({ d }: { d: TaskDetail }) {
         )}
       </Section>
 
+      {d.development && <DevCheckSection d={d} />}
       {d.brief && <Brief d={d} />}
       <Work d={d} />
       {d.can.review && latest && latest.decision === null && <ReviewBox d={d} sub={latest} />}
@@ -455,5 +456,37 @@ function SubmissionCard({ s, criteria }: { s: Submission; criteria: string[] }) 
         </div>
       )}
     </article>
+  );
+}
+
+/** WF-14: what the platform did with a code result — the branch, the files, the tests and the merge. */
+function DevCheckSection({ d }: { d: TaskDetail }) {
+  const t = useTranslations("workforce.dev");
+  const dev = d.development!;
+  const c = dev.last_check;
+  const tests = c?.tests;
+  return (
+    <Section title={t("card")} testid="wf-dev-check">
+      <div className="flex flex-col gap-2 text-sm">
+        {c && (
+          <p className={c.ok ? "font-medium text-success" : "font-medium text-destructive"}>
+            {t.has(`code.${c.code}`) ? t(`code.${c.code}`) : c.code}
+          </p>
+        )}
+        {dev.worktree && (
+          <p><span className="text-muted-foreground">{t("branch")}: </span>
+            <span className="font-mono text-xs" dir="ltr">{dev.worktree.branch} · {dev.worktree.head_commit?.slice(0, 12) ?? "—"}</span></p>
+        )}
+        {c?.files && c.files.length > 0 && (
+          <div><p className="text-muted-foreground">{t("files")}</p>
+            <ul className="font-mono text-xs" dir="ltr">{c.files.map((f) => <li key={f.path}>{f.action === "delete" ? "−" : "+"} {f.path}</li>)}</ul></div>
+        )}
+        <p><span className="text-muted-foreground">{t("tests")}: </span>
+          {tests?.ran ? (tests.passed ? t("passed") : t("failed")) : t("notRun")}
+          {tests?.command && <span className="ms-2 font-mono text-xs" dir="ltr">{tests.command.join(" ")}</span>}</p>
+        {tests?.output && <pre className="max-h-56 overflow-auto rounded-md bg-muted p-3 text-xs" dir="ltr">{tests.output}</pre>}
+        {dev.merged?.into && <p className="font-medium text-success">{t("merged", { into: dev.merged.into })}</p>}
+      </div>
+    </Section>
   );
 }
