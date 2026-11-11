@@ -45,9 +45,11 @@ export type Manager = {
   configured: boolean; problem: string | null; agent_id: number | null; name?: string; model?: Route | null;
   fallback?: Route | null; instructions?: string; timeout_seconds?: number; is_mock?: boolean;
 };
+export type Development = { enabled: boolean; test_command: string[] | null; timeout_seconds: number;
+  allowed_test_commands: string[] };
 export type Workforce = {
   id: number; name: string; project_id: number | null; review_policy: "manager" | "human"; max_revisions: number;
-  manager: Manager; workers: Worker[];
+  manager: Manager; workers: Worker[]; development: Development;
   accounts: { automatic_workers: number; deterministic: number; pooled: number; unknown: number;
     distinct_accounts: number; shared_accounts: string[][]; attested: false };
 };
@@ -85,7 +87,7 @@ export type TaskCard = {
   mode: Mode | null; assignment_source: string | null;
   worker: { id: number; label: string; slot: number; name: string | null; mode: Mode; assignee_user_id: number | null } | null;
   attempts: number; max_attempts: number; required_skills: string[]; criteria: number;
-  critical_operation: string | null; needs_human_review: boolean; review_reason: string | null;
+  critical_operation: string | null; kind?: "text" | "code"; needs_human_review: boolean; review_reason: string | null;
   waiting: { reason: string; since: string } | null;
   fallback: { reason: string; note?: string | null } | null;
   accepted_by: { id: number; username: string } | null; approval_id: number | null; error: string | null;
@@ -125,7 +127,23 @@ export type TaskDetail = TaskCard & {
   transitions: Transition[]; submissions: Submission[]; pending_attachments: Attachment[];
   limits: { content_chars: number; notes_chars: number; attachments: number; attachment_bytes: number; extensions: string[] };
   brief?: { message: string; sha256: string; chars: number };
+  development?: DevInfo;
 };
+export type DevCheck = {
+  ok: boolean; code: string; feedback: string; needs_human?: boolean;
+  files?: { path: string; action: "write" | "delete"; bytes: number | null }[];
+  worktree_id?: number; branch?: string; base_branch?: string; base_commit?: string; head_commit?: string | null;
+  tests?: { ran: boolean; passed?: boolean; command?: string[]; exit_code?: number; timed_out?: boolean;
+    duration_s?: number; output?: string; error?: string } | null;
+};
+export type DevInfo = {
+  files_shown: string[];
+  worktree: { id: number; branch: string; base_branch: string; status: string; head_commit: string | null;
+    modified_files: string[]; conflicts: Record<string, unknown>[]; merged_at: string | null } | null;
+  last_check: DevCheck | null; last_check_version: number | null;
+  merged: { merged?: string; into?: string; merge_commit?: string } | null;
+};
+export type ExecEvent = { seq: number; ts: string; type: string; payload: Record<string, unknown> };
 export type TaskList = { total: number; tasks: TaskCard[]; lifecycles: Lifecycle[] };
 
 export type ReportItem = {
@@ -264,6 +282,9 @@ export const useWfTasks = (f: TaskFilters) =>
   });
 export const useWfTask = (id?: number) =>
   useQuery({ queryKey: ["wf-task", id], queryFn: () => api<TaskDetail>(`${W}/tasks/${id}`), enabled: !!id, refetchInterval: 5_000 });
+export const useExecEvents = (id: string | null | undefined, after: number) =>
+  useQuery({ queryKey: ["exec-events", id, after], enabled: !!id, refetchInterval: 2_000,
+    queryFn: () => api<ExecEvent[]>(`/api/executions/${id}/events?after=${after}&limit=500`) });
 export const useBridges = () =>
   useQuery({ queryKey: ["wf-bridges"], queryFn: () => api<BridgeList>(`${W}/bridges`), refetchInterval: 15_000 });
 
@@ -278,6 +299,8 @@ export function useWorkforceActions() {
   return {
     setup: m((_: void) => send<WorkforceOverview>(`${W}/setup`)),
     updateManager: m((patch: Record<string, unknown>) => send<WorkforceOverview>(`${W}/manager`, patch, "PATCH")),
+    updateDevelopment: m((patch: { enabled?: boolean; test_command?: string[] | null; timeout_seconds?: number }) =>
+      send<Workforce>(`${W}/development`, patch, "PATCH")),
     updateWorker: m(({ id, patch }: { id: number; patch: Record<string, unknown> }) =>
       send<Worker>(`${W}/workers/${id}`, patch, "PATCH")),
     submitObjective: m((b: { prompt: string; title?: string; review_policy?: "manager" | "human" }) =>

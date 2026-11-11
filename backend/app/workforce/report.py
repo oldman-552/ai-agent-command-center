@@ -137,6 +137,10 @@ def _facts(wf: Workflow, items: list[dict[str, Any]]) -> list[str]:
                      f"(sha256 {s['sha256'][:12]}…) was delivered {how} for {i['worker'] or 'no worker'}"
                      f" and accepted by {s['decided_by']}"
                      + (f" at {s['decided_at']}" if s["decided_at"] else "") + ".")
+    for i in items:
+        if i["class"] == "verified":
+            facts.append(f"Task #{i['task_id']} “{i['title']}”: the platform applied the delivered files to a branch "
+                         "and ran the project's tests on exactly the accepted version; they passed.")
     if not by_class["verified"]:
         facts.append("The platform did not check the content of any result itself: the workers are text-only and "
                      "nothing was executed or tested.")

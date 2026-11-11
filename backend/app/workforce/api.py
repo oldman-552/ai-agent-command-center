@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, or_, select
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.config import get_settings
 from app.connectivity.arena_bridge import service as bridge
@@ -33,12 +34,13 @@ from app.models import (
     Workflow,
     WorkforceReport,
     WorkforceWorker,
+    Worktree,
 )
 from app.models import TaskLifecycle as L
 from app.security.audit import log_activity
 from app.security.auth import DB, require
 from app.security.tenancy import get_scoped
-from app.workforce import control, history, human, lifecycle, report, review, scheduler, service
+from app.workforce import control, devtasks, history, human, lifecycle, report, review, scheduler, service
 from app.workforce.scheduler import KIND
 
 router = APIRouter(prefix="/api/workforce", tags=["workforce"])
@@ -138,6 +140,32 @@ def update_manager(body: ManagerPatch, db: DB, user: User = Depends(require("wor
     except service.ConfigError as e:
         db.rollback()
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
+    db.commit()
+    return service.workforce_out(db, wf)
+
+
+class DevelopmentPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool | None = None
+    test_command: list[str] | None = Field(default=None, max_length=64)  # null or [] = no tests
+    timeout_seconds: int | None = Field(default=None, ge=30, le=1800)
+
+
+@router.patch("/development")
+def update_development(body: DevelopmentPatch, db: DB, user: User = Depends(require("workforce.manage"))) -> dict:
+    """WF-14: development tasks on or off, and the test command the platform runs in the sandbox. The command must
+    pass the sandbox's `shell.test` allow-list."""
+    wf = _force(db, user)
+    try:
+        dev = devtasks.update_settings(
+            wf, enabled=body.enabled, timeout_seconds=body.timeout_seconds,
+            test_command=body.test_command if "test_command" in body.model_fields_set else "keep")
+    except devtasks.DevTaskError as e:
+        db.rollback()
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
+    flag_modified(wf, "settings")
+    log_activity(db, "workforce.development_updated", category="workforce", level="warning",
+                 organization_id=user.organization_id, user_id=user.id, details=dev.out())
     db.commit()
     return service.workforce_out(db, wf)
 
@@ -337,6 +365,7 @@ def card(db, t: Task, user: User | None = None) -> dict[str, Any]:
                     "mode": w.mode, "assignee_user_id": w.assignee_user_id} if w else None),
         "attempts": t.attempts, "max_attempts": t.max_attempts, "required_skills": t.required_skills or [],
         "criteria": len(t.acceptance_criteria or []), "critical_operation": t.critical_operation,
+        "kind": result.get("kind") or "text",
         "needs_human_review": _needs_human(sub),
         "review_reason": (sub.review or {}).get("reason") if _needs_human(sub) else None,
         "waiting": result.get("waiting") if t.lifecycle in (L.READY.value, L.REVISION_REQUESTED.value) else None,
@@ -436,6 +465,17 @@ def get_task(task_id: int, db: DB, user: User = Depends(require("workforce.read"
         limits={"content_chars": human.MAX_CONTENT_CHARS, "notes_chars": human.MAX_NOTES_CHARS,
                 "attachments": human.MAX_ATTACHMENTS, "attachment_bytes": get_settings().workforce_attachment_max_bytes,
                 "extensions": sorted(human.ALLOWED_EXTENSIONS)})
+    if devtasks.is_dev_task(t):
+        wt = db.scalar(select(Worktree).where(Worktree.task_id == t.id).order_by(Worktree.id.desc()).limit(1))
+        last = scheduler.latest_submission(db, t.id)
+        check = dict((last.review or {}).get("dev") or {}) if last else {}
+        out["development"] = {
+            "files_shown": (t.result or {}).get("files") or [],
+            "worktree": ({"id": wt.id, "branch": wt.branch, "base_branch": wt.base_branch, "status": wt.status,
+                          "head_commit": wt.head_commit, "modified_files": wt.modified_files,
+                          "conflicts": wt.conflicts, "merged_at": wt.merged_at} if wt else None),
+            "last_check": check or None, "last_check_version": last.version if last and check else None,
+            "merged": (t.result or {}).get("merged")}
     if t.lifecycle in (L.WAITING_FOR_ACCEPTANCE.value, L.ACCEPTED.value):
         agent = db.get(Agent, t.assigned_agent_id) if t.assigned_agent_id else None
         b = scheduler.brief(db, t, agent)

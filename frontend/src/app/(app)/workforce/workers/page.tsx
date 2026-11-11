@@ -36,6 +36,7 @@ export default function WorkforceWorkersPage() {
       {force && (
         <>
           <ManagerCard force={force} onEdit={manage ? () => setEditManager(true) : undefined} />
+          <DevelopmentCard force={force} manage={manage} />
           <section aria-labelledby="wf-workers-h" className="flex flex-col gap-3">
             <h2 id="wf-workers-h" className="text-lg font-semibold">{t("workers.four")}</h2>
             <ul className="grid gap-3 md:grid-cols-2">
@@ -361,5 +362,50 @@ function WorkerDialog({ w, options, onClose }: { w: Worker; options: Options; on
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** WF-14: development tasks — on/off and the test command the platform runs in the sandbox. */
+function DevelopmentCard({ force, manage }: { force: Workforce; manage: boolean }) {
+  const t = useTranslations("workforce.dev");
+  const a = useWorkforceActions();
+  const fail = useFail();
+  const toast = useToasts((s) => s.push);
+  const dev = force.development;
+  const [enabled, setEnabled] = useState(dev.enabled);
+  const [command, setCommand] = useState((dev.test_command ?? []).join(" "));
+  const [timeout, setTimeoutS] = useState(String(dev.timeout_seconds));
+  const save = (e: React.FormEvent) => {
+    e.preventDefault();
+    const argv = command.trim() ? command.trim().split(/\s+/) : null;
+    a.updateDevelopment.mutate({ enabled, test_command: argv, timeout_seconds: Number(timeout) || 600 },
+      { onError: fail, onSuccess: () => toast("success", t("saved")) });
+  };
+  return (
+    <section aria-labelledby="wf-dev-h">
+      <Card className="flex flex-col gap-3 p-5" data-testid="wf-development">
+        <h2 id="wf-dev-h" className="text-lg font-semibold">{t("title")}</h2>
+        <p className="text-sm text-muted-foreground">{t("help")}</p>
+        <form onSubmit={save} className="flex flex-col gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="size-4" checked={enabled} disabled={!manage} onChange={(e) => setEnabled(e.target.checked)} />
+            {t("enabled")}
+          </label>
+          <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="wf-dev-cmd">{t("command")}</Label>
+              <Input id="wf-dev-cmd" dir="ltr" value={command} disabled={!manage} onChange={(e) => setCommand(e.target.value)} placeholder={t("commandPlaceholder")} />
+              <p className="text-xs text-muted-foreground">{t("commandHelp", { allowed: dev.allowed_test_commands.join(" · ") })}</p>
+              {!command.trim() && <p className="text-xs text-warning">{t("none")}</p>}
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="wf-dev-timeout">{t("timeout")}</Label>
+              <Input id="wf-dev-timeout" type="number" min={30} max={1800} dir="ltr" value={timeout} disabled={!manage} onChange={(e) => setTimeoutS(e.target.value)} />
+            </div>
+          </div>
+          {manage && <Button type="submit" className="w-fit" disabled={a.updateDevelopment.isPending}>{t("save")}</Button>}
+        </form>
+      </Card>
+    </section>
   );
 }

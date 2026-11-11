@@ -3,6 +3,27 @@
 All notable changes. The project follows the milestones of the master specification (v4.0); requirement IDs refer
 to `docs/requirements.json`.
 
+## Unreleased — 2026-11-11 — Operations room and development tasks (WF-14)
+
+### Added
+- **Development tasks from text workers (WF-14, ADR-034).** `PATCH /api/workforce/development` turns them on and sets
+  the sandbox test command (allow-listed argv only). The Manager may plan `kind: "code"` tasks and name repository files
+  to show; the brief explains the ```` ```file:<path> ```` format and lists the repository. The platform applies each
+  version to `agent/<worker>/task-<id>` on top of the current main branch, commits, runs the tests in the Docker sandbox,
+  and sends failing or unusable results back with its own output (no model asked). An accepted code result requests
+  `git.merge_protected` for exactly the tested commit; the task completes only when a person approves and the merge
+  succeeds, otherwise it returns for revision with the reason. The report's `verified` class is now reachable (tests
+  passed on the accepted version). Task card: *Platform check of the code*. Settings: *Manager & workers →
+  Development tasks*.
+- **Operations room** (`/workforce/room`, now the AI Workforce entry in the navigation): live map of you → Manager →
+  queue → workers → review → done with per-worker colours and step rings; "Needs you" with inline accept and merge
+  approval; the worker's screen (task steps, an Automatic worker's streamed output, a person's pasted result, the
+  platform's code check); today's timeline from the task history; day summary; big-screen mode; optional sounds; a
+  background that reacts to the team. Effects fire only on real changes between two readings.
+
+### Fixed
+- `test_workforce_workers`: a binding-change assertion depended on the order of audit rows written in the same reading.
+
 ## Unreleased — 2026-11-11 — AI Workforce
 
 ### Removed

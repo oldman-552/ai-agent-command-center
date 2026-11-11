@@ -27,12 +27,13 @@ from sqlalchemy import select
 from app.connectivity.gateway.base import ChatRequest, ProviderError, ProviderUnavailable
 from app.connectivity.gateway.service import _routes, build_adapter, record_usage
 from app.db import session_factory
-from app.models import Agent, ManagerStep, Task, TaskDependency, Workflow, Workforce, WorkforceWorker
+from app.devplane import worktrees
+from app.models import Agent, ManagerStep, Project, Task, TaskDependency, Workflow, Workforce, WorkforceWorker
 from app.models import TaskLifecycle as L
 from app.orchestration.planner import _pg_url
 from app.security.audit import log_activity
 from app.security.crypto import redact
-from app.workforce import lifecycle, prompts, service
+from app.workforce import devtasks, lifecycle, prompts, service
 
 log = logging.getLogger("workforce.manager")
 
@@ -210,6 +211,21 @@ def _after_analyze(state: PlanState) -> str:
     return "plan" if state.get("analysis") else "give_up"
 
 
+def development_note(db, wf: Workflow) -> str | None:
+    """What the Manager is told about development tasks: on or off, the test command, the repository's files."""
+    dev = devtasks.settings_of(devtasks.force_of(db, wf))
+    if not dev.enabled or not wf.project_id:
+        return None
+    project = db.get(Project, wf.project_id)
+    if project is None:
+        return None
+    listing = devtasks.repository_listing(worktrees.ensure_repo(project))
+    cmd = " ".join(dev.test_command) if dev.test_command else "none configured (results are applied, not tested)"
+    files = "\n".join(f"- {p}" for p in listing[:200]) or "- (empty repository)"
+    return (f"Development tasks are ENABLED. Repository of project “{project.name}”, base branch "
+            f"{project.default_branch}. Test command run by the platform: {cmd}.\nFiles:\n{files}")
+
+
 async def plan(state: PlanState) -> PlanState:
     with session_factory()() as db:
         wf = db.get(Workflow, state["workflow_id"])
@@ -217,7 +233,8 @@ async def plan(state: PlanState) -> PlanState:
         try:
             call = await ask(db, wf, "plan", prompts.PLAN_SYSTEM,
                              prompts.plan_user(wf.objective, state["analysis"], roster(db, wf.workforce_id),
-                                               state.get("error")), attempt=attempt)
+                                               state.get("error"), development=development_note(db, wf)),
+                             attempt=attempt)
         except ManagerFailed as e:
             return {"raw": "", "step_id": None, "error": str(e), "attempt": prompts.MAX_ATTEMPTS}
         return {"raw": call.text, "step_id": call.step_id, "attempt": attempt, "error": None}
@@ -231,7 +248,7 @@ async def validate(state: PlanState) -> PlanState:
         labels = {w["label"] for w in roster(db, wf.workforce_id)}
         try:
             parsed = prompts.parse(prompts.Plan, state["raw"])
-            parsed.check(labels)
+            parsed.check(labels, development=devtasks.settings_of(devtasks.force_of(db, wf)).enabled)
         except ValueError as e:
             if state.get("step_id"):
                 mark_invalid(db, state["step_id"], str(e))
@@ -265,7 +282,8 @@ async def assign(state: PlanState) -> PlanState:
                          lifecycle=L.PLANNED.value, critical_operation=pt.critical_operation,
                          assigned_agent_id=w["agent_id"], assignment_source="plan",
                          created_by_user_id=wf.created_by_user_id, idempotency_key=f"workforce:{wf.id}:{pt.key}",
-                         result={"plan_key": pt.key, "planned_worker": pt.worker})
+                         result={"plan_key": pt.key, "planned_worker": pt.worker,
+                                 **({"kind": "code", "files": pt.files} if pt.kind == "code" else {})})
                 db.add(t)
                 by_key[pt.key] = t
             db.flush()

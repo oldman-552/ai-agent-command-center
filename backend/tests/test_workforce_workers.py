@@ -158,9 +158,10 @@ def test_pooled_shared_and_unknown_bindings_are_reported_as_such(admin_client, d
     w1 = workers(admin_client)[0]
     assert w1["account_binding"]["account_usable"] is False
     assert w1["status"] == {"state": "fallback", "reason": "account_unavailable"}
-    change = db.scalar(select(AuditLog).where(AuditLog.action == "workforce.worker_binding_changed")
-                       .order_by(AuditLog.id.desc()))
-    assert change is not None and change.details["slot"] in (1, 3)
+    # the latest health reading may record several workers' changes (the pooled W2 can change too): look at all
+    changes = db.scalars(select(AuditLog).where(AuditLog.action == "workforce.worker_binding_changed")
+                         .order_by(AuditLog.id.desc()).limit(4)).all()
+    assert any(c.details["slot"] in (1, 3) for c in changes)
 
 
 def test_worker_status_says_why_an_automatic_worker_cannot_work(admin_client, db, force, fake_bridge):

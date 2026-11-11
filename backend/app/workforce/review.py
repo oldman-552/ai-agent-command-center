@@ -31,7 +31,7 @@ from app.models import Approval, Task, TaskSubmission, User, Workflow, Workforce
 from app.models import TaskLifecycle as L
 from app.security.audit import log_activity
 from app.security.crypto import contains_credential
-from app.workforce import manager, prompts
+from app.workforce import devtasks, manager, prompts
 from app.workforce.lifecycle import move
 from app.workforce.scheduler import KIND, latest_submission, reopen_if_needed, request_tick
 
@@ -89,6 +89,16 @@ def outcome_of(verdict: prompts.Verdict | None, *, content_ok: bool, flagged: bo
     if verdict.decision == "reject":
         return {**base, "outcome": "reject"}
     return {**base, "outcome": "needs_human", "reason": "manager_escalated"}
+
+
+def dev_outcome(dev: dict[str, Any], *, used: int, limit: int) -> dict[str, Any]:
+    """The decision when the platform's own development check failed. Pure."""
+    if dev.get("needs_human"):
+        return {"outcome": "needs_human", "reason": f"development:{dev['code']}", "dev_code": dev["code"]}
+    if used < limit:
+        return {"outcome": "revise", "overridden": "dev_check_failed", "dev_code": dev["code"]}
+    return {"outcome": "needs_human", "reason": "revision_limit_reached", "overridden": "dev_check_failed",
+            "dev_code": dev["code"]}
 
 
 async def _verdict(db: Session, wf: Workflow, task: Task, sub: TaskSubmission) -> tuple[prompts.Verdict | None,
@@ -153,8 +163,12 @@ async def review_submission(db: Session, submission_id: int) -> str:
     content_ok = bool(sub.content.strip()) and len(sub.content) <= MAX_CONTENT_CHARS
     flagged = prompts.looks_like_injection(sub.content)
     secret = contains_credential(sub.content)
+    # WF-14: a development task is applied to its branch and tested by the platform before any model is asked
+    dev = await devtasks.apply_and_test(db, task, sub) if devtasks.is_dev_task(task) and content_ok else None
     if secret:  # something shaped like a credential: it is not sent to any model — a person looks at it first
         verdict, info, problem = None, {}, "result_contains_secret_like_text"
+    elif dev is not None and not dev["ok"]:  # the platform's own check failed: no model decides over it
+        verdict, info, problem = None, {}, None
     else:
         verdict, info, problem = await _verdict(db, wf, task, sub)
 
@@ -166,12 +180,27 @@ async def review_submission(db: Session, submission_id: int) -> str:
         db.rollback()  # a person decided, or the task was cancelled, while the model was answering
         return "superseded"
     used = revisions_used(db, task.id)
-    out = outcome_of(verdict, content_ok=content_ok, flagged=flagged, policy=policy, used=used, limit=limit,
-                     problem=problem)
+    if dev is not None and not dev["ok"] and not secret:
+        out = dev_outcome(dev, used=used, limit=limit)
+    else:
+        out = outcome_of(verdict, content_ok=content_ok, flagged=flagged, policy=policy, used=used, limit=limit,
+                         problem=problem)
     earlier = sub.review or {}
+    checks = [{"check": "result_present", "passed": content_ok, "chars": len(sub.content)}]
+    if dev is not None:
+        checks.append({"check": "files_applied", "passed": bool(dev.get("head_commit")) and dev["code"] not in (
+            "no_file_blocks", "apply_failed", "no_changes"), "code": dev["code"]})
+        if dev["code"] == "merge_conflicts":
+            checks.append({"check": "merges_cleanly", "passed": False})
+        tests = dev.get("tests") or {}
+        checks.append({"check": "tests", "passed": bool(tests.get("passed")) if tests.get("ran") else None,
+                       "ran": bool(tests.get("ran")), "code": dev["code"]})
+        record = devtasks.verification_record(dev, sub)
+        if record is not None:
+            task.evidence = [*(task.evidence or []), {**record, "at": datetime.now(UTC).isoformat()}]
     sub.review = {
         **({"retries": earlier["retries"]} if earlier.get("retries") else {}),  # a person asked for this review again
-        "checks": [{"check": "result_present", "passed": content_ok, "chars": len(sub.content)}],
+        "checks": checks, **({"dev": dev} if dev is not None else {}),
         "verdict": verdict.model_dump() if verdict else None,
         # which of the Manager's quotes really occur in the submission (used by the report's classes)
         "evidence_verified": ({str(c.index): quote_in(c.evidence, sub.content) for c in verdict.criteria if c.met}
@@ -187,6 +216,8 @@ async def review_submission(db: Session, submission_id: int) -> str:
             str(i) for i in out["unmet"]) + " were not shown to be met."
     if out.get("overridden") == "empty_result":
         feedback = "The result was empty."
+    if out.get("overridden") == "dev_check_failed":
+        feedback = dev["feedback"]
     if out["outcome"] == "approve":
         _accept(db, wf, task, sub, decided_by="manager", note=verdict.summary if verdict else "")
     elif out["outcome"] == "revise":
@@ -226,7 +257,31 @@ def _accept(db: Session, wf: Workflow, task: Task, sub: TaskSubmission, *, decid
     task.error = None
     move(db, task, L.APPROVED, actor=decided_by, reason="review passed",
          details={"submission_id": sub.id, "version": sub.version, "sha256": sub.content_sha256})
-    if task.critical_operation:
+    dev = (sub.review or {}).get("dev") or {}
+    if devtasks.is_dev_task(task) and dev.get("head_commit"):
+        # WF-14: accepting code is a request to merge exactly the tested commit; only a person's approval merges it
+        requester = sub.submitted_by if (sub.submitted_by or "").startswith("user:") else "workforce"
+        tests = dev.get("tests") or {}
+        tested = ("passed" if tests.get("passed") else "FAILED") if tests.get("ran") else "not run"
+        ap = request_approval(
+            db, organization_id=task.organization_id, operation="git.merge_protected",
+            title=f"Merge {dev['branch']} into {dev['base_branch']} (task #{task.id})", requested_by=requester,
+            summary=(f"Version {sub.version} of “{task.title}”: {len(dev.get('files') or [])} file(s), "
+                     f"tests {tested}, head {str(dev['head_commit'])[:12]}"
+                     + (f" — also authorizes: {task.critical_operation}" if task.critical_operation else "")),
+            payload=devtasks.merge_payload(task, sub, dev),
+            evidence=[{"kind": "review", "by": decided_by, "note": note[:2000]},
+                      {"kind": "submission", "submission_id": sub.id, "version": sub.version,
+                       "sha256": sub.content_sha256, "mode": sub.mode, "source": sub.source, "is_mock": sub.is_mock,
+                       "submitted_by": sub.submitted_by},
+                      {"kind": "changes", "files": [f["path"] for f in dev.get("files") or []][:200],
+                       "branch": dev["branch"], "head_commit": dev["head_commit"]},
+                      {"kind": "tests", **{k: tests.get(k) for k in ("ran", "passed", "command", "exit_code",
+                                                                      "duration_s")}}],
+            agent_id=task.assigned_agent_id, project_id=task.project_id, task_id=task.id,
+            execution_id=sub.execution_id, idempotency_key=f"wf-task:{task.id}:v{sub.version}:merge")
+        task.result = {**task.result, "approval_id": ap.id}
+    elif task.critical_operation:
         payload = {"task_id": task.id, "operation": task.critical_operation, "submission_id": sub.id,
                    "version": sub.version, "content_sha256": sub.content_sha256}
         # Who asks: the person who submitted the result, when a person did the work — the Approval Center never
@@ -353,8 +408,27 @@ def _on_approval_decision(db: Session, a: Approval) -> None:
               and payload_hash(a.payload) == next((e.get("sha256") for e in a.evidence or []
                                                    if e.get("kind") == "payload"), None))
     now = datetime.now(UTC)
-    if a.status in ("approved", "executed") and intact:
-        move(db, task, L.COMPLETED, actor=actor, reason="approved in the Approval Center",
+    merge = a.operation == "git.merge_protected"
+    if merge and a.status == "approved" and intact:  # approved, but the merge itself failed (conflict, moved branch)
+        error = next((e.get("error") for e in reversed(a.evidence or []) if e.get("kind") == "execution_failed"),
+                     "the merge did not run")
+        task.review_status = "revise"
+        notes = [*(task.result or {}).get("review_notes", []), f"MERGE FAILED: {error}"]
+        task.result = {**(task.result or {}), "review_notes": notes[-10:]}
+        task.max_attempts = max(task.max_attempts, task.attempts + 1)
+        move(db, task, L.REVISION_REQUESTED, actor="system", reason=f"approved, but the merge failed: {error}"[:500],
+             details={"approval_id": a.id})
+    elif a.status in ("approved", "executed") and intact:
+        if merge:
+            done = next((e.get("result") for e in reversed(a.evidence or []) if e.get("kind") == "execution"), {})
+            task.evidence = [*(task.evidence or []), {"kind": "merge", "approval_id": a.id,
+                                                      "merged": (done or {}).get("merged"),
+                                                      "into": (done or {}).get("into"),
+                                                      "merge_commit": (done or {}).get("merge_commit"),
+                                                      "at": now.isoformat()}]
+            task.result = {**(task.result or {}), "merged": done or {}}
+        move(db, task, L.COMPLETED, actor=actor, reason=("merged after approval in the Approval Center" if merge
+                                                        else "approved in the Approval Center"),
              details={"approval_id": a.id, "submission_id": sub.id, "version": sub.version})
     elif a.status in ("approved", "executed"):
         log_activity(db, "workforce.approval_mismatch", category="workforce", level="error",

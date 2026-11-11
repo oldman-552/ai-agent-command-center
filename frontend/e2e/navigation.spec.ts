@@ -4,9 +4,9 @@ import { login, PASS } from "./helpers";
 
 test.skip(!PASS, "E2E_PASSWORD not set");
 
-// UX-01: the main navigation (the 20 items of the spec plus the AI Workforce) — every page loads, has a heading, no
+// UX-01: the main navigation (the 20 items of the spec plus the AI Workforce, which opens on its Operations Room) — every page loads, has a heading, no
 // console errors, no failed API calls.
-const PAGES = ["/", "/workforce", "/projects", "/agents", "/teams", "/tasks", "/orchestration", "/supervisor", "/executions",
+const PAGES = ["/", "/workforce/room", "/projects", "/agents", "/teams", "/tasks", "/orchestration", "/supervisor", "/executions",
   "/browser-bridge", "/integrations", "/providers", "/runtime", "/memory", "/skills", "/github", "/approvals",
   "/evaluations", "/analytics", "/audit", "/settings"];
 

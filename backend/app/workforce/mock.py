@@ -5,7 +5,8 @@ They let the whole workforce flow run in tests and demos without a model. Every 
 
 Markers a test can put into an objective or a result:
 
-    objective  `2. Title [skill] (after 1) {critical.operation} @W3`   numbered lines become the plan
+    objective  `2. Title [skill] (after 1) {critical.operation} #code <a.py,b.py> @W3`   numbered lines become the
+               plan (`#code` makes a development task, `<…>` the repository files its worker is shown)
                [[mock:analysis-garbage]]  [[mock:plan-garbage]]  [[mock:plan-cycle]]  [[mock:plan-unknown-worker]]
                [[mock:plan-bad-once]]     (invalid first, valid after the correction request)
     result     [[mock:review-fail]]  [[mock:review-fail-once]]  [[mock:review-reject]]  [[mock:review-escalate]]
@@ -21,7 +22,7 @@ from app.connectivity.gateway.base import ChatRequest
 from app.workforce.prompts import ANALYZE_MARKER, PLAN_MARKER, REPORT_MARKER, REVIEW_MARKER
 
 _LINE = re.compile(r"^\s*(\d+)[.)]\s*(.+?)\s*(?:\[([\w,\s-]+)\])?\s*(?:\(after\s*([\d,\s]+)\))?"
-                   r"\s*(?:\{([\w.]+)\})?\s*(?:@(W\d+))?\s*$")
+                   r"\s*(?:\{([\w.]+)\})?\s*(#code)?\s*(?:<([\w./,\s-]+)>)?\s*(?:@(W\d+))?\s*$")
 _ROSTER = re.compile(r"^- (W\d+) \| (.*?) \| role: (.*?) \| skills: (.*?) \| mode: (\w+)\s*$", re.MULTILINE)
 _MARK = re.compile(r"\[\[mock:[\w-]+\]\]")
 DEFAULT_STEPS = (("research", "Research"), ("engineering", "Build"), ("qa", "Check"), ("documentation", "Document"))
@@ -69,14 +70,15 @@ def plan(req: ChatRequest) -> str:
         m = _LINE.match(line)
         if not m:
             continue
-        n, title, skills, after, critical, worker = m.groups()
+        n, title, skills, after, critical, code, files, worker = m.groups()
         sk = [x.strip() for x in (skills or "").split(",") if x.strip()]
         tasks.append({"key": f"t{n}", "title": f"[MOCK] {title}", "objective": f"[MOCK] part {n} of the objective",
                       "instructions": f"[MOCK] {title}", "expected_output": "[MOCK] a written result",
                       "required_skills": sk, "worker": worker or worker_for(sk), "priority": 5,
                       "depends_on": [f"t{x.strip()}" for x in (after or "").split(",") if x.strip()],
                       "timeout_seconds": None, "acceptance_criteria": [f"[MOCK] The result addresses: {title}"],
-                      "critical_operation": critical})
+                      "critical_operation": critical, "kind": "code" if code else "text",
+                      "files": [f.strip() for f in (files or "").split(",") if f.strip()]})
     if not tasks:  # no numbered lines: one task per specialty, for the workers that exist and are not disabled
         plain = _MARK.sub("", obj).strip()[:160] or "the objective"
         made: dict[str, str] = {}

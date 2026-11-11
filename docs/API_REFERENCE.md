@@ -8,7 +8,7 @@ the `X-CSRF-Token` header equal to the `acc_csrf` cookie. Permissions are enforc
 Machine clients use scoped keys instead: A2A keys (`/api/a2a/agents/*`) and MCP keys (`/api/mcp/`).
 The live OpenAPI document is served at `/docs` and `/openapi.json` while the API runs.
 
-194 operations.
+195 operations.
 
 ## a2a
 
@@ -295,6 +295,7 @@ The live OpenAPI document is served at `/docs` and `/openapi.json` while the API
 | `DELETE` | `/api/workforce/bridges/{bridge_id}/terms` | Revoke Terms |
 | `POST` | `/api/workforce/bridges/{bridge_id}/test` | Test Bridge — Connection test with a step-by-step diagnosis, run from where the API runs. Sends nothing to Arena. |
 | `GET` | `/api/workforce/dashboard` | Dashboard |
+| `PATCH` | `/api/workforce/development` | Update Development — WF-14: development tasks on or off, and the test command the platform runs in the sandbox. The command must |
 | `PATCH` | `/api/workforce/manager` | Update Manager |
 | `POST` | `/api/workforce/objectives` | Submit Objective |
 | `GET` | `/api/workforce/objectives` | List Objectives |

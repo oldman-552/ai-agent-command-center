@@ -628,3 +628,41 @@ Manager hands it to a person — forbidding that would stop a one-person install
 The history and the result show who submitted and who accepted. Tests: `test_workforce_review.py`
 (`…only_by_a_human_approval…`, `…automatic_worker_is_requested_by_the_platform`), `test_workforce_security.py`,
 `e2e/workforce.spec.ts`.
+
+## ADR-034 — Development tasks from text workers: the platform applies, tests and merges (2026-11-11)
+**Status:** Accepted. Completes WF-14. Builds on ADR-021 (worktrees, approved merges), ADR-019 (sandbox) and ADR-033.
+Code: `backend/app/workforce/devtasks.py`, hooks in `review.py`, `scheduler.brief`, `manager.assign`.
+**Context:** Workers behind Arena Local Bridge, and people pasting into Arena, can only return text. The report's
+`verified` class needs a machine check of exactly the accepted version, so without a way to turn text into checked code
+it was always empty, and the owner's picture of "a backend worker writes code and opens a change" did not exist.
+**Decision:**
+1. **Opt-in per workforce.** `workforces.settings.development = {enabled, test_command, timeout_seconds}`, changed only
+   with `workforce.manage` (`PATCH /api/workforce/development`). The test command must pass the sandbox's `shell.test`
+   allow-list; it is an argv list, never a shell string. While off, a plan that contains a `code` task is invalid and
+   goes back to the Manager.
+2. **The plan says which tasks are code.** `PlannedTask.kind` (`text` | `code`) and `files` (at most 12 repository
+   paths to show the worker). Stored on the task as `result.kind` / `result.files`; no schema change.
+3. **One delivery format, explained in the brief.** Complete files in fenced blocks ```` ```file:<path> ````, deletions
+   as `delete:<path>`; a longer fence for files that contain ```` ``` ````. The brief adds the format, the test command
+   and the repository listing plus the requested files from the base branch, fenced as data. It is built from the base
+   branch only, so the brief and its hash are stable.
+4. **The platform applies; the worker never touches git.** Each version: reset the task's worktree to the current tip
+   of the base branch, write exactly this version's files through `worktrees.write_file` (relative paths only; no
+   `..`, no `.git`, no symlinks), commit on `agent/<worker>/task-<id>` (protected branches refused), track conflicts,
+   then run the test command in the Docker sandbox (no network, read-only root, limits).
+5. **The platform's check is deterministic and comes first.** No blocks, an unsafe path, no change or failing tests:
+   the result is sent back for revision with the platform's own output (and to a person after the revision limit). The
+   Manager is not asked. Passed (or no command): the Manager reviews as for any result.
+6. **Accepting code is a merge request, not a merge.** An accepted code result requests `git.merge_protected` for
+   exactly the tested head commit, with the submission's hash in the frozen payload. The task stays *approved* until a
+   person approves; the Approval Center's merge executor merges exactly that commit or refuses. The submitter of a
+   person's result cannot approve it. A refused merge (base moved, conflict) sends the task back with the reason.
+7. **`verified` is earned only by tests.** A `verification` evidence row is written only when tests ran; the report's
+   `verified` class needs one that passed for the accepted submission. Without a test command the code can still be
+   merged after approval, but it is classified by who accepted it, never `verified`.
+**Consequences:** Text workers can deliver code, the owner sees the tested branch and approves the merge, and the
+report can finally say *verified by the platform*. A code result costs a sandbox run per version.
+**Limits:** the merge goes into the platform's local project repository; GitHub pull requests for workforce tasks are
+not opened yet. Workers see at most 12 files plus a listing of 300 paths, so large refactors are out of reach. Tested
+with the mock Manager, people's submissions, real git and the real sandbox; **not** with a real model writing code.
+

@@ -363,6 +363,13 @@ def manager_out(db: Session, wf: Workforce) -> dict[str, Any]:
             "is_mock": bool(primary and primary["is_mock"])}
 
 
+def _development_out(wf: Workforce) -> dict[str, Any]:
+    from app.sandbox import policy
+    from app.workforce import devtasks
+    return {**devtasks.settings_of(wf).out(),
+            "allowed_test_commands": [" ".join(p) for p in policy.ALLOWED["shell.test"]]}
+
+
 def workforce_out(db: Session, wf: Workforce) -> dict[str, Any]:
     pairs = [(w, db.get(Agent, w.agent_id)) for w in workers(db, wf.id)]
     busy = load(db, [a.id for _, a in pairs])
@@ -370,6 +377,7 @@ def workforce_out(db: Session, wf: Workforce) -> dict[str, Any]:
     outs = [worker_out(db, w, a, busy=busy.get(a.id, 0), shared=shared) for w, a in pairs]
     return {"id": wf.id, "name": wf.name, "project_id": wf.project_id, "review_policy": wf.review_policy,
             "max_revisions": wf.max_revisions, "manager": manager_out(db, wf), "workers": outs,
+            "development": _development_out(wf),
             "accounts": accounts_summary(outs), "created_at": wf.created_at, "updated_at": wf.updated_at}
 
 
