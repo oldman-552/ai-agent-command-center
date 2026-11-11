@@ -1,6 +1,8 @@
 """Concrete adapters. Each maps its SDK/API errors onto ProviderError / ProviderUnavailable."""
 from __future__ import annotations
 
+import functools
+import inspect
 import json
 import re
 from collections.abc import AsyncIterator, Callable
@@ -102,6 +104,16 @@ def _gemini_contents(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+@functools.cache
+def _anthropic_accepts(param: str) -> bool:
+    """Whether the installed anthropic SDK's Messages.stream takes this keyword (its parameters change by version)."""
+    from anthropic.resources.messages import AsyncMessages
+    try:
+        return param in inspect.signature(AsyncMessages.stream).parameters
+    except (TypeError, ValueError):
+        return False
+
+
 class AnthropicAdapter:
     kind, is_mock = "anthropic", False
 
@@ -124,7 +136,9 @@ class AnthropicAdapter:
                               "messages": _anthropic_messages(req.messages)}
         if req.system:
             kw["system"] = req.system
-        if req.temperature is not None:
+        if req.temperature is not None and _anthropic_accepts("temperature"):
+            # anthropic>=2.x removed sampling parameters from Messages; sending one raised TypeError before any
+            # request was made, so every Claude call from the Manager/planner/evaluator failed. Older SDKs keep it.
             kw["temperature"] = req.temperature
         if req.tools:
             kw["tools"] = [{"name": t.name, "description": t.description, "input_schema": t.parameters}

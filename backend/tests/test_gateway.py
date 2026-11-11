@@ -206,3 +206,21 @@ def test_no_provider_configured_fails_cleanly(admin_client, db):
 def test_api_engine_is_registered_for_real():
     from app.runtime.contract import registered_engines
     assert "api" in registered_engines() and isinstance(rt, object)
+
+
+def test_anthropic_adapter_does_not_send_a_parameter_the_sdk_no_longer_takes():
+    # Regression (owner's machine): the Manager asks with temperature=0; anthropic 2.x removed sampling parameters
+    # from Messages.stream, so the call raised TypeError and no objective could be planned. The adapter must only
+    # pass what the installed SDK accepts — and the request must still go out.
+    from app.connectivity.gateway import adapters
+    seen = {}
+
+    def h(req):
+        seen.update(json.loads(req.content))
+        return httpx.Response(200, content=ANTHROPIC_STREAM, headers={"content-type": "text/event-stream"})
+    a = AnthropicAdapter(KEY, http_client=httpx.AsyncClient(transport=httpx.MockTransport(h)))
+    evs = asyncio.run(collect(a, ChatRequest(model="claude-test", messages=[{"role": "user", "content": "plan"}],
+                                             system="s", temperature=0, max_tokens=100)))
+    assert "".join(e.text for e in evs if e.type == "delta") == "Hello world"
+    assert seen["model"] == "claude-test"
+    assert ("temperature" in seen) == adapters._anthropic_accepts("temperature")
