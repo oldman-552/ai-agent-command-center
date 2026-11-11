@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import time
 import uuid
 from dataclasses import dataclass
@@ -29,6 +30,11 @@ MAX_OUTPUT = 256 * 1024
 UID = "10001:10001"
 SAFE_ENV = {"HOME": "/tmp", "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
             "LANG": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1", "CI": "1"}
+
+
+_DAEMON_DOWN = re.compile(r"failed to connect to the docker API|Cannot connect to the Docker daemon|"
+                          r"permission denied while trying to connect to the Docker daemon|error during connect|"
+                          r"Is the docker daemon running", re.IGNORECASE)
 
 
 class SandboxError(Exception):
@@ -145,6 +151,9 @@ async def run(workspace: Path, argv: list[str], *, limits: Limits | None = None,
     code = 124 if timed_out else (proc.returncode if proc.returncode is not None else -1)
     if code == 125 and not timed_out:  # docker itself failed (bad image, daemon down): not a command result
         raise SandboxError(f"docker failed: {err.decode('utf-8', 'replace')[:500]}")
+    if code != 0 and not timed_out and _DAEMON_DOWN.search(err.decode("utf-8", "replace")[:2000]):
+        # newer docker CLIs exit with 1, not 125, when the daemon cannot be reached — still not a command result
+        raise SandboxError(f"docker daemon unreachable: {err.decode('utf-8', 'replace')[:300]}")
     stdout, t1 = _cap(out)
     stderr, t2 = _cap(err)
     for v in (secret_env or {}).values():  # a CLI that echoes its key must not leak it into our records

@@ -244,3 +244,13 @@ def test_evaluation_uses_real_sandbox_test_results(db, monkeypatch):
 
     assert run_with("def test_add():\n    assert 1 + 1 == 3\n") == "revise"
     assert run_with("def test_add():\n    assert 1 + 1 == 2\n") == "approve"
+
+
+@pytest.mark.asyncio
+async def test_an_unreachable_docker_daemon_is_sandbox_unavailable_not_a_failed_command(tmp_path, monkeypatch):
+    # Newer docker CLIs exit with 1 (not 125) when the daemon cannot be reached. That must not look like a failing
+    # test run: development tasks would send a worker's correct code back as "tests failed".
+    monkeypatch.setenv("DOCKER_HOST", f"unix://{tmp_path}/no-daemon.sock")
+    ws = _project_dir(1, 9003)
+    with pytest.raises(runner.SandboxError, match="daemon unreachable|docker failed|not available"):
+        await runner.run(ws, ["python3", "-c", "print(1)"], limits=runner.Limits(cpus=0.5, memory="256m", timeout_s=20))
