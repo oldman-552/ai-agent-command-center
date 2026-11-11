@@ -85,7 +85,7 @@ export default function BrowserBridgePage() {
         <div className="flex flex-col gap-1">
           <p className="font-medium">{t("arenaMovedTitle")}</p>
           <p>{t("arenaMovedBody")}</p>
-          <Link href="/workforce/bridge" className="w-fit font-medium text-primary underline underline-offset-4">{t("arenaMovedLink")}</Link>
+          <Link href="/workforce/workers" className="w-fit font-medium text-primary underline underline-offset-4">{t("arenaMovedLink")}</Link>
         </div>
       </Card>
 

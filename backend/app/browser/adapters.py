@@ -8,8 +8,10 @@ missing the bridge fails safely with `interface_changed` instead of guessing.
 The `test` adapter drives the platform's own local test page (`/api/browser-bridge/test-page`) and is what the
 automated tests use.
 
-Arena is not a Browser Bridge site (ADR-032): it is reached only through Arena Local Bridge, a provider of kind
-`arena_local_bridge`. The former built-in `arena` site is gone and Arena's hosts are refused as custom sites.
+Arena (ADR-035, owner decision reversing the ADR-032 retirement for this path): the built-in `arena` site drives
+arena.ai in a visible browser profile of its own per worker, signed in BY HAND by a person — the platform never
+holds Arena passwords. Arena Local Bridge stays available as the other way. A custom site on Arena's hosts is still
+refused: use the built-in one, whose terms acknowledgement names Arena's clauses.
 """
 from __future__ import annotations
 
@@ -46,16 +48,30 @@ BUILTIN: dict[str, Adapter] = {a.key: a for a in (
             input="#prompt", send="#send", response=".msg.assistant", generating="#stop:not([hidden])",
             stop="#stop", login="#login-required", new_chat="#new-chat", models=("echo-1",), verified=True,
             requires_terms=False, notes="The platform's own fake chat page used for automated tests."),
+    Adapter(key="arena", name="Arena (arena.ai) — visible browser profile", url="https://arena.ai/agent",
+            terms_url="https://help.arena.ai/articles/5629909088-terms-of-use",
+            input="[contenteditable='true'], textarea",
+            send="button[aria-label*='Send' i], button:has-text('Send message'), button[type='submit']",
+            response="[data-message-role='assistant'], [data-role='assistant'], .prose",
+            generating="button[aria-label*='Stop' i]", stop="button[aria-label*='Stop' i]",
+            login="a[href*='login'], a[href*='signin'], button:has-text('Sign in'), button:has-text('Log in')",
+            notes="Selectors are best guesses, never checked against the live page: adjust them under Selectors. "
+                  "Sign in by hand in each worker's own window; it stays open so a person can watch and step in. "
+                  "Arena's bot checks stop the session for a person to solve.",
+            terms_warning="Arena's terms explicitly prohibit accessing the service by automated means (section 5(vi)), "
+                          "and inputs are shared with third-party model providers that may not keep them "
+                          "confidential (section 3.4); I will not send confidential code or personal data."),
 )}
 # kept for code that only needs the built-in sites (tests); use catalog()/lookup() for an organization
 ADAPTERS = BUILTIN
 
 SITE_KEY_RE = re.compile(r"^[a-z][a-z0-9-]{1,31}$")
 
-# ADR-032 — Arena is served only by Arena Local Bridge. The key of the former built-in site stays reserved, and a site
-# on one of Arena's hosts can neither be added nor used (also when an older installation still has it stored).
-ARENA_RETIRED = "arena_requires_local_bridge"
-RETIRED_KEYS = {"arena": ARENA_RETIRED}
+# ADR-035 — Arena is the built-in `arena` site (visible profile per worker) or Arena Local Bridge. A CUSTOM site on one
+# of Arena's hosts can neither be added nor used (also when an older installation still has one stored): it would
+# bypass the Arena-specific terms acknowledgement of the built-in site.
+ARENA_RETIRED = "use_builtin_arena_site"
+RETIRED_KEYS: dict[str, str] = {}
 ARENA_HOST_SUFFIXES = ("arena.ai", "lmarena.ai")
 
 
@@ -69,8 +85,8 @@ def is_arena_url(url: str) -> bool:
 
 def retired_reason(org_settings: dict | None, key: str) -> str | None:
     """Why a site key can no longer be used, or None. Checked by the gate and again by the bridge service."""
-    if key in RETIRED_KEYS:
-        return RETIRED_KEYS[key]
+    if key in RETIRED_KEYS or key in BUILTIN:
+        return RETIRED_KEYS.get(key)
     site = (((org_settings or {}).get("browser_bridge") or {}).get("sites") or {}).get(key)
     if isinstance(site, dict) and is_arena_url(str(site.get("url") or "")):
         return ARENA_RETIRED

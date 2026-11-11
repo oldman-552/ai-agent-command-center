@@ -666,3 +666,28 @@ report can finally say *verified by the platform*. A code result costs a sandbox
 not opened yet. Workers see at most 12 files plus a listing of 300 paths, so large refactors are out of reach. Tested
 with the mock Manager, people's submissions, real git and the real sandbox; **not** with a real model writing code.
 
+
+## ADR-035 — A worker can drive its own visible browser window (owner decision, 2026-11-12)
+**Context:** On the owner's Ubuntu machine Arena Local Bridge kept one shared, hidden browser, signed in with stored
+passwords and renewed the sign-in every few minutes; prompts were never submitted (`page.waitForResponse` timeouts)
+and its pages closed after each turn, so nobody could watch or step in. The owner asked for one browser profile per
+worker, signed in by hand, kept open for watching and manual intervention.
+**Decision:** reverse the ADR-032 retirement *for this path only*. The built-in Browser Bridge site `arena`
+(https://arena.ai/agent) is back, locked until its Arena-specific terms statement (sections 5(vi), 3.4) is
+acknowledged. A worker gets a third connection besides an API provider and Arena Local Bridge: its own window —
+`POST /api/workforce/workers/{id}/browser` opens (or reuses) a Browser Bridge session with the profile
+`agent-<identifier>` (one profile per worker, one window per profile) and sets the worker's agent to the existing
+`browser` engine. The platform never holds Arena passwords: the person signs in once in that window; the profile keeps
+it. The window stays open after each task. Eligibility reads the window's state: not READY (signed out, a bot check,
+a changed page, closed) → `session_unavailable` → the task goes to a person (the window is there to fix it); nothing
+is typed. The engine reports `bridge_unavailable` (retry, nothing reached the window), `session_unavailable` (person)
+or `outcome_unknown` after the prompt was sent (person — never typed twice). Custom sites on Arena's hosts stay
+refused (`use_builtin_arena_site`) so the Arena terms statement cannot be bypassed. Arena Local Bridge stays available.
+**Consequences:** visibility and manual control at the price of DOM selectors: the `arena` selectors are guesses,
+**never checked against the live page**, and are adjustable under Browser Bridge → Selectors. The account behind a
+window is a person's sign-in, so the binding says which profile and site, never which account (`attested: false`).
+Arena's terms still prohibit automated access; the acknowledgement records that the owner accepts that risk.
+**Tested:** backend with the real Browser Bridge (Playwright Chromium) on the platform's test chat page: a worker
+opens its own window, drives it through the scheduler and runtime, the window stays open; a window that is not ready
+hands the task to a person with nothing typed; failure categories (tests/test_workforce_browser.py). Browser E2E:
+the worker dialog offers the window (ar/en). **Not** run against arena.ai.

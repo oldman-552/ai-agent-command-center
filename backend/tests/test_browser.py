@@ -354,16 +354,21 @@ async def test_selector_overrides_apply_from_the_next_start_and_are_audited(db, 
 
 
 # ---------------- ADR-032: Arena is not a Browser Bridge site ----------------
-def test_arena_is_not_a_browser_bridge_site_and_cannot_be_added_back(admin_client, db):
+def test_arena_is_the_built_in_visible_profile_site_and_custom_arena_sites_stay_refused(admin_client, db):
+    """ADR-035 (owner decision): Arena is the built-in `arena` site, driven in a visible profile signed in by hand;
+    it is locked until its Arena-specific terms are acknowledged. A custom site on Arena's hosts would bypass that."""
     from app.browser.adapters import ARENA_RETIRED, BUILTIN, catalog, is_arena_url, lookup
-    assert set(BUILTIN) == {"test"}  # no real site is built in; the old `arena` adapter and its selectors are gone
+    assert set(BUILTIN) == {"test", "arena"} and not BUILTIN["arena"].verified and BUILTIN["arena"].requires_terms
     ov = admin_client.get("/api/browser-bridge").json()
-    assert "arena" not in {p["key"] for p in ov["providers"]}
+    assert "arena" in {p["key"] for p in ov["providers"]}
     admin_client.put("/api/browser-bridge/enabled", json={"enabled": True})
     r = admin_client.post("/api/browser-bridge/sessions", json={"provider": "arena"})
-    assert r.status_code == 403 and r.json()["detail"] == ARENA_RETIRED
+    assert r.status_code == 403 and r.json()["detail"] == "terms_not_acknowledged"  # the gate answers first
     r = admin_client.post("/api/browser-bridge/providers/arena/acknowledge", json={"statement": "anything"})
-    assert r.status_code == 422 and r.json()["detail"] == ARENA_RETIRED
+    assert r.status_code == 422 and r.json()["detail"] == "statement_mismatch"
+    assert "section 5(vi)" in gate.statement("arena")  # the clause that prohibits automation is named
+    r = admin_client.post("/api/browser-bridge/providers/arena/acknowledge", json={"statement": gate.statement("arena")})
+    assert r.status_code == 200, r.text
     for url in ("https://arena.ai/agent", "https://www.arena.ai/", "https://ARENA.AI./x", "https://lmarena.ai/",
                 "https://chat.lmarena.ai/?mode=direct"):
         assert is_arena_url(url), url
@@ -371,7 +376,8 @@ def test_arena_is_not_a_browser_bridge_site_and_cannot_be_added_back(admin_clien
         assert r.status_code == 422 and r.json()["detail"] == ARENA_RETIRED, url
     for url in ("https://notarena.ai/", "https://arena.ai.example.com/", "https://example.com/arena.ai"):
         assert not is_arena_url(url), url
-    # a site stored by an older installation is neither listed nor usable (the gate and the bridge both refuse it)
+    # a custom Arena site stored by an older installation is neither listed nor usable (the gate and the bridge both
+    # refuse it); the built-in site is the way
     org = db.get(Organization, 1)
     db.refresh(org)
     cfg = dict(org.settings["browser_bridge"])
@@ -450,12 +456,12 @@ def test_migration_retires_stored_arena_data_and_is_reversible(db):
 
 
 # ---------------- sites the Super Admin adds, profiles per person ----------------
-def test_no_real_site_is_built_in_and_the_test_page_is_hidden_by_default(admin_client, monkeypatch):
+def test_arena_is_the_only_real_built_in_site_and_the_test_page_is_hidden_by_default(admin_client, monkeypatch):
     monkeypatch.delenv("BROWSER_SHOW_TEST_PAGE", raising=False)
     keys = [p["key"] for p in admin_client.get("/api/browser-bridge").json()["providers"]]
-    assert keys == []  # every site is one the Super Admin added; Arena is not offered here (ADR-032)
+    assert keys == ["arena"]  # ADR-035: Arena in a visible profile; every other site is one the Super Admin added
     monkeypatch.setenv("BROWSER_SHOW_TEST_PAGE", "true")
-    assert {p["key"] for p in admin_client.get("/api/browser-bridge").json()["providers"]} == {"test"}
+    assert {p["key"] for p in admin_client.get("/api/browser-bridge").json()["providers"]} == {"test", "arena"}
 
 
 def test_super_admin_adds_any_site_which_stays_locked_until_its_terms_are_acknowledged(admin_client, db):

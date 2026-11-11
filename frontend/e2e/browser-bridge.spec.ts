@@ -13,7 +13,7 @@ async function csrfOf(page: Page) {
   return (await page.context().cookies()).find((c) => c.name === "acc_csrf")?.value ?? "";
 }
 
-/** A site the Super Admin added: the terms gate is exercised on it (Arena is not a Browser Bridge site, ADR-032). */
+/** A site the Super Admin added: the terms gate is exercised on it (Arena is the built-in visible-profile site, ADR-035). */
 async function addSite(page: Page, key: string) {
   const headers = { "X-CSRF-Token": await csrfOf(page) };
   await page.request.delete(`/api/browser-bridge/sites/${key}`, { headers });
@@ -90,23 +90,24 @@ for (const lang of ["ar", "en"] as const) {
   });
 }
 
-test("Arena is not offered by the Browser Bridge; selectors of an added site can be adjusted (English)", async ({ page }) => {
+test("Arena is the built-in one-window-per-worker site; custom Arena sites are refused; selectors can be adjusted (English)", async ({ page }) => {
   await login(page, "en");
   const site = "e2e-selectors";
   await addSite(page, site);
   await page.goto("/browser-bridge");
-  // ADR-032: no Arena site, a pointer to Arena Local Bridge instead, and Arena addresses are refused
-  await expect(page.getByTestId("bb-provider-arena")).toHaveCount(0);
+  // ADR-035: the built-in Arena site (locked until its terms are acknowledged), a pointer to the worker settings,
+  // and custom sites on Arena's addresses are refused
+  await expect(page.getByTestId("bb-provider-arena")).toBeVisible();
   const moved = page.getByTestId("bb-arena-moved");
-  await expect(moved).toContainText("Arena Local Bridge");
-  await expect(moved.getByRole("link")).toHaveAttribute("href", "/workforce/bridge");
+  await expect(moved).toContainText("one window per worker");
+  await expect(moved.getByRole("link")).toHaveAttribute("href", "/workforce/workers");
   await page.getByTestId("bb-add-site").click();
   const add = page.getByTestId("bb-site-dialog");
   await add.locator("#site-name").fill("Arena");
   await add.locator("#site-key").fill("my-arena");
   await add.locator("#site-url").fill("https://arena.ai/agent");
   await add.getByTestId("bb-site-save").click();
-  await expect(page.getByText("Arena cannot be used through the Browser Bridge")).toBeVisible();
+  await expect(page.getByText("Do not add Arena as a custom site")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("bb-provider-my-arena")).toHaveCount(0);
 

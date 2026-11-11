@@ -1,0 +1,111 @@
+"""ADR-035 — a worker driving its OWN visible browser window (a profile of its own, signed in by hand).
+
+Tier: local integration — the real Browser Bridge (Playwright Chromium) on the platform's own test chat page, the
+mock Manager, the real scheduler and runtime. No real site (Arena) is contacted.
+"""
+from __future__ import annotations
+
+import asyncio
+
+from sqlalchemy import select
+
+from app.browser import bridge as B
+from app.browser import client as bridge_client
+from app.models import BrowserSession, Execution, Task
+from app.runtime import service as runtime
+from app.workforce import api as wf_api
+from app.workforce import control, scheduler, service
+from tests import wf as h
+from tests.test_browser import _bridge_env, _enable, page_server  # noqa: F401  (fixtures)
+
+
+async def _run_round(db, wf_id: int) -> list[str]:
+    await control.tick(wf_id)
+    db.expire_all()
+    out = []
+    for ex in db.scalars(select(Execution).join(Task, Task.id == Execution.task_id).where(
+            Task.workflow_id == wf_id, Execution.status == "CREATED")).all():
+        await runtime.run_execution(ex.id)
+        out.append(await scheduler.on_execution_finished(db, ex.id))
+    return out
+
+
+def test_a_worker_gets_its_own_window_drives_it_and_the_window_stays_open(db, page_server):  # noqa: F811
+    h.reset(db)
+    _enable(db)  # the bridge is on; the local test site needs no terms
+
+    async def go():
+        bridge = B.Bridge(base_url=page_server, poll=0.05)
+        bridge_client.LOCAL = bridge
+        try:
+            w = h.worker(db, 1)
+            out = await wf_api.open_worker_browser(w.id, wf_api.WorkerBrowserIn(site="test"), db, h.admin(db))
+            b = out["account_binding"]
+            assert b["type"] == "browser_profile" and b["site"] == "test" and b["attested"] is False
+            agent = h.agent_of(db, 1)
+            assert b["profile"] == f"agent-{agent.identifier}"[:40]  # one profile per worker, named after it
+            # opening it again reuses the same window (one profile = one window), it does not open a second one
+            again = await wf_api.open_worker_browser(w.id, wf_api.WorkerBrowserIn(site="test"), db, h.admin(db))
+            assert again["account_binding"]["session_id"] == b["session_id"]
+            service.update_worker(db, h.worker(db, 1), user=h.admin(db), patch={"mode": "AUTOMATIC"})
+            db.commit()
+            assert service.eligibility(db, h.worker(db, 1)).mode == "AUTOMATIC"
+
+            wf = h.objective(db, "1. Summarise the options [research]")
+            assert await control.plan(wf.id) == "planned"
+            for _ in range(4):
+                await _run_round(db, wf.id)
+            db.expire_all()
+            t = next(iter(h.tasks_of(db, wf).values()))
+            sub = h.subs(db, t)
+            assert sub and sub[0].mode == "AUTOMATIC" and sub[0].content.startswith("Echo: ")  # typed into the window
+            ex = db.scalars(select(Execution).where(Execution.task_id == t.id)).first()
+            assert ex.provider == "browser:test" and ex.engine == "browser" and ex.is_mock is False
+            s = db.get(BrowserSession, b["session_id"])
+            assert s.state in ("READY", "COMPLETED") and s.agent_id == agent.id  # the window stays open to watch
+        finally:
+            await bridge.shutdown()
+
+    asyncio.run(go())
+
+
+def test_a_window_that_is_not_ready_hands_the_task_to_a_person_and_nothing_is_typed(db):
+    h.reset(db)
+    _enable(db)
+    s = BrowserSession(organization_id=1, provider_key="test", profile_name="agent-signed-out", state="AUTH_REQUIRED",
+                       history=[])
+    db.add(s)
+    db.commit()
+    service.update_worker(db, h.worker(db, 1), user=h.admin(db),
+                          patch={"browser_session_id": s.id, "mode": "AUTOMATIC", "fallback_to_human": True})
+    db.commit()
+    e = service.eligibility(db, h.worker(db, 1))
+    assert (e.mode, e.reason) == ("HUMAN_ASSISTED", "fallback:session_unavailable")
+    wf = h.planned(db, "1. Summarise the options [research]")
+    h.tick(wf)
+    t = next(iter(h.tasks_of(db, wf).values()))
+    assert t.lifecycle == "WAITING_FOR_ACCEPTANCE"  # a person signs in in the open window, or does the task
+    assert db.scalars(select(Execution).where(Execution.task_id == t.id)).first() is None
+
+
+def test_browser_failures_are_retried_or_handed_to_a_person_never_sent_twice():
+    def act(code, category):
+        return scheduler.failure_action({"code": code, "category": category}, 1, 3, True)
+    assert act("bridge_unreachable", "bridge_unavailable") == "retry"   # nothing reached the window
+    assert act("not_ready", "session_unavailable") == "human"         # signed out / bot check: a person fixes it
+    assert act("generation_timeout", "outcome_unknown") == "human"    # the prompt was sent: never type it twice
+
+
+def test_switching_back_to_a_provider_leaves_the_browser(db):
+    h.reset(db)
+    s = BrowserSession(organization_id=1, provider_key="test", profile_name="agent-switch", state="READY", history=[])
+    db.add(s)
+    db.commit()
+    w = h.worker(db, 2)
+    service.update_worker(db, w, user=h.admin(db), patch={"browser_session_id": s.id})
+    a = h.agent_of(db, 2)
+    assert a.execution_engine == "browser" and a.context_policy["browser_session_id"] == s.id
+    service.update_worker(db, w, user=h.admin(db), patch={"provider_id": h.mock_provider(db).id, "model": "mock-model"})
+    db.commit()
+    a = h.agent_of(db, 2)
+    assert a.execution_engine == "api" and "browser_session_id" not in (a.context_policy or {})

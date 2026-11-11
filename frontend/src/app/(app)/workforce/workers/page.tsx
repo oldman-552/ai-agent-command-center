@@ -118,6 +118,7 @@ function WorkerCard({ w, onEdit }: { w: Worker; onEdit?: () => void }) {
             <dt className="text-muted-foreground">{t("workers.account")}</dt>
             <dd data-testid="wf-worker-binding">
               {t(`binding.${b.type}`)}{b.account ? <> · <span className="font-mono" dir="ltr">{accountTag(b.account, b.account_hash)}</span></> : null}
+              {b.type === "browser_profile" && <> · <span className="font-mono text-xs" dir="ltr">{b.profile} · {b.state}</span></>}
             </dd>
           </>
         )}
@@ -278,12 +279,16 @@ function WorkerDialog({ w, options, onClose }: { w: Worker; options: Options; on
   const [attempts, setAttempts] = useState(String(w.retry_policy?.max_attempts ?? 1));
   const [prompt, setPrompt] = useState(w.prompt ?? "");
   const chosen = options.providers.find((p) => p.id === providerId);
-  const missing = mode === "AUTOMATIC" && (!providerId || !model);
+  const isBrowser = w.account_binding?.engine === "browser" && !providerId;  // ADR-035: drives its own window
+  const missing = mode === "AUTOMATIC" && !isBrowser && (!providerId || !model);
+  const openWindow = () => a.openWorkerBrowser.mutate({ id: w.id, site: "arena" }, {
+    onError: fail, onSuccess: () => toast("success", t("workers.browserOpened")) });
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     if (missing) return;
     a.updateWorker.mutate({ id: w.id, patch: {
-      name, role, skills: skills.split(",").map((s) => s.trim()).filter(Boolean), mode, provider_id: providerId, model: model || null,
+      name, role, skills: skills.split(",").map((s) => s.trim()).filter(Boolean), mode,
+      ...(isBrowser ? {} : { provider_id: providerId, model: model || null }),
       fallback_to_human: fallback, assignee_user_id: assignee ? Number(assignee) : null, timeout_seconds: Number(timeout),
       retry_policy: { ...(w.retry_policy ?? { backoff_seconds: 0, backoff_multiplier: 1 }), max_attempts: Number(attempts) }, prompt,
     } }, { onError: fail, onSuccess: () => { toast("success", tc("saved")); onClose(); } });
@@ -294,6 +299,23 @@ function WorkerDialog({ w, options, onClose }: { w: Worker; options: Options; on
         <DialogTitle>{t("workers.editTitle", { label: w.label })}</DialogTitle>
         <DialogDescription>{t("workers.editHelp")}</DialogDescription>
         <form onSubmit={save} className="mt-4 flex flex-col gap-4">
+          <section className="flex flex-col gap-2 rounded-lg border p-3" aria-labelledby={`wf-w-browser-${w.id}`}
+                   data-testid="wf-worker-browser">
+            <h3 id={`wf-w-browser-${w.id}`} className="text-sm font-semibold">{t("workers.browserTitle")}</h3>
+            <p className="text-sm text-muted-foreground">{t("workers.browserHelp")}</p>
+            {w.account_binding?.engine === "browser" && (
+              <p className="text-sm">{t("workers.browserCurrent")}: <span className="font-mono text-xs" dir="ltr">
+                {w.account_binding.site} · {t("workers.browserProfile")} {w.account_binding.profile} · {w.account_binding.state}
+                {w.account_binding.error ? ` · ${w.account_binding.error}` : ""}</span></p>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" onClick={openWindow} disabled={a.openWorkerBrowser.isPending}
+                      data-testid="wf-worker-open-browser">
+                {w.account_binding?.engine === "browser" ? t("workers.browserReopen") : t("workers.browserOpen")}
+              </Button>
+              {w.account_binding?.engine === "browser" && <span className="text-xs text-muted-foreground">{t("workers.browserUsesProvider")}</span>}
+            </div>
+          </section>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="wf-w-name">{t("workers.name")}</Label>

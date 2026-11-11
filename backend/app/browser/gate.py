@@ -100,7 +100,7 @@ def set_enabled(db: Session, organization_id: int, user_id: int, enabled: bool) 
 
 
 def retired(db: Session, organization_id: int, provider: str) -> str | None:
-    """ADR-032: the reason a site can no longer be driven by the Browser Bridge (Arena), or None."""
+    """ADR-035: the reason a site cannot be driven (a custom site on Arena's hosts), or None."""
     org = db.get(Organization, organization_id)
     return retired_reason(org.settings if org else None, provider)
 
@@ -168,7 +168,7 @@ def add_site(db: Session, organization_id: int, user_id: int, key: str, d: dict[
     if not SITE_KEY_RE.match(key or "") or key in BUILTIN or key in RETIRED_KEYS:
         raise GateClosed("invalid_site_key")
     if is_arena_url(str(d.get("url") or "")):
-        raise GateClosed(ARENA_RETIRED)  # ADR-032: Arena only through Arena Local Bridge
+        raise GateClosed(ARENA_RETIRED)  # ADR-035: Arena only as the built-in site (or Arena Local Bridge)
     name = str(d.get("name") or "").strip()
     if not name or len(name) > 80:
         raise GateClosed("invalid_site_name")

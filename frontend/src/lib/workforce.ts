@@ -24,9 +24,12 @@ export const BOARD: { key: string; states: Lifecycle[] }[] = [
 export type ReportClass = "verified" | "human_approved" | "worker_proposal" | "unverified_claim" | "failed" | "incomplete";
 
 export type Binding = {
-  type: "deterministic_session" | "deterministic_single_account" | "pooled" | "unknown" | "unconfigured" | "not_applicable";
+  type: "deterministic_session" | "deterministic_single_account" | "pooled" | "unknown" | "unconfigured" | "not_applicable"
+    | "browser_profile";
   attested: false; account?: string | null; account_hash?: string | null; account_usable?: boolean | null;
   session?: string | null; session_state?: string | null; session_model?: string | null; checked_at?: string | null;
+  /** ADR-035: the worker drives its own visible browser window (a profile of its own, signed in by hand). */
+  engine?: "browser"; session_id?: number; site?: string; profile?: string; state?: string; error?: string | null;
 };
 export type Worker = {
   id: number; slot: number; label: string; agent_id: number; identifier: string; name: string; role: string;
@@ -312,6 +315,8 @@ export function useWorkforceActions() {
       send<Workforce>(`${W}/development`, patch, "PATCH")),
     updateWorker: m(({ id, patch }: { id: number; patch: Record<string, unknown> }) =>
       send<Worker>(`${W}/workers/${id}`, patch, "PATCH")),
+    openWorkerBrowser: m(({ id, site }: { id: number; site?: string }) =>
+      send<Worker>(`${W}/workers/${id}/browser`, { site: site ?? "arena" })),
     submitObjective: m((b: { prompt: string; title?: string; review_policy?: "manager" | "human" }) =>
       send<Objective>(`${W}/objectives`, b)),
     cancelObjective: m(({ id, reason }: { id: number; reason: string }) => send(`${W}/objectives/${id}/cancel`, { reason })),

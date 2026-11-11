@@ -141,7 +141,7 @@ async def test_platform_mcp_server_lists_and_calls_tools_with_key_scoping(db):
     assert denied.isError is True and "not granted" in denied.content[0].text
     assert json.loads(bridge.content[0].text) == {"error": "bridge_disabled"}  # the bridge gate still applies
     # ADR-032: Arena is not reachable through the Browser Bridge, also not through its MCP tools
-    assert json.loads(arena.content[0].text) == {"error": "arena_requires_local_bridge"}
+    assert json.loads(arena.content[0].text) == {"error": "bridge_disabled"}  # ADR-035: the gate answers first
     assert db.scalar(select(AuditLog).where(AuditLog.action == "mcp_server.denied")) is not None
 
 

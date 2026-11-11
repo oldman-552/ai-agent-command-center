@@ -26,6 +26,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.connectivity.arena_bridge import service as bridge
 from app.models import (
     Agent,
+    BrowserSession,
     ExecutionMode,
     Project,
     Provider,
@@ -184,8 +185,45 @@ def ensure_default(db: Session, organization_id: int, *, actor: str = "system") 
 
 
 # ---------------- account binding ----------------
+def browser_session_of(db: Session, agent: Agent) -> BrowserSession | None:
+    """The Browser Bridge session (visible profile window) a worker in browser mode drives, or None (ADR-035)."""
+    sid = (agent.context_policy or {}).get("browser_session_id")
+    s = db.get(BrowserSession, int(sid)) if sid else None
+    return s if s is not None and s.organization_id == agent.organization_id else None
+
+
+def browser_binding(db: Session, agent: Agent) -> dict[str, Any]:
+    """A visible browser profile is a person's own sign-in: the platform can say which profile and site, never which
+    account is signed in there."""
+    s = browser_session_of(db, agent)
+    if s is None:
+        return {"type": "unconfigured", "attested": False, "engine": "browser"}
+    return {"type": "browser_profile", "attested": False, "engine": "browser", "session_id": s.id,
+            "site": s.provider_key, "profile": s.profile_name, "state": s.state, "error": s.error}
+
+
+def browser_problem(db: Session, agent: Agent) -> str | None:
+    """Why the worker's browser window cannot take a task now, or None. A window that needs a person (signed out,
+    a bot check, a changed page) hands the task to a person — the window stays open for them to fix it."""
+    from app.browser import gate as browser_gate
+    s = browser_session_of(db, agent)
+    if s is None:
+        return "not_configured"
+    try:
+        browser_gate.check(db, agent.organization_id, s.provider_key)
+    except browser_gate.GateClosed:
+        return "terms_not_acknowledged"
+    if s.state in ("READY", "COMPLETED", "SENDING", "GENERATING"):
+        return None
+    if s.state in ("AUTH_REQUIRED", "FAILED"):
+        return "session_unavailable"
+    return "session_unavailable"  # DISCONNECTED / STOPPED / STARTING: open the window first
+
+
 def binding_for(db: Session, w: WorkforceWorker, agent: Agent) -> dict[str, Any]:
     """What can be said about the account behind this worker. Never claims more than the bridge lets anyone know."""
+    if agent.execution_engine == "browser":
+        return browser_binding(db, agent)
     provider = db.get(Provider, agent.provider_id) if agent.provider_id else None
     if provider is None or not agent.model:
         return {"type": "unconfigured", "attested": False}
@@ -225,6 +263,11 @@ class Eligibility:
 
 def automatic_problem(db: Session, w: WorkforceWorker, agent: Agent) -> str | None:
     """Why an Automatic attempt cannot be sent right now, or None. Checked before anything leaves the platform."""
+    if agent.execution_engine == "browser":
+        problem = browser_problem(db, agent)
+        if problem is not None:
+            return problem
+        return None if circuit.available(db, "agent", agent.id) else "circuit_open"
     provider = db.get(Provider, agent.provider_id) if agent.provider_id else None
     if provider is None or not agent.model:
         return "not_configured"
@@ -402,12 +445,24 @@ def _provider(db: Session, organization_id: int, provider_id: int | None, field:
 def update_worker(db: Session, w: WorkforceWorker, *, user: User, patch: dict[str, Any]) -> WorkforceWorker:
     """Apply a validated change set to a worker and its agent. Every mode change is audited. Does not commit."""
     agent = db.get(Agent, w.agent_id)
-    before = {"mode": w.mode, "provider_id": agent.provider_id, "model": agent.model}
+    before = {"mode": w.mode, "provider_id": agent.provider_id, "model": agent.model,
+              "browser_session_id": (agent.context_policy or {}).get("browser_session_id")}
     if "provider_id" in patch:
         p = _provider(db, w.organization_id, patch["provider_id"])
         agent.provider_id = p.id if p else None
         if p is None:
             agent.model = None
+        if p is not None:  # back to a provider: leave the visible browser
+            agent.execution_engine = "api"
+            agent.context_policy = {k: v for k, v in (agent.context_policy or {}).items() if k != "browser_session_id"}
+    if "browser_session_id" in patch and patch["browser_session_id"] is not None:
+        bs = db.get(BrowserSession, patch["browser_session_id"])
+        if bs is None or bs.organization_id != w.organization_id:
+            raise ConfigError("invalid_browser_session_id")
+        agent.execution_engine = "browser"
+        agent.provider_id, agent.model = None, f"browser:{bs.provider_key}"
+        agent.context_policy = {**(agent.context_policy or {}), "browser_session_id": bs.id}
+        bs.agent_id = agent.id
     if "model" in patch:
         agent.model = (patch["model"] or "").strip() or None
     for f in WORKER_AGENT_FIELDS:
@@ -432,12 +487,16 @@ def update_worker(db: Session, w: WorkforceWorker, *, user: User, patch: dict[st
         w.assignee_user_id = uid
     if patch.get("mode") is not None:
         w.mode = M(patch["mode"]).value
-    if w.mode == M.AUTOMATIC.value and (agent.provider_id is None or not agent.model):
+    if w.mode == M.AUTOMATIC.value and agent.execution_engine == "browser":
+        if browser_session_of(db, agent) is None:
+            raise ConfigError("automatic_needs_provider_and_model")
+    elif w.mode == M.AUTOMATIC.value and (agent.provider_id is None or not agent.model):
         raise ConfigError("automatic_needs_provider_and_model")
     w.account_binding = binding_for(db, w, agent)
     flag_modified(w, "account_binding")
     agent.config_version += 1
-    after = {"mode": w.mode, "provider_id": agent.provider_id, "model": agent.model}
+    after = {"mode": w.mode, "provider_id": agent.provider_id, "model": agent.model,
+             "browser_session_id": (agent.context_policy or {}).get("browser_session_id")}
     if before["mode"] != after["mode"]:
         log_activity(db, "workforce.worker_mode_changed", category="workforce", level="warning",
                      organization_id=w.organization_id, user_id=user.id, agent_id=agent.id,
@@ -445,8 +504,8 @@ def update_worker(db: Session, w: WorkforceWorker, *, user: User, patch: dict[st
     log_activity(db, "workforce.worker_updated", category="workforce", organization_id=w.organization_id,
                  user_id=user.id, agent_id=agent.id,
                  details={"worker_id": w.id, "slot": w.slot, "fields": sorted(patch),
-                          "session_changed": (before["provider_id"], before["model"]) != (
-                              after["provider_id"], after["model"])})
+                          "session_changed": (before["provider_id"], before["model"], before["browser_session_id"]) != (
+                              after["provider_id"], after["model"], after["browser_session_id"])})
     return w
 
 

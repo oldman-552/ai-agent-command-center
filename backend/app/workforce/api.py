@@ -193,6 +193,7 @@ class WorkerPatch(BaseModel):
     account_label: str | None = Field(default=None, max_length=128)
     fallback_to_human: bool | None = None
     assignee_user_id: int | None = None
+    browser_session_id: int | None = None  # ADR-035: drive this worker through its own visible browser window
 
 
 @router.patch("/workers/{worker_id}")
@@ -212,6 +213,57 @@ def update_worker(worker_id: int, body: WorkerPatch, db: DB,
     for wf in db.scalars(select(Workflow).where(Workflow.organization_id == user.organization_id,
                                                 Workflow.kind == KIND, Workflow.status == "running")):
         scheduler.request_tick(db, wf, f"worker {w.id} changed")  # waiting tasks may be able to move now
+    db.commit()
+    return service.worker_out(db, w)
+
+
+class WorkerBrowserIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    site: str = Field(default="arena", max_length=32)
+
+
+@router.post("/workers/{worker_id}/browser")
+async def open_worker_browser(worker_id: int, body: WorkerBrowserIn, db: DB,
+                              user: User = Depends(require("workforce.manage"))) -> dict:
+    """ADR-035: open (or reuse) this worker's own visible browser window — a profile of its own, signed in by hand —
+    and make the worker drive it. Nothing is sent to the site; the window stays open for watching and stepping in."""
+    from app.browser import api as browser_api
+    from app.browser import client as browser_client
+    from app.browser.bridge import ACTIVE, BridgeError
+    from app.models import BrowserSession
+    if "browser_bridge.manage" not in {p.key for p in user.role.permissions}:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "browser_bridge.manage required")
+    w = get_scoped(db, WorkforceWorker, worker_id, user)
+    agent = db.get(Agent, w.agent_id)
+    profile = browser_api.own_profile(db, user, agent)  # agent-<identifier>: one profile per worker
+    s = db.scalar(select(BrowserSession).where(BrowserSession.organization_id == user.organization_id,
+                                               BrowserSession.profile_name == profile,
+                                               BrowserSession.state.in_(ACTIVE)))
+    if s is not None and s.provider_key != body.site:
+        raise HTTPException(status.HTTP_409_CONFLICT, "profile_in_use")
+    if s is None:
+        db.commit()
+        snap = await browser_api.create_session(browser_api.SessionIn(provider=body.site, profile=profile,
+                                                                      agent_id=agent.id), db, user)
+        sid = int(snap["id"])
+    else:
+        sid = s.id
+        if s.state == "AUTH_REQUIRED":  # the person may have signed in by hand meanwhile: look again
+            try:
+                await browser_client.call("POST", f"/sessions/{sid}/recheck")
+            except BridgeError as e:
+                if e.code != "not_waiting_for_auth":
+                    raise browser_api._http(e) from e
+    db.expire_all()
+    w = get_scoped(db, WorkforceWorker, worker_id, user)
+    try:
+        service.update_worker(db, w, user=user, patch={"browser_session_id": sid})
+    except service.ConfigError as e:
+        db.rollback()
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
+    for wf in db.scalars(select(Workflow).where(Workflow.organization_id == user.organization_id,
+                                                Workflow.kind == KIND, Workflow.status == "running")):
+        scheduler.request_tick(db, wf, f"worker {w.id} browser window")
     db.commit()
     return service.worker_out(db, w)
 

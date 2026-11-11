@@ -1051,7 +1051,7 @@
       "profile_in_use": "This profile is already in use by a live session.",
       "too_many_sessions": "The maximum number of live sessions is reached.",
       "invalid_profile_name": "Invalid profile name.",
-      "arena_requires_local_bridge": "Arena cannot be used through the Browser Bridge. Configure Arena Local Bridge in the AI Workforce section instead."
+      "use_builtin_arena_site": "Do not add Arena as a custom site: use the built-in Arena site, which opens each worker's own window."
     },
     "selectors": {
       "edit": "Selectors",
@@ -1114,9 +1114,9 @@
       "cancel": "Cancel",
       "save": "Add"
     },
-    "arenaMovedTitle": "Arena is not offered here",
-    "arenaMovedBody": "Arena is reached only through Arena Local Bridge, which is configured in the AI Workforce section. The Browser Bridge no longer contains an Arena site and refuses Arena addresses.",
-    "arenaMovedLink": "Open Arena Local Bridge settings"
+    "arenaMovedTitle": "Arena: one window per worker",
+    "arenaMovedBody": "The built-in Arena site here opens a visible browser window with a profile of its own for each worker; you sign in there by hand and it stays open to watch. Open it from AI Workforce → Manager and workers → Configure. Arena Local Bridge is the other way.",
+    "arenaMovedLink": "Open the worker settings"
   },
   "projects": {
     "title": "Projects",
@@ -1553,7 +1553,8 @@
       "unknown": "Account unknown",
       "unconfigured": "No session chosen",
       "not_applicable": "Not an Arena account",
-      "notAttested": "Account information comes from the bridge’s configuration. Arena Local Bridge does not name the account in its answers, so the platform cannot confirm it per answer."
+      "notAttested": "Account information comes from the bridge’s configuration. Arena Local Bridge does not name the account in its answers, so the platform cannot confirm it per answer.",
+      "browser_profile": "This worker's own browser window"
     },
     "reviewReason": {
       "review_policy_human": "This objective asks for a person’s review of every result. The Manager’s verdict is advice only.",
@@ -1670,7 +1671,15 @@
       "timeout": "Time limit (seconds)",
       "attempts": "Tries per request",
       "prompt": "Worker instructions",
-      "promptHelp": "Sent with every task of this worker, after the platform’s own rules."
+      "promptHelp": "Sent with every task of this worker, after the platform’s own rules.",
+      "browserTitle": "This worker's own window (visible browser)",
+      "browserHelp": "Opens Arena in a visible browser window on your computer, with a profile that belongs to this worker only. Sign in there by hand once with this worker's account; the profile keeps the sign-in and the platform never stores passwords. The window stays open so you can watch and step in. Needs the Browser Bridge on and Arena's terms acknowledged.",
+      "browserOpen": "Open this worker's window",
+      "browserReopen": "Reopen the window or check the sign-in",
+      "browserOpened": "The worker's window is open. Sign in there if asked.",
+      "browserCurrent": "Current window",
+      "browserUsesProvider": "Choosing a provider below moves the worker back to that provider instead of the window.",
+      "browserProfile": "Profile"
     },
     "bridge": {
       "title": "Arena Local Bridge",
