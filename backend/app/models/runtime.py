@@ -64,6 +64,7 @@ class Execution(TimestampMixin, Base):
     latest_checkpoint_seq: Mapped[int | None] = mapped_column(Integer)
     cancel_requested: Mapped[bool] = mapped_column(default=False)
     is_mock: Mapped[bool] = mapped_column(default=False)
+    provider_request_id: Mapped[str | None] = mapped_column(String(128))  # last request id the provider returned
 
 
 class ExecutionEvent(Base):

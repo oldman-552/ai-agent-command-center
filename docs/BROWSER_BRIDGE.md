@@ -4,6 +4,16 @@ The Browser Bridge lets authorized agents use AI chat websites inside **dedicate
 It is **disabled by default**, every third-party provider stays **locked** until the Super Admin acknowledges that
 provider's terms, and the official APIs and CLIs remain the recommended way to reach a model (ADR-005, ADR-025).
 
+> **Arena is not part of the Browser Bridge (ADR-032, 2026-11-11).** Arena is reached only through **Arena Local
+> Bridge**, configured under *AI Workforce → Arena Local Bridge* — see `docs/ARENA_LOCAL_BRIDGE.md`. The former
+> built-in `arena` site, its selectors and its terms text were removed. The key `arena` stays reserved, and any site
+> whose host is `arena.ai` or `lmarena.ai` (or a subdomain) is refused with `arena_requires_local_bridge` when it is
+> added, when it is acknowledged, when a session is created and again by the bridge service on every start and
+> prompt — also through the MCP browser tools. Migration `b1a7e0a3c032` moved stored Arena acknowledgements,
+> selector overrides and custom Arena sites to `browser_bridge.retired_arena` (kept, unused) and stopped Arena
+> browser sessions; it deletes nothing and is reversible. Arena sign-ins saved in a browser profile are not used
+> any more; delete the profile under *Browser profiles* if you want them removed from the bridge machine.
+
 ## 1. Reference evaluation — `YosefHayim/ai-browser-bridge` (BB-01)
 
 Evaluated 2026-11-10 from the public GitHub page (the code was **not** copied or vendored).
@@ -31,19 +41,14 @@ Evaluated 2026-11-10 from the public GitHub page (the code was **not** copied or
 - Capabilities: start/stop, sign-in / CAPTCHA detection (waits for a human), conversation creation and resumption,
   prompt submission, streaming of the visible answer, generation monitoring, cancellation, timeouts, reconnection,
   error reporting, health.
-- **Sites** (`app/browser/adapters.py`, owner decision 2026-11-10): only **arena.ai** (`arena`) is built in; the
-  Claude/ChatGPT/Gemini adapters were removed. The Super Admin adds any other website with **Add site** (name,
-  https address, terms address, optional selectors; `POST /api/browser-bridge/sites`, audited). Every site stays
-  locked until its terms are acknowledged; removing a site also removes its acknowledgement and selector overrides.
-  The local test page (`test`) is listed only with `BROWSER_SHOW_TEST_PAGE=true` (development and tests).
-- **arena.ai:** its terms of use prohibit accessing the service by automated means (§5(vi)) and share inputs with
-  third-party model providers that may not keep them confidential (§3.4); they also forbid personal or sensitive
-  data (§3.5(F)). Its acknowledgement statement names those clauses, and the generic statement does not unlock it.
-  Its selectors are guesses never checked against the live page; its bot checks stop a session in
-  `AUTH_REQUIRED` for a person to solve — the bridge never touches a challenge.
+- **Sites** (`app/browser/adapters.py`): **no real website is built in.** The Super Admin adds a website with
+  **Add site** (name, https address, terms address, optional selectors; `POST /api/browser-bridge/sites`, audited).
+  Every site stays locked until its terms are acknowledged; removing a site also removes its acknowledgement and
+  selector overrides. The local test page (`test`) is listed only with `BROWSER_SHOW_TEST_PAGE=true` (development
+  and tests). Arena addresses are refused (see the note at the top).
 - **Browser profiles — one per employee, agent or account** (`GET/POST/DELETE /api/browser-bridge/profiles`,
   *Browser profiles* on the page). A profile is one browser profile directory used for every site, so a person's
-  sign-ins (e.g. their Arena account) live in it. A person's own profile (their username) and an agent's
+  sign-ins live in it. A person's own profile (their username) and an agent's
   (`agent-<identifier>`) are created the first time they open a session; accounts not tied to a person are added
   by name. A profile opens in **one window at a time**; deleting it deletes its stored sign-ins on the bridge
   machine. Profile directories never point at a personal browser profile.
@@ -81,7 +86,7 @@ windows while the rest stays in Docker:
 ./stop.sh && ./start.sh         # restart so the API and worker use the bridge on this computer
 ./bridge-desktop.sh             # keep this terminal open while you use the bridge
 ```
-Each session opens its profile in its own window: sign in to Arena once per profile (one profile per employee),
+Each session opens its profile in its own window: sign in to the site once per profile (one profile per employee),
 then open any profile's session to follow it. Profiles are stored in `./browser-profiles` (mode 700). The bridge
 listens only on Docker's host-gateway address, never on all interfaces; PostgreSQL and Redis are published on
 `127.0.0.1` only (`docker-compose.desktop.yml`). Needs a screen: not for servers or Codespaces. If a firewall
@@ -91,6 +96,8 @@ listens only on Docker's host-gateway address, never on all interfaces; PostgreS
 - Docker: the `browser-bridge` service (`backend/Dockerfile.bridge`, Playwright image, headless). Not published to the host.
 - Real providers need a **visible** browser window so a person can sign in: run the bridge on the host with
   `BROWSER_HEADLESS=false`. This has **not** been verified against the real sites (no accounts were used).
+- `BROWSER_EXECUTABLE_PATH` (optional) makes the bridge use an installed Chrome/Chromium instead of the browser
+  Playwright downloads.
 
 ## 5. Verification status
 
@@ -100,6 +107,7 @@ listens only on Docker's host-gateway address, never on all interfaces; PostgreS
 | `browser` execution engine | `test_browser_engine_runs_an_agent_turn` |
 | UI (gate, terms dialog, live session, axe) | `frontend/e2e/browser-bridge.spec.ts` |
 | Sites added, profiles per person (shared across sites, one window each), deleting a profile's sign-ins | `test_browser.py`, `browser-bridge.spec.ts` |
-| arena.ai and sites you add | **Not verified** — selectors are best effort; adjust them under *Selectors* |
+| Arena is refused everywhere (API, gate, bridge service, MCP tools); stored Arena data is retired reversibly | `test_arena_is_not_a_browser_bridge_site_and_cannot_be_added_back`, `test_migration_retires_stored_arena_data_and_is_reversible`, `test_platform_mcp_server_lists_and_calls_tools_with_key_scoping` |
+| Sites you add | **Not verified** against any live site — selectors are best effort; adjust them under *Selectors* |
 | Desktop mode (`./bridge-desktop.sh`, visible windows) | Container → host-gateway reachability checked; **visible windows not run here** (no screen) |
 | Windows / macOS | **Not verified** here (Linux only); Playwright supports both |

@@ -446,3 +446,77 @@ sites, registered with an owner, one window at a time. Desktop mode runs the bri
 `BROWSER_HEADLESS=false`, bound to Docker's host-gateway address only, with PostgreSQL/Redis published on 127.0.0.1.
 **Consequences:** No adapter is verified against a live provider; selectors are adjustable per site. Desktop mode is
 Linux-desktop only for now; in Docker/Codespaces the bridge stays headless.
+
+## ADR-032 — Arena Local Bridge is the only Arena path; the Browser Bridge loses its Arena site (2026-11-11)
+**Status:** Accepted. Supersedes the Arena part of ADR-031. Assessment: `docs/WORKFORCE_ASSESSMENT.md`.
+**Context:** The owner wants one prompt handled by a Claude Manager and four specialised workers, each on its own
+Arena account, through Arena Local Bridge (ALB, `Gandhara2077/arena-local-bridge`). Until now the only Arena path was
+the built-in `arena` site of the Playwright Browser Bridge: guessed DOM selectors that were never checked against the
+live page, one browser profile per person, and no way to plan, review or consolidate work. ALB already does the
+browser work and exposes an OpenAI-compatible HTTP endpoint on the Windows host, so two parallel Arena paths would
+mean two sets of sessions, two terms gates and an unverified scraper next to the supported route.
+The v1 spec said "never use unofficial Arena AI integrations"; this ADR records that the owner has explicitly
+replaced that rule for ALB. ALB is not an official Arena API, and the terms risk noted in ADR-031 remains.
+**Decision:**
+1. **Exclusive path.** Arena is reached only through the provider kind `arena_local_bridge`. The Browser Bridge's
+   built-in `arena` site, its selectors and its terms text are deleted. Any site whose host is `arena.ai` or
+   `lmarena.ai` (or a subdomain) is refused when added, dropped from the catalogue if it already exists, and refused
+   again by the bridge service. Stored Arena acknowledgements, selector overrides and custom Arena sites move to
+   `browser_bridge.retired_arena` (kept, unused); Arena browser sessions are stopped with an explanatory error. The
+   migration is reversible and deletes nothing.
+2. **The generic Browser Bridge stays.** Custom sites, profiles, the test page, desktop mode, the `browser` engine,
+   the MCP browser tools, the `browser_bridge.manage` permission and the health entry are general-purpose and keep
+   working.
+3. **A bridge instance is a provider.** Base URL, encrypted write-only key, status and discovered sessions reuse the
+   provider registry. Per-instance options live in `providers.settings`; the last health snapshot in
+   `providers.health`. Several instances can exist (one per Arena account gives real parallelism).
+4. **Own HTTP adapter, not the OpenAI SDK.** It needs explicit control of what ALB actually implements:
+   - `Host: 127.0.0.1:<port>` — ALB answers 403 to any other Host on every route, whatever its `HOST` setting, so
+     this is the only way a container can reach it through `host.docker.internal`. The guard exists against browser
+     DNS rebinding; the Bearer key is still required and ALB can stay bound to loopback. The header is a visible
+     per-instance setting.
+   - `x-codex-session-id` (stable per worker), `x-arena-idempotency-key` (stable per execution round).
+   - the system prompt folded into the user message, because ALB sends only the last user message to a session;
+   - streaming with ALB's 10-second heartbeats as the liveness signal; a client-side idle and total timeout, because
+     ALB has none; a non-streaming mode as a switch;
+   - ALB's error body, `Retry-After`, in-stream error frames and `X-Arena-Bridge-Request-Id` mapped to the gateway's
+     error classes and to the execution's events;
+   - `usage` is ignored: ALB always reports zeros, so usage is recorded as *not reported*, never as 0 tokens.
+   The adapter never calls `/api/status` (it returns the bridge key) and never uses ALB's reCAPTCHA or proxy helpers.
+5. **Account binding is shown as what it is.** ALB has no account selector and names no account in its responses.
+   A worker is *deterministic* when its model is a session UUID (the session's owner is always used) or when its
+   bridge instance has exactly one enabled account; otherwise it is *pooled* and the UI says so. The owning account
+   is read from ALB's session registry, stored masked, and labelled "configured, not attested per response".
+6. **Terms gate.** No chat request goes to ALB until a person accepts an exact statement for that instance. The
+   statement names the instance's address, so changing the address revokes it. Audited and revocable. Diagnostics and
+   health readings need no acknowledgement: they use ALB's local routes and its `ping` probe model, which ALB answers
+   itself without opening Arena. Human-Assisted mode needs no bridge and no gate.
+   Creating a bridge, changing its address or options, replacing its key, acknowledging or revoking the terms and
+   deleting it need `workforce.bridge`, a human-only permission that only the Super Admin role holds: the bridge
+   drives the owner's personal Arena accounts, so an Organization Admin can configure workers (`workforce.manage`)
+   and run diagnostics but cannot point the platform at another bridge or accept the terms on the owner's behalf.
+   Bridges are managed only at `/api/workforce/bridges`; the generic provider routes answer 409
+   `managed_at:/api/workforce/bridges` for this kind, so the address rules and the gate cannot be bypassed there.
+7. **No duplicate turns after a restart.** The idempotency key is stable across resume and transient retries. A
+   request whose outcome is unknown is resent only inside ALB's replay window; after it the execution fails as
+   `outcome_unknown` and the task-level policy (bounded retry or Human-Assisted fallback) decides.
+8. **Fake bridge for tests.** `backend/devtools/fake_arena_bridge.py` reproduces ALB's routes, host guard, errors,
+   queue and stream format from its source. It identifies itself (`service: fake-arena-bridge`), and a provider that
+   talks to it is forced to `is_mock = true`, so its results are labelled mock everywhere.
+9. **Only local addresses.** A bridge address must be loopback, `host.docker.internal`, a private IPv4 address, or a
+   host named in `ARENA_BRIDGE_ALLOWED_HOSTS`; no credentials, path or query in the URL. The key is therefore never
+   sent to a public host.
+10. **Health is read, not assumed.** The worker's `workforce` role (one leader, PostgreSQL advisory lock) reads each
+    enabled bridge every `ARENA_BRIDGE_HEALTH_INTERVAL_SECONDS`: `/health`, the key probe and the session registry.
+    Account e-mail addresses are masked before they are stored (`o***@domain`) and told apart by a salted hash;
+    prompts in ALB's registry are dropped. "Works" means reachable, key accepted and an account ready.
+11. **The platform waits for a slot before it sends.** ALB runs one turn at a time and refuses when its queue is
+    full. Each worker process therefore keeps at most `max_concurrent` (default 1) requests in flight per bridge
+    address and makes the rest wait on its own side, where nothing has been sent yet. The wait is recorded on the
+    execution. Several worker processes each keep their own count; ALB's queue orders them.
+**Consequences:** One Arena path with a clear provider abstraction; the unverified Arena scraper is gone. Automatic
+workers need ALB running on the host and the owner's acknowledgement; without it every worker still works in
+Human-Assisted mode. Limits inherited from ALB: no per-response account attestation, one turn at a time per instance,
+no token usage, at-least-once delivery, no platform tools inside Arena sessions.
+**Not verified in development:** a real ALB, real Arena accounts, `host.docker.internal` reaching a loopback-bound
+ALB on Docker Desktop, and one-instance-per-account. These need the owner's Windows machine.

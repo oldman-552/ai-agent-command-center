@@ -2,9 +2,9 @@
 
 Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MASTER_PROMPT.md` v4.0.
 
-**Overall verified completion: 97.5%**
+**Overall verified completion: 88.0%**
 
-## M1 — Foundation (weight 8%, 100%) — spec Phases 1, 19, 23, 25
+## M1 — Foundation (weight 7%, 100%) — spec Phases 1, 19, 23, 25
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -25,7 +25,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | FND-15 | P1 | Organizations/teams schema for multi-tenant readiness; tenant scoping in authz | Every project-scoped query filtered by org; test cross-org denial | pytest | FND-03 | done | organizations/teams + organization_id on scoped tables, tenancy.scoped/get_scoped; cross-org test |
 | FND-16 | P1 | Requirements matrix, decision log (ADRs), progress.txt + PROJECT_STATUS.json | Files generated from requirements.json | inspection | — | done | docs/requirements.json (115 reqs), REQUIREMENTS.md, ARCHITECTURE_DECISIONS.md (11 ADRs), progress.txt + PROJECT_STATUS.json generated |
 
-## M2 — Universal Agent Runtime (weight 9%, 100%) — spec Phase 2
+## M2 — Universal Agent Runtime (weight 8%, 100%) — spec Phase 2
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -38,7 +38,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | RT-07 | P0 | Tool registry + per-agent tool permission validation (default deny) | Unpermitted tool call blocked + audited | pytest | RT-01 | done | default-deny tool gate, audited denial, WAITING_FOR_TOOL state (test) |
 | RT-08 | P1 | Retry policy with exponential backoff + retry budget | Retry tests | pytest | RT-03 | done | exponential backoff, retry budget, fatal not retried, resume without repeating steps (tests) |
 
-## M3 — Dynamic Agent Management (weight 7%, 100%) — spec Phase 3
+## M3 — Dynamic Agent Management (weight 6%, 100%) — spec Phase 3
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -50,7 +50,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | AG-06 | P0 | Agents UI: list, create/edit form, details, templates — ar/en | E2E create/edit flow | Playwright | AG-01, FND-07 | done | Agents list/filters/actions, create/edit form (RHF+Zod, tool ceilings), details (versions, transitions), templates gallery; E2E CRUD flow + axe ar/en |
 | AG-07 | P1 | Agent teams | Team CRUD + membership | pytest | AG-01 | done | tests/test_routing_budgets_teams.py::test_team_crud_and_membership (CRUD, lead rule, cross-tenant 404, RBAC, project link, audit) |
 
-## M4 — Multi-Provider AI Gateway (weight 8%, 90%) — spec Phases 9, 20
+## M4 — Multi-Provider AI Gateway (weight 7%, 90%) — spec Phases 9, 20
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -65,7 +65,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | GW-09 | P0 | Providers & Models UI | E2E add provider, test connection | Playwright | GW-02 | done | Providers & models page: add provider (write-only key), set/rotate key, test, discover, enable/disable, delete, add/edit model prices; E2E + axe ar/en |
 | GW-10 | P0 | At least one real official API call verified | Live call with owner key succeeds | manual/live test | GW-01 | pending | — |
 
-## M5 — Execution Engines (weight 6%, 100%) — spec Phase 10
+## M5 — Execution Engines (weight 5%, 100%) — spec Phase 10
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -74,7 +74,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | EE-03 | P1 | External agent runtime adapter (A2A client) | Adapter contract test | pytest | A2A-02 | done | tests/test_a2a.py::test_a2a_engine_delegates_to_external_agent_and_reattaches_on_resume (platform agent → A2A provider → remote agent over HTTP; resume re-attaches without resubmitting), test_a2a_engine_unreachable_service_fails_cleanly |
 | EE-04 | P0 | Unsupported integrations explicitly documented | PROVIDER_INTEGRATION.md table | inspection | — | done | docs/PROVIDER_INTEGRATION.md 'Not supported' table + per-CLI verification table |
 
-## M6 — Intelligent Orchestration (weight 9%, 100%) — spec Phases 4, 13
+## M6 — Intelligent Orchestration (weight 8%, 100%) — spec Phases 4, 13
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -88,7 +88,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | OR-08 | P0 | Tasks never marked complete on agent claim alone (evidence gate) | Completion requires passing evaluation | pytest | EV-01 | done | test_human_cannot_approve_without_a_passing_evaluation (409 evaluation_not_passed); evaluator revise/reject never reaches REVIEW (test_reviewer_model_can_withhold_but_never_grant_approval) |
 | OR-09 | P1 | Project modes: new / existing (repo inspection, tech detection) / maintenance | Existing-repo analysis produces map | pytest | GH-02 | done | test_repository_analysis_produces_a_map + test_existing_project_import_and_analyze_api (clone from local bare remote) + test_planner_prompt_uses_the_repository_map_for_existing_projects |
 
-## M7 — Agent Supervisor (weight 6%, 100%) — spec Phase 5
+## M7 — Agent Supervisor (weight 5%, 100%) — spec Phase 5
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -99,7 +99,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | SV-05 | P0 | Supervisor never overrides security/approval policies | Test: approval-gated op not executed by supervisor | pytest | SEC-03 | done | test_supervisor_never_overrides_approvals_or_touches_tasks_awaiting_humans (approval stays pending, task in APPROVAL untouched, no code path to approvals) |
 | SV-06 | P0 | Supervisor UI: health, findings, actions log | E2E | Playwright | SV-01 | done | frontend/e2e/supervisor.spec.ts: health tiles, manual sweep, findings/all-clear, log; axe WCAG 2.2 AA ar/en (caught and fixed an invalid definition list), no overflow 375/1440 |
 
-## M8 — GitHub Development (weight 7%, 100%) — spec Phase 12
+## M8 — GitHub Development (weight 6%, 100%) — spec Phase 12
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -112,7 +112,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | GH-07 | P1 | Webhooks + CI check status | Webhook signature verified | pytest | GH-02 | done | test_webhooks_are_signed_deduplicated_and_update_checks: bad/missing signature and unknown repo 401, replayed delivery ignored, check_run updates PR checks, pull_request merged updates state |
 | GH-08 | P0 | GitHub UI page | E2E | Playwright | GH-02 | done | frontend/e2e/github.spec.ts: connect dialog validation + honest failure when GitHub unreachable (nothing stored), repositories with protected branches, PR/worktree sections, axe WCAG 2.2 AA ar/en with dialog open, no overflow 375/1440 |
 
-## M9 — Browser Bridge and MCP (weight 7%, 100%) — spec Phases 11, 18
+## M9 — Browser Bridge and MCP (weight 6%, 100%) — spec Phases 11, 18
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -136,7 +136,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | A2A-01 | P1 | A2A agent card + task endpoint for platform agents | Spec-compatible JSON | pytest | — | done | tests/test_a2a.py (21 tests): agent card fields, key-gated exposure (401/404), human-only hashed audited keys, revocation, SendMessage blocking/returnImmediately, idempotent messageId, GetTask, ListTasks filter+pagination, CancelTask, per-key task privacy, 11 spec error codes; test_bus::test_a2a_task_runs_through_bus_and_worker; live smoke on dev stack (API→outbox→RabbitMQ→worker) |
 | A2A-02 | P1 | A2A client for external agent services | Client test against local server | pytest | A2A-01 | done | tests/test_a2a.py::test_client_against_local_server (real uvicorn over TCP: card discovery, send blocking/non-blocking, wait, list, error mapping, bad token), test_client_refuses_card_that_redirects_credentials_elsewhere |
 
-## M11 — Context and Memory (weight 7%, 100%) — spec Phases 7, 8
+## M11 — Context and Memory (weight 6%, 100%) — spec Phases 7, 8
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -148,7 +148,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | MEM-03 | P0 | Project isolation of memory | Cross-project retrieval denied | pytest | MEM-01 | done | test_cross_project_and_cross_tenant_retrieval_denied (store, API, other tenant 404, task prompt) |
 | MEM-04 | P0 | Context & Memory UI with human correction/deletion | E2E | Playwright | MEM-01 | done | frontend/e2e/memory.spec.ts ar+en: add, ranked search, verify, correct with history, delete, context preview, axe WCAG 2.2 AA, no overflow 375/1440; full E2E 51/51 |
 
-## M12 — Evaluation and Recovery (weight 6%, 100%) — spec Phases 14, 15
+## M12 — Evaluation and Recovery (weight 5%, 100%) — spec Phases 14, 15
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -158,7 +158,7 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | EV-04 | P0 | Graceful shutdown preserving partial results | Shutdown test | pytest | RT-06 | done | tests/test_bus.py::test_sigterm_lets_short_work_finish_and_hands_off_long_work: real worker SIGTERM with 3 s grace → exits 0, short execution COMPLETED inside grace, long one TERMINATED with partial output 'one two ' and a shutdown event, new worker resumes from checkpoint → exactly 'one two three' |
 | EV-05 | P0 | Evaluation UI | E2E | Playwright | EV-01 | done | frontend/e2e/evaluations.spec.ts: /evaluations performance profiles grouped (URL state), recent verdicts linked to tasks, no page overflow 375/1440, axe WCAG 2.2 AA ar/en; per-task evaluation (checks, criteria coverage, notes) in task details covered by tasks/approvals specs |
 
-## M13 — Enterprise Security (weight 7%, 88%) — spec Phases 16, 17, 22
+## M13 — Enterprise Security (weight 6%, 88%) — spec Phases 16, 17, 22
 
 | ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -193,3 +193,29 @@ Generated from `docs/requirements.json` by `scripts/progress.py`. Spec: `docs/MA
 | FI-05 | P0 | End-to-end Definition-of-Done scenario with Mock provider | E2E passes | Playwright + pytest | — | done | frontend/e2e/definition-of-done.spec.ts: objective→4 tasks with dependencies, 2 parallel, reviews, critical approval in Approval Center, all COMPLETED, timeline/context/audit/analytics, Arabic RTL + axe; passed on dev stack and twice on the Docker compose stack; backend 265/265, E2E 61/61 |
 | FI-06 | P0 | End-to-end with real provider + GitHub | Live run | manual/live | GW-10 | pending | — |
 | FI-07 | P0 | Release readiness report + known limitations | Docs | inspection | — | done | docs/RELEASE_READINESS.md: test evidence, DoD table, open owner items (GW-10, FI-06, SEC-08, FI-01), known limitations |
+
+## M16 — AI Workforce (Arena Local Bridge) (weight 12%, 19%) — spec Workforce master prompt, Phases 1-10 (docs/WORKFORCE_MASTER_PROMPT.md)
+
+| ID | P | Requirement | Acceptance | Verification | Depends | Status | Evidence |
+|---|---|---|---|---|---|---|---|
+| WF-01 | P0 | Architecture assessment of both repositories and the ADR for replacing the Arena path | Assessment lists reusable/modify/remove/migrate/missing/dependencies/security/limitations/sequence; ADR accepted | inspection | — | done | docs/WORKFORCE_ASSESSMENT.md (source inspection of ai-agent-command-center d953576 and arena-local-bridge v1.1.0 403122c); ADR-032 in docs/ARCHITECTURE_DECISIONS.md |
+| WF-02 | P0 | Arena-specific Browser Bridge path removed; generic Browser Bridge and MCP keep working | No built-in arena site; Arena hosts refused as custom sites; reversible data migration; bridge and MCP tests pass | pytest test_browser, test_integrations, test_workforce_legacy | WF-01 | done | built-in arena adapter removed; Arena hosts refused at gate/bridge/MCP (arena_requires_local_bridge); reversible data migration b1a7e0a3c032; pytest test_browser.py + test_integrations.py 37 passed with real Chromium; full backend 312 passed, 1 failed (needs docker binary), 15 skipped (docker) in the development sandbox; frontend check (i18n 1167 keys, tsc) OK |
+| WF-03 | P0 | Arena Local Bridge adapter: connection test, health, discovery, chat (stream and non-stream), timeouts, error mapping, request correlation | Adapter verified over real HTTP against the fake bridge; every documented bridge error is classified | pytest test_arena_bridge | WF-01 | done | pytest tests/test_arena_bridge.py 73 passed — FAKE bridge over real HTTP/SSE (local-integration tier): health/ready/models/sessions/ping, stream + non-stream, connect/idle/total timeouts, 19 classified failures incl. in-stream error frames, Retry-After, idempotent replay, outcome_unknown after the replay window, platform-side slot. A real Arena Local Bridge was NOT run (WF-20) |
+| WF-04 | P0 | Bridge settings: per-instance configuration, encrypted write-only key, terms gate, step-by-step diagnostics for Docker-to-host networking | Key never returned; no request before acknowledgement; diagnostics name the failing step | pytest test_arena_bridge_api | WF-03 | done | pytest tests/test_arena_bridge_api.py 26 passed — per-instance settings, encrypted write-only key (never in a response, audit row or log), exact-statement terms gate revoked on address change, nothing sent before acknowledgement, diagnostics naming the failing step (dns/tcp/health/key/ready), masked accounts, binding classification, Super-Admin-only workforce.bridge, cross-tenant 404, health monitor with one leader. API only: the settings page is WF-16; Docker-to-host networking NOT VERIFIED here |
+| WF-05 | P0 | Four workers with independent identity, role, prompt, model/session, mode, timeout/retry and health; account binding shown as deterministic or pooled | Default workforce has four workers; binding classification follows the bridge's real account model | pytest test_workforce_workers | WF-03 | pending | — |
+| WF-06 | P0 | Claude Manager analyses, plans, decomposes and assigns; plan is validated; planning is persisted and resumable | One prompt yields an analysis and a validated task graph assigned to workers; resume does not call the model twice | pytest test_workforce_manager | WF-05 | pending | — |
+| WF-07 | P0 | Task carries objective, instructions, expected output, skills, worker, priority, dependencies, timeout, acceptance criteria, status and mode; lifecycle transitions are validated and recorded | Illegal transitions are refused; every change has a history row; coarse status and lifecycle cannot diverge | pytest test_workforce_lifecycle | WF-06 | pending | — |
+| WF-08 | P0 | Automatic execution through the bridge with a stable idempotency key and no duplicate turn after a restart | A resumed execution re-uses its key inside the replay window and fails as outcome_unknown after it | pytest test_workforce_execution | WF-03, WF-07 | pending | — |
+| WF-09 | P0 | Human-Assisted execution: task card, accept/decline, submission of text, attachments and notes, resubmission; works with no bridge | A task completes end to end with the bridge unreachable | pytest test_workforce_human + E2E | WF-07 | pending | — |
+| WF-10 | P0 | Disabled workers receive no new tasks; the Manager redistributes; manual reassignment | Tasks planned for a disabled worker go to an eligible one or wait with a reason; reassignment is audited | pytest test_workforce_modes | WF-07 | pending | — |
+| WF-11 | P0 | Review: approve, reject, request revision or escalate to a human; never accepted on HTTP 200; original responses and revisions kept | Every attempt is an immutable version; a criterion marked unmet can never be approved by the Manager | pytest test_workforce_review | WF-08, WF-09 | pending | — |
+| WF-12 | P0 | One consolidated result that separates verified facts, worker proposals, unverified claims, failed, incomplete and human-approved items | Classes are computed from persisted evidence, not from model text; mock results are labelled | pytest test_workforce_report | WF-11 | pending | — |
+| WF-13 | P0 | Failure recovery: bridge or account unavailable, timeout, invalid response, rate limit, worker/queue/database interruption, with bounded retries and Human-Assisted fallback | Each failure is classified, bounded and leaves the task in a recoverable state | pytest test_workforce_recovery | WF-08, WF-09 | pending | — |
+| WF-14 | P1 | Development tasks from text workers: files applied in a worktree, changed files and conflicts tracked, protected merge only after approval | Worker file blocks land in the task branch; merge requires the Approval Center | pytest test_workforce_devtasks | WF-11 | pending | — |
+| WF-15 | P0 | Security: RBAC, tenant isolation, audit, secret redaction, untrusted-output isolation, frozen approval payloads | Cross-tenant access returns 404; worker output cannot change the Manager's rules; keys never leave the backend | pytest test_workforce_security | WF-04, WF-11 | pending | — |
+| WF-16 | P0 | AI Workforce UI: dashboard, worker configuration, bridge settings, task board with filters, approval center, execution history, manual work submission | Pages work in Arabic and English, pass axe, and show only persisted state | Playwright workforce.spec + a11y | WF-05, WF-09, WF-11 | pending | — |
+| WF-17 | P0 | Windows scripts INSTALL, START, STOP, UPDATE, HEALTH-CHECK, RESET; compose reaches the bridge on the host | Scripts exist, RESET asks for typed confirmation, health check probes the bridge from inside the API container | static checks; run on the owner's Windows machine | WF-04 | pending | — |
+| WF-18 | P0 | Observability: objective, manager step, task, worker, provider-request and trace IDs with times, retries and errors; usage only when the provider reports it | History endpoint returns the IDs; bridge usage is stored as not reported | pytest test_workforce_history | WF-08 | pending | — |
+| WF-19 | P0 | Documentation: bridge integration, Human-Assisted guide, security, troubleshooting, Windows install, README; old Arena bridge instructions removed | Docs match the implementation; no instruction points to the removed Arena site | inspection + grep | WF-02, WF-17 | pending | — |
+| WF-20 | P0 | Verified against a real Arena Local Bridge with four Arena accounts | Real-Arena test tier passes on the owner's machine with four distinct accounts | pytest -m real_arena on the owner's Windows machine | WF-08 | pending | — |
+| WF-21 | P0 | Manager verified on a real Claude model | Real-provider test tier passes with the owner's API key | pytest -m real_provider on the owner's machine | WF-06 | pending | — |

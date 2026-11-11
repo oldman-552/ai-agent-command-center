@@ -1,17 +1,17 @@
 {
-  "date": "2026-11-10 22:43",
+  "date": "2026-11-11 09:17",
   "spec_version": "4.0",
   "current_phase": "Phases 16, 17, 22",
   "current_milestone": {
     "id": 13,
     "name": "Enterprise Security"
   },
-  "overall_percent": 97.5,
+  "overall_percent": 88.0,
   "milestones": [
     {
       "id": 1,
       "name": "Foundation",
-      "weight": 8,
+      "weight": 7,
       "percent": 100.0,
       "done": 16,
       "total": 16
@@ -19,7 +19,7 @@
     {
       "id": 2,
       "name": "Universal Agent Runtime",
-      "weight": 9,
+      "weight": 8,
       "percent": 100.0,
       "done": 8,
       "total": 8
@@ -27,7 +27,7 @@
     {
       "id": 3,
       "name": "Dynamic Agent Management",
-      "weight": 7,
+      "weight": 6,
       "percent": 100.0,
       "done": 7,
       "total": 7
@@ -35,7 +35,7 @@
     {
       "id": 4,
       "name": "Multi-Provider AI Gateway",
-      "weight": 8,
+      "weight": 7,
       "percent": 90.0,
       "done": 9,
       "total": 10
@@ -43,7 +43,7 @@
     {
       "id": 5,
       "name": "Execution Engines",
-      "weight": 6,
+      "weight": 5,
       "percent": 100.0,
       "done": 4,
       "total": 4
@@ -51,7 +51,7 @@
     {
       "id": 6,
       "name": "Intelligent Orchestration",
-      "weight": 9,
+      "weight": 8,
       "percent": 100.0,
       "done": 9,
       "total": 9
@@ -59,7 +59,7 @@
     {
       "id": 7,
       "name": "Agent Supervisor",
-      "weight": 6,
+      "weight": 5,
       "percent": 100.0,
       "done": 6,
       "total": 6
@@ -67,7 +67,7 @@
     {
       "id": 8,
       "name": "GitHub Development",
-      "weight": 7,
+      "weight": 6,
       "percent": 100.0,
       "done": 8,
       "total": 8
@@ -75,7 +75,7 @@
     {
       "id": 9,
       "name": "Browser Bridge and MCP",
-      "weight": 7,
+      "weight": 6,
       "percent": 100.0,
       "done": 8,
       "total": 8
@@ -91,7 +91,7 @@
     {
       "id": 11,
       "name": "Context and Memory",
-      "weight": 7,
+      "weight": 6,
       "percent": 100.0,
       "done": 7,
       "total": 7
@@ -99,7 +99,7 @@
     {
       "id": 12,
       "name": "Evaluation and Recovery",
-      "weight": 6,
+      "weight": 5,
       "percent": 100.0,
       "done": 5,
       "total": 5
@@ -107,7 +107,7 @@
     {
       "id": 13,
       "name": "Enterprise Security",
-      "weight": 7,
+      "weight": 6,
       "percent": 87.5,
       "done": 7,
       "total": 8
@@ -127,6 +127,14 @@
       "percent": 71.4,
       "done": 5,
       "total": 7
+    },
+    {
+      "id": 16,
+      "name": "AI Workforce (Arena Local Bridge)",
+      "weight": 12,
+      "percent": 19.0,
+      "done": 4,
+      "total": 21
     }
   ],
   "completed": [
@@ -240,13 +248,56 @@
     "FI-03",
     "FI-04",
     "FI-05",
-    "FI-07"
+    "FI-07",
+    "WF-01",
+    "WF-02",
+    "WF-03",
+    "WF-04"
   ],
   "in_progress": [
     "SEC-08"
   ],
   "files_changed": [
-    "docs/RELEASE_READINESS.md"
+    ".env.example",
+    "PROJECT_STATUS.json",
+    "backend/app/browser/adapters.py",
+    "backend/app/browser/bridge.py",
+    "backend/app/browser/gate.py",
+    "backend/app/config.py",
+    "backend/app/connectivity/gateway/base.py",
+    "backend/app/connectivity/gateway/service.py",
+    "backend/app/connectivity/providers.py",
+    "backend/app/main.py",
+    "backend/app/models/__init__.py",
+    "backend/app/models/connectivity.py",
+    "backend/app/models/governance.py",
+    "backend/app/models/runtime.py",
+    "backend/app/models/work.py",
+    "backend/app/observability/realtime.py",
+    "backend/app/runtime/api.py",
+    "backend/app/runtime/service.py",
+    "backend/app/security/rbac.py",
+    "backend/app/worker.py",
+    "backend/tests/conftest.py",
+    "backend/tests/test_browser.py",
+    "backend/tests/test_integrations.py",
+    "docker-compose.yml",
+    "docs/ARCHITECTURE.md",
+    "docs/ARCHITECTURE_DECISIONS.md",
+    "docs/BROWSER_BRIDGE.md",
+    "docs/CHANGELOG.md",
+    "docs/REQUIREMENTS.md",
+    "docs/requirements.json",
+    "frontend/e2e/browser-bridge.spec.ts",
+    "frontend/messages/ar.json",
+    "frontend/messages/en.json",
+    "frontend/src/app/(app)/browser-bridge/page.tsx",
+    "progress.txt",
+    "backend/alembic/versions/b1a7e0a3c032_retire_arena_browser_site.py",
+    "backend/alembic/versions/c2d4f6a8b032_ai_workforce.py",
+    "backend/app/connectivity/arena_bridge/",
+    "backend/app/models/workforce.py",
+    "backend/devtools/"
   ],
   "tests": {
     "passed": [
@@ -276,5 +327,5 @@
   "requires_owner_approval": [
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
-  "next_action": "M11 context & memory (CX-01..03, MEM-01..04), then M9 browser bridge, M5 CLI engines, M14 automation, M15 docs/launchers"
+  "next_action": "M16 AI Workforce: remove the Arena path from the Browser Bridge (WF-02), then the Arena Local Bridge adapter (WF-03/04), workers, Manager, hybrid execution, UI, recovery, Windows scripts"
 }

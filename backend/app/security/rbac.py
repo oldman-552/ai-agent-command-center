@@ -25,6 +25,12 @@ PERMISSIONS: dict[str, str] = {
     "memory.read": "View memory", "memory.write": "Correct/delete memory",
     "skills.manage": "Install/enable skills and MCP servers",
     "browser_bridge.manage": "Manage Browser Bridge and acknowledge provider terms",
+    "workforce.read": "View the AI workforce, its tasks, history and results",
+    "workforce.run": "Give the AI workforce an objective",
+    "workforce.work": "Accept and submit Human-Assisted tasks",
+    "workforce.review": "Review results and reassign tasks of the AI workforce",
+    "workforce.manage": "Configure the Manager and the workers of the AI workforce",
+    "workforce.bridge": "Configure Arena Local Bridge connections and acknowledge Arena's terms",
     "supervisor.read": "View supervisor findings", "supervisor.manage": "Configure supervisor policies",
     "evaluation.read": "View evaluations",
     "audit.read": "View audit logs",
@@ -41,18 +47,22 @@ _READ = [p for p in PERMISSIONS if p.endswith(".read")]
 ROLES: dict[str, tuple[str, str, list[str]]] = {
     "SUPER_ADMIN": ("مدير عام", "Super Admin", ["*"]),
     "ORGANIZATION_ADMIN": ("مدير المنظمة", "Organization Admin",
-                           [p for p in PERMISSIONS if p not in ("security.manage", "browser_bridge.manage")]),
+                           [p for p in PERMISSIONS if p not in ("security.manage", "browser_bridge.manage",
+                                                                "workforce.bridge")]),
     "PROJECT_MANAGER": ("مدير مشروع", "Project Manager", _READ + [
         "projects.write", "agents.write", "agents.control", "agents.chat", "templates.write", "teams.write",
-        "tasks.write", "tasks.control", "workflows.run", "executions.control", "memory.write", "automations.manage"]),
+        "tasks.write", "tasks.control", "workflows.run", "executions.control", "memory.write", "automations.manage",
+        "workforce.run", "workforce.work", "workforce.review"]),
     "DEVELOPER": ("مطوّر", "Developer", _READ + [
-        "agents.chat", "tasks.write", "tasks.control", "workflows.run", "executions.control", "memory.write"]),
-    "REVIEWER": ("مراجع", "Reviewer", _READ + ["agents.chat"]),
+        "agents.chat", "tasks.write", "tasks.control", "workflows.run", "executions.control", "memory.write",
+        "workforce.run", "workforce.work"]),
+    "REVIEWER": ("مراجع", "Reviewer", _READ + ["agents.chat", "workforce.work", "workforce.review"]),
     "VIEWER": ("مشاهد", "Viewer", _READ),
 }
 
 # Permissions that only a human may ever exercise, never via an agent-originated request.
-HUMAN_ONLY = {"approvals.decide", "security.manage", "users.manage", "credentials.manage", "browser_bridge.manage"}
+HUMAN_ONLY = {"approvals.decide", "security.manage", "users.manage", "credentials.manage", "browser_bridge.manage",
+              "workforce.manage", "workforce.bridge"}
 
 
 def role_grants(role_key: str) -> set[str]:

@@ -57,7 +57,8 @@ class Provider(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     organization_id: Mapped[int] = org_fk()
     name: Mapped[str] = mapped_column(String(128))
-    kind: Mapped[str] = mapped_column(String(32))  # adapter key: anthropic|openai|google|openai_compatible|mock
+    # adapter key: anthropic|openai|google|openai_compatible|arena_local_bridge|a2a|mock
+    kind: Mapped[str] = mapped_column(String(32))
     is_mock: Mapped[bool] = mapped_column(Boolean, default=False)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     auth_type: Mapped[str] = mapped_column(String(16), default=AuthType.API_KEY.value)
@@ -68,6 +69,10 @@ class Provider(TimestampMixin, Base):
     last_error: Mapped[str | None] = mapped_column(Text)
     rate_limits: Mapped[dict] = mapped_column(JSONB, default=dict)
     priority: Mapped[int] = mapped_column(Integer, default=5)
+    # Per-provider adapter options (e.g. Arena Local Bridge: Host header, timeouts, terms acknowledgement). No secrets.
+    settings: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
+    # Last health snapshot taken by the platform (sanitised: account e-mail addresses are masked).
+    health: Mapped[dict | None] = mapped_column(JSONB)
 
     credential: Mapped[ApiCredential | None] = relationship(lazy="joined")
     models: Mapped[list[ModelInfo]] = relationship(back_populates="provider", lazy="selectin",

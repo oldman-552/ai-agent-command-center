@@ -3,6 +3,41 @@
 All notable changes. The project follows the milestones of the master specification (v4.0); requirement IDs refer
 to `docs/requirements.json`.
 
+## Unreleased — 2026-11-11 — AI Workforce
+
+### Removed
+- **Arena site of the Browser Bridge (ADR-032).** The built-in `arena` adapter, its guessed selectors and its terms
+  text are gone. Arena addresses (`arena.ai`, `lmarena.ai` and subdomains) are refused as custom sites, at the gate,
+  in the bridge service and through the MCP browser tools (`arena_requires_local_bridge`). Migration `b1a7e0a3c032`
+  archives stored Arena acknowledgements, selector overrides and custom Arena sites under
+  `browser_bridge.retired_arena` and stops Arena browser sessions; nothing is deleted and it is reversible.
+  The generic Browser Bridge (sites you add, profiles, desktop mode, `browser` engine, MCP tools) is unchanged.
+
+### Added
+- `BROWSER_EXECUTABLE_PATH`: the Browser Bridge can use an installed Chrome/Chromium.
+- `docs/WORKFORCE_ASSESSMENT.md` and ADR-032: assessment of this repository and of Arena Local Bridge.
+- **Arena Local Bridge provider** (`arena_local_bridge`, ADR-032, `docs/ARENA_LOCAL_BRIDGE.md`): the only Arena path.
+  Own HTTP adapter (stream and non-stream, heartbeats, connect/idle/total timeouts, `Host` header for
+  `host.docker.internal`, stable session and idempotency headers, every bridge error classified, request id kept).
+  Usage is recorded as *not reported* — never as zero tokens. A request with an unknown outcome is resent only
+  inside the bridge's replay window, otherwise the execution fails with `outcome_unknown`.
+- **Bridge settings** at `/api/workforce/bridges`: several instances, encrypted write-only key, exact-statement terms
+  gate per instance (revoked when the address changes), step-by-step diagnostics that name the failing step,
+  session discovery, masked account list, account-binding classification (pinned session / single account / pooled /
+  unknown — never "attested"). New permissions `workforce.read|run|work|review|manage|bridge`; `workforce.bridge`
+  is Super Admin only.
+- Worker role `workforce`: reads each enabled bridge's health every `ARENA_BRIDGE_HEALTH_INTERVAL_SECONDS` (one
+  leader). `/api/health` gains an `arena_local_bridge` entry (counts only).
+- `backend/devtools/fake_arena_bridge.py`: a FAKE bridge for tests and demos, built from the bridge's source. It
+  identifies itself, and everything that passes through it is labelled mock.
+- `scripts/dev/no-docker/`: build Python, PostgreSQL, Redis, RabbitMQ and Chromium as plain user processes to run the
+  test suites on a machine without Docker or root (developer convenience; not used by the installers).
+
+### Changed
+- Executions and usage records can carry *unknown* usage: token counters and cost are empty instead of 0 when the
+  provider reports nothing. API consumers must treat `null` as "not reported".
+- A transient provider failure honours the provider's `Retry-After` in the retry back-off.
+
 ## Unreleased — 2026-11-10
 
 ### Added

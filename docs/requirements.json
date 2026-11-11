@@ -5,7 +5,7 @@
     {
       "id": 1,
       "name": "Foundation",
-      "weight": 8,
+      "weight": 7,
       "spec_ref": "Phases 1, 19, 23, 25",
       "requirements": [
         {
@@ -189,7 +189,7 @@
     {
       "id": 2,
       "name": "Universal Agent Runtime",
-      "weight": 9,
+      "weight": 8,
       "spec_ref": "Phase 2",
       "requirements": [
         {
@@ -291,7 +291,7 @@
     {
       "id": 3,
       "name": "Dynamic Agent Management",
-      "weight": 7,
+      "weight": 6,
       "spec_ref": "Phase 3",
       "requirements": [
         {
@@ -384,7 +384,7 @@
     {
       "id": 4,
       "name": "Multi-Provider AI Gateway",
-      "weight": 8,
+      "weight": 7,
       "spec_ref": "Phases 9, 20",
       "requirements": [
         {
@@ -512,7 +512,7 @@
     {
       "id": 5,
       "name": "Execution Engines",
-      "weight": 6,
+      "weight": 5,
       "spec_ref": "Phase 10",
       "requirements": [
         {
@@ -568,7 +568,7 @@
     {
       "id": 6,
       "name": "Intelligent Orchestration",
-      "weight": 9,
+      "weight": 8,
       "spec_ref": "Phases 4, 13",
       "requirements": [
         {
@@ -686,7 +686,7 @@
     {
       "id": 7,
       "name": "Agent Supervisor",
-      "weight": 6,
+      "weight": 5,
       "spec_ref": "Phase 5",
       "requirements": [
         {
@@ -766,7 +766,7 @@
     {
       "id": 8,
       "name": "GitHub Development",
-      "weight": 7,
+      "weight": 6,
       "spec_ref": "Phase 12",
       "requirements": [
         {
@@ -869,7 +869,7 @@
     {
       "id": 9,
       "name": "Browser Bridge and MCP",
-      "weight": 7,
+      "weight": 6,
       "spec_ref": "Phases 11, 18",
       "requirements": [
         {
@@ -1045,7 +1045,7 @@
     {
       "id": 11,
       "name": "Context and Memory",
-      "weight": 7,
+      "weight": 6,
       "spec_ref": "Phases 7, 8",
       "requirements": [
         {
@@ -1137,7 +1137,7 @@
     {
       "id": 12,
       "name": "Evaluation and Recovery",
-      "weight": 6,
+      "weight": 5,
       "spec_ref": "Phases 14, 15",
       "requirements": [
         {
@@ -1206,7 +1206,7 @@
     {
       "id": 13,
       "name": "Enterprise Security",
-      "weight": 7,
+      "weight": 6,
       "spec_ref": "Phases 16, 17, 22",
       "requirements": [
         {
@@ -1460,6 +1460,271 @@
           "evidence": "docs/RELEASE_READINESS.md: test evidence, DoD table, open owner items (GW-10, FI-06, SEC-08, FI-01), known limitations"
         }
       ]
+    },
+    {
+      "id": 16,
+      "name": "AI Workforce (Arena Local Bridge)",
+      "weight": 12,
+      "spec_ref": "Workforce master prompt, Phases 1-10 (docs/WORKFORCE_MASTER_PROMPT.md)",
+      "requirements": [
+        {
+          "id": "WF-01",
+          "priority": "P0",
+          "description": "Architecture assessment of both repositories and the ADR for replacing the Arena path",
+          "acceptance": "Assessment lists reusable/modify/remove/migrate/missing/dependencies/security/limitations/sequence; ADR accepted",
+          "verification": "inspection",
+          "depends": [],
+          "status": "done",
+          "evidence": "docs/WORKFORCE_ASSESSMENT.md (source inspection of ai-agent-command-center d953576 and arena-local-bridge v1.1.0 403122c); ADR-032 in docs/ARCHITECTURE_DECISIONS.md"
+        },
+        {
+          "id": "WF-02",
+          "priority": "P0",
+          "description": "Arena-specific Browser Bridge path removed; generic Browser Bridge and MCP keep working",
+          "acceptance": "No built-in arena site; Arena hosts refused as custom sites; reversible data migration; bridge and MCP tests pass",
+          "verification": "pytest test_browser, test_integrations, test_workforce_legacy",
+          "depends": [
+            "WF-01"
+          ],
+          "status": "done",
+          "evidence": "built-in arena adapter removed; Arena hosts refused at gate/bridge/MCP (arena_requires_local_bridge); reversible data migration b1a7e0a3c032; pytest test_browser.py + test_integrations.py 37 passed with real Chromium; full backend 312 passed, 1 failed (needs docker binary), 15 skipped (docker) in the development sandbox; frontend check (i18n 1167 keys, tsc) OK"
+        },
+        {
+          "id": "WF-03",
+          "priority": "P0",
+          "description": "Arena Local Bridge adapter: connection test, health, discovery, chat (stream and non-stream), timeouts, error mapping, request correlation",
+          "acceptance": "Adapter verified over real HTTP against the fake bridge; every documented bridge error is classified",
+          "verification": "pytest test_arena_bridge",
+          "depends": [
+            "WF-01"
+          ],
+          "status": "done",
+          "evidence": "pytest tests/test_arena_bridge.py 73 passed — FAKE bridge over real HTTP/SSE (local-integration tier): health/ready/models/sessions/ping, stream + non-stream, connect/idle/total timeouts, 19 classified failures incl. in-stream error frames, Retry-After, idempotent replay, outcome_unknown after the replay window, platform-side slot. A real Arena Local Bridge was NOT run (WF-20)"
+        },
+        {
+          "id": "WF-04",
+          "priority": "P0",
+          "description": "Bridge settings: per-instance configuration, encrypted write-only key, terms gate, step-by-step diagnostics for Docker-to-host networking",
+          "acceptance": "Key never returned; no request before acknowledgement; diagnostics name the failing step",
+          "verification": "pytest test_arena_bridge_api",
+          "depends": [
+            "WF-03"
+          ],
+          "status": "done",
+          "evidence": "pytest tests/test_arena_bridge_api.py 26 passed — per-instance settings, encrypted write-only key (never in a response, audit row or log), exact-statement terms gate revoked on address change, nothing sent before acknowledgement, diagnostics naming the failing step (dns/tcp/health/key/ready), masked accounts, binding classification, Super-Admin-only workforce.bridge, cross-tenant 404, health monitor with one leader. API only: the settings page is WF-16; Docker-to-host networking NOT VERIFIED here"
+        },
+        {
+          "id": "WF-05",
+          "priority": "P0",
+          "description": "Four workers with independent identity, role, prompt, model/session, mode, timeout/retry and health; account binding shown as deterministic or pooled",
+          "acceptance": "Default workforce has four workers; binding classification follows the bridge's real account model",
+          "verification": "pytest test_workforce_workers",
+          "depends": [
+            "WF-03"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-06",
+          "priority": "P0",
+          "description": "Claude Manager analyses, plans, decomposes and assigns; plan is validated; planning is persisted and resumable",
+          "acceptance": "One prompt yields an analysis and a validated task graph assigned to workers; resume does not call the model twice",
+          "verification": "pytest test_workforce_manager",
+          "depends": [
+            "WF-05"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-07",
+          "priority": "P0",
+          "description": "Task carries objective, instructions, expected output, skills, worker, priority, dependencies, timeout, acceptance criteria, status and mode; lifecycle transitions are validated and recorded",
+          "acceptance": "Illegal transitions are refused; every change has a history row; coarse status and lifecycle cannot diverge",
+          "verification": "pytest test_workforce_lifecycle",
+          "depends": [
+            "WF-06"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-08",
+          "priority": "P0",
+          "description": "Automatic execution through the bridge with a stable idempotency key and no duplicate turn after a restart",
+          "acceptance": "A resumed execution re-uses its key inside the replay window and fails as outcome_unknown after it",
+          "verification": "pytest test_workforce_execution",
+          "depends": [
+            "WF-03",
+            "WF-07"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-09",
+          "priority": "P0",
+          "description": "Human-Assisted execution: task card, accept/decline, submission of text, attachments and notes, resubmission; works with no bridge",
+          "acceptance": "A task completes end to end with the bridge unreachable",
+          "verification": "pytest test_workforce_human + E2E",
+          "depends": [
+            "WF-07"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-10",
+          "priority": "P0",
+          "description": "Disabled workers receive no new tasks; the Manager redistributes; manual reassignment",
+          "acceptance": "Tasks planned for a disabled worker go to an eligible one or wait with a reason; reassignment is audited",
+          "verification": "pytest test_workforce_modes",
+          "depends": [
+            "WF-07"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-11",
+          "priority": "P0",
+          "description": "Review: approve, reject, request revision or escalate to a human; never accepted on HTTP 200; original responses and revisions kept",
+          "acceptance": "Every attempt is an immutable version; a criterion marked unmet can never be approved by the Manager",
+          "verification": "pytest test_workforce_review",
+          "depends": [
+            "WF-08",
+            "WF-09"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-12",
+          "priority": "P0",
+          "description": "One consolidated result that separates verified facts, worker proposals, unverified claims, failed, incomplete and human-approved items",
+          "acceptance": "Classes are computed from persisted evidence, not from model text; mock results are labelled",
+          "verification": "pytest test_workforce_report",
+          "depends": [
+            "WF-11"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-13",
+          "priority": "P0",
+          "description": "Failure recovery: bridge or account unavailable, timeout, invalid response, rate limit, worker/queue/database interruption, with bounded retries and Human-Assisted fallback",
+          "acceptance": "Each failure is classified, bounded and leaves the task in a recoverable state",
+          "verification": "pytest test_workforce_recovery",
+          "depends": [
+            "WF-08",
+            "WF-09"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-14",
+          "priority": "P1",
+          "description": "Development tasks from text workers: files applied in a worktree, changed files and conflicts tracked, protected merge only after approval",
+          "acceptance": "Worker file blocks land in the task branch; merge requires the Approval Center",
+          "verification": "pytest test_workforce_devtasks",
+          "depends": [
+            "WF-11"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-15",
+          "priority": "P0",
+          "description": "Security: RBAC, tenant isolation, audit, secret redaction, untrusted-output isolation, frozen approval payloads",
+          "acceptance": "Cross-tenant access returns 404; worker output cannot change the Manager's rules; keys never leave the backend",
+          "verification": "pytest test_workforce_security",
+          "depends": [
+            "WF-04",
+            "WF-11"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-16",
+          "priority": "P0",
+          "description": "AI Workforce UI: dashboard, worker configuration, bridge settings, task board with filters, approval center, execution history, manual work submission",
+          "acceptance": "Pages work in Arabic and English, pass axe, and show only persisted state",
+          "verification": "Playwright workforce.spec + a11y",
+          "depends": [
+            "WF-05",
+            "WF-09",
+            "WF-11"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-17",
+          "priority": "P0",
+          "description": "Windows scripts INSTALL, START, STOP, UPDATE, HEALTH-CHECK, RESET; compose reaches the bridge on the host",
+          "acceptance": "Scripts exist, RESET asks for typed confirmation, health check probes the bridge from inside the API container",
+          "verification": "static checks; run on the owner's Windows machine",
+          "depends": [
+            "WF-04"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-18",
+          "priority": "P0",
+          "description": "Observability: objective, manager step, task, worker, provider-request and trace IDs with times, retries and errors; usage only when the provider reports it",
+          "acceptance": "History endpoint returns the IDs; bridge usage is stored as not reported",
+          "verification": "pytest test_workforce_history",
+          "depends": [
+            "WF-08"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-19",
+          "priority": "P0",
+          "description": "Documentation: bridge integration, Human-Assisted guide, security, troubleshooting, Windows install, README; old Arena bridge instructions removed",
+          "acceptance": "Docs match the implementation; no instruction points to the removed Arena site",
+          "verification": "inspection + grep",
+          "depends": [
+            "WF-02",
+            "WF-17"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-20",
+          "priority": "P0",
+          "description": "Verified against a real Arena Local Bridge with four Arena accounts",
+          "acceptance": "Real-Arena test tier passes on the owner's machine with four distinct accounts",
+          "verification": "pytest -m real_arena on the owner's Windows machine",
+          "depends": [
+            "WF-08"
+          ],
+          "status": "pending",
+          "evidence": ""
+        },
+        {
+          "id": "WF-21",
+          "priority": "P0",
+          "description": "Manager verified on a real Claude model",
+          "acceptance": "Real-provider test tier passes with the owner's API key",
+          "verification": "pytest -m real_provider on the owner's machine",
+          "depends": [
+            "WF-06"
+          ],
+          "status": "pending",
+          "evidence": ""
+        }
+      ]
     }
   ],
   "blockers": [
@@ -1470,7 +1735,7 @@
     "To verify a real provider call (GW-10): open Providers & models, add your Anthropic/OpenAI/Google API key, press Test connection. A Claude.ai subscription does not include API access."
   ],
   "in_progress": [],
-  "next_step": "M11 context & memory (CX-01..03, MEM-01..04), then M9 browser bridge, M5 CLI engines, M14 automation, M15 docs/launchers",
+  "next_step": "M16 AI Workforce: remove the Arena path from the Browser Bridge (WF-02), then the Arena Local Bridge adapter (WF-03/04), workers, Manager, hybrid execution, UI, recovery, Windows scripts",
   "tests": {
     "passed": [
       "backend: 181/181 pytest on PostgreSQL 16 + live RabbitMQ 3.12 + real Docker 29 sandbox + real git — full suite twice and every module in isolation — 2026-11-10",

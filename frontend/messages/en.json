@@ -1046,7 +1046,8 @@
       "interface_changed": "The page changed and no longer matches the adapter. The session stopped safely.",
       "profile_in_use": "This profile is already in use by a live session.",
       "too_many_sessions": "The maximum number of live sessions is reached.",
-      "invalid_profile_name": "Invalid profile name."
+      "invalid_profile_name": "Invalid profile name.",
+      "arena_requires_local_bridge": "Arena cannot be used through the Browser Bridge. Configure Arena Local Bridge in the AI Workforce section instead."
     },
     "selectors": {
       "edit": "Selectors",
@@ -1070,11 +1071,11 @@
     },
     "profiles": {
       "title": "Browser profiles",
-      "help": "One browser profile per employee, agent or account. Sign in to a site (for example an Arena account) once in a profile's window; the sign-in stays in that profile. A profile opens in one window at a time — open it to watch what happens.",
+      "help": "One browser profile per employee, agent or account. Sign in to a site once in a profile's window; the sign-in stays in that profile. A profile opens in one window at a time — open it to watch what happens.",
       "mine": "My profile",
       "open": "open",
       "name": "Profile name",
-      "nameHelp": "Lower-case letters, digits and hyphens, e.g. ahmed or arena-1. Agents and people get one automatically the first time.",
+      "nameHelp": "Lower-case letters, digits and hyphens, e.g. ahmed or team-1. Agents and people get one automatically the first time.",
       "label": "Display name",
       "owner": "Belongs to",
       "account": "An account (no person)",
@@ -1108,7 +1109,10 @@
       "note": "Adding and removing sites is audited. You can refine all selectors later under Selectors.",
       "cancel": "Cancel",
       "save": "Add"
-    }
+    },
+    "arenaMovedTitle": "Arena is not offered here",
+    "arenaMovedBody": "Arena is reached only through Arena Local Bridge, which is configured in the AI Workforce section. The Browser Bridge no longer contains an Arena site and refuses Arena addresses.",
+    "arenaMovedLink": "Open Arena Local Bridge settings"
   },
   "projects": {
     "title": "Projects",

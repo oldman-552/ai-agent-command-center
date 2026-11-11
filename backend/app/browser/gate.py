@@ -9,7 +9,16 @@ from typing import Any
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.browser.adapters import BUILTIN, SITE_KEY_RE, Adapter, lookup
+from app.browser.adapters import (
+    ARENA_RETIRED,
+    BUILTIN,
+    RETIRED_KEYS,
+    SITE_KEY_RE,
+    Adapter,
+    is_arena_url,
+    lookup,
+    retired_reason,
+)
 from app.models import Organization
 from app.security.audit import log_activity
 
@@ -90,7 +99,15 @@ def set_enabled(db: Session, organization_id: int, user_id: int, enabled: bool) 
     return state(db, organization_id)
 
 
+def retired(db: Session, organization_id: int, provider: str) -> str | None:
+    """ADR-032: the reason a site can no longer be driven by the Browser Bridge (Arena), or None."""
+    org = db.get(Organization, organization_id)
+    return retired_reason(org.settings if org else None, provider)
+
+
 def acknowledge(db: Session, organization_id: int, user_id: int, provider: str, accepted: str) -> dict[str, Any]:
+    if (why := retired(db, organization_id, provider)) is not None:
+        raise GateClosed(why)
     a = adapter(db, organization_id, provider)
     if a is None or not a.requires_terms:
         raise GateClosed("unknown_provider")
@@ -123,6 +140,8 @@ def revoke(db: Session, organization_id: int, user_id: int, provider: str) -> di
 
 def check(db: Session, organization_id: int, provider: str) -> None:
     """Raise GateClosed unless the bridge is enabled and the provider is unlocked."""
+    if (why := retired(db, organization_id, provider)) is not None:
+        raise GateClosed(why)
     a = adapter(db, organization_id, provider)
     if a is None:
         raise GateClosed("unknown_provider")
@@ -146,8 +165,10 @@ def _clean_url(url: Any) -> str:
 
 def add_site(db: Session, organization_id: int, user_id: int, key: str, d: dict[str, Any]) -> dict[str, Any]:
     from app.browser.adapters import SELECTOR_FIELDS
-    if not SITE_KEY_RE.match(key or "") or key in BUILTIN:
+    if not SITE_KEY_RE.match(key or "") or key in BUILTIN or key in RETIRED_KEYS:
         raise GateClosed("invalid_site_key")
+    if is_arena_url(str(d.get("url") or "")):
+        raise GateClosed(ARENA_RETIRED)  # ADR-032: Arena only through Arena Local Bridge
     name = str(d.get("name") or "").strip()
     if not name or len(name) > 80:
         raise GateClosed("invalid_site_name")

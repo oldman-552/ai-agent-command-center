@@ -38,7 +38,7 @@ def execution_out(ex: Execution) -> dict:
     cols = ["id", "agent_id", "project_id", "task_id", "runtime_id", "provider", "model", "engine", "status",
             "started_at", "ended_at", "deadline_at", "output", "input_tokens", "output_tokens", "cached_tokens",
             "cost_usd", "error", "error_category", "evidence", "attempt", "latest_checkpoint_seq", "is_mock",
-            "tool_permissions", "created_at", "updated_at"]
+            "provider_request_id", "tool_permissions", "created_at", "updated_at"]
     out = {c: getattr(ex, c) for c in cols}
     out["cost_usd"] = str(ex.cost_usd) if ex.cost_usd is not None else None
     return out

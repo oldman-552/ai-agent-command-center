@@ -224,6 +224,7 @@ async def _run(db: Session, execution_id: str) -> str:
     output_parts: list[str] = list((ex.output or {}).get("parts", []))
     usage = {"input_tokens": ex.input_tokens or 0, "output_tokens": ex.output_tokens or 0,
              "cached_tokens": ex.cached_tokens or 0}
+    usage_unknown, usage_measured = False, ex.input_tokens is not None
 
     async def is_cancelled() -> bool:
         db.refresh(ex, ["cancel_requested"])
@@ -278,12 +279,16 @@ async def _run(db: Session, execution_id: str) -> str:
                     if ev.type == "output_delta":
                         output_parts.append(str(ev.payload.get("text", "")))
                     elif ev.type == "usage":
+                        if ev.payload.get("unknown"):
+                            usage_unknown = True  # the provider reports no usage: keep the counters empty, not 0
+                        else:
+                            usage_measured = True
                         for k in usage:
                             usage[k] += int(ev.payload.get(k, 0) or 0)
                     _event(db, ex, ev.type, ev.payload)
                     db.commit()
             ex.output = {"parts": output_parts, "text": "".join(output_parts)}
-            _apply_usage(ex, usage)
+            _apply_usage(ex, usage, usage_unknown and not usage_measured)
             set_status(db, ex, X.COMPLETED, "engine finished")
             ex.ended_at = datetime.now(UTC)
             if agent:
@@ -292,7 +297,7 @@ async def _run(db: Session, execution_id: str) -> str:
             db.commit()
             return ex.status
         except InputRequired as q:  # parked until a person answers; not a failure, nothing to retry
-            _apply_usage(ex, usage)
+            _apply_usage(ex, usage, usage_unknown and not usage_measured)
             ex.output = {"parts": output_parts, "text": "".join(output_parts)}
             set_status(db, ex, X.WAITING_FOR_INPUT, "waiting for an answer")
             _event(db, ex, "input_required", {"question": q.question})
@@ -302,7 +307,7 @@ async def _run(db: Session, execution_id: str) -> str:
             db.commit()
             return ex.status
         except (asyncio.CancelledError, ToolDenied, RetryableError, TimeoutError, Exception) as e:
-            _apply_usage(ex, usage)
+            _apply_usage(ex, usage, usage_unknown and not usage_measured)
             if isinstance(e, asyncio.CancelledError) and SHUTDOWN.is_set():
                 # EV-04 graceful shutdown: not the user's cancel. Keep the partial output and the checkpoint, mark the
                 # execution TERMINATED (resumable) and let the un-acked message move it to another worker.
@@ -329,7 +334,8 @@ async def _run(db: Session, execution_id: str) -> str:
             set_status(db, ex, X.FAILED, category)
             retryable = category == "transient" and ex.attempt < max_attempts
             if retryable:
-                wait = min(delay, MAX_BACKOFF_SECONDS)
+                hint = float(getattr(e, "retry_after", None) or 0)  # e.g. a provider's Retry-After
+                wait = min(max(delay, hint), MAX_BACKOFF_SECONDS)
                 _event(db, ex, "retry", {"attempt": ex.attempt + 1, "after_seconds": wait})
                 db.commit()
                 await asyncio.sleep(wait)
@@ -389,7 +395,12 @@ def _recovery_report(db: Session, ex: Execution, category: str, max_attempts: in
                  agent_id=ex.agent_id, task_id=ex.task_id, execution_id=ex.id, details=report)
 
 
-def _apply_usage(ex: Execution, usage: dict[str, int]) -> None:
+def _apply_usage(ex: Execution, usage: dict[str, int], unknown: bool = False) -> None:
+    """`unknown`: every call of this execution went to a provider that reports no usage — leave the counters NULL
+    ("not reported") instead of writing zeros that would read as a measurement."""
+    if unknown and not any(usage.values()):
+        ex.input_tokens = ex.output_tokens = ex.cached_tokens = None
+        return
     ex.input_tokens, ex.output_tokens, ex.cached_tokens = (usage["input_tokens"], usage["output_tokens"],
                                                            usage["cached_tokens"])
 

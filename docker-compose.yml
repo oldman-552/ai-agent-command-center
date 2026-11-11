@@ -14,6 +14,11 @@ x-backend-env: &backend-env
   REDIS_URL: redis://redis:6379/0
   BROWSER_BRIDGE_URL: http://browser-bridge:8100
   SKILLS_DIR: /data/skills
+  # AI Workforce (ADR-032): Arena Local Bridge runs on the host. Bridge addresses must be loopback,
+  # host.docker.internal or a private IPv4 address; list any other host name here (comma-separated).
+  ARENA_BRIDGE_ALLOWED_HOSTS: ${ARENA_BRIDGE_ALLOWED_HOSTS:-}
+  ARENA_BRIDGE_HEALTH_INTERVAL_SECONDS: ${ARENA_BRIDGE_HEALTH_INTERVAL_SECONDS:-30}
+  ACC_IN_DOCKER: "1"   # diagnostics warn that "localhost" is the container, not the host
 
 services:
   postgres:
@@ -73,6 +78,9 @@ services:
     restart: unless-stopped
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     environment: *backend-env
+    # Arena Local Bridge listens on the host: Docker Desktop resolves this name by itself, Docker Engine on Linux
+    # needs the mapping. Outbound only — nothing of the platform is published by it.
+    extra_hosts: ["host.docker.internal:host-gateway"]
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     volumes:
@@ -96,6 +104,7 @@ services:
     restart: unless-stopped
     command: ["python", "-m", "app.worker"]
     environment: *backend-env
+    extra_hosts: ["host.docker.internal:host-gateway"]   # Arena Local Bridge on the host (see api)
     volumes:
       - workspaces:/data/workspaces
     depends_on:

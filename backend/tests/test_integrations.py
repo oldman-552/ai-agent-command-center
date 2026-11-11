@@ -131,14 +131,17 @@ async def test_platform_mcp_server_lists_and_calls_tools_with_key_scoping(db):
         names = {t.name for t in (await s.list_tools()).tools}
         agents = await s.call_tool("list_agents", {})
         denied = await s.call_tool("get_task", {"task_id": 1})
-        bridge = await s.call_tool("create_browser_session", {"provider": "arena", "profile": "x"})
-        return names, agents, denied, bridge
+        bridge = await s.call_tool("create_browser_session", {"provider": "test", "profile": "x"})
+        arena = await s.call_tool("create_browser_session", {"provider": "arena", "profile": "x"})
+        return names, agents, denied, bridge, arena
 
-    names, agents, denied, bridge = await _session_call(token, go)
+    names, agents, denied, bridge, arena = await _session_call(token, go)
     assert {"list_agents", "send_prompt", "get_bridge_health", "cancel_generation"} <= names
     assert agents.isError is False and isinstance(json.loads(agents.content[0].text), list)
     assert denied.isError is True and "not granted" in denied.content[0].text
     assert json.loads(bridge.content[0].text) == {"error": "bridge_disabled"}  # the bridge gate still applies
+    # ADR-032: Arena is not reachable through the Browser Bridge, also not through its MCP tools
+    assert json.loads(arena.content[0].text) == {"error": "arena_requires_local_bridge"}
     assert db.scalar(select(AuditLog).where(AuditLog.action == "mcp_server.denied")) is not None
 
 

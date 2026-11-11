@@ -44,8 +44,14 @@ class Settings(BaseSettings):
     platform_internal_url: str = "http://127.0.0.1:8000"  # where the bridge finds the platform test page
     browser_profiles_dir: str = "/data/browser-profiles"  # dedicated, platform-owned profiles only (ADR-025)
     browser_headless: bool = True
+    browser_executable_path: str = ""  # optional: an installed Chrome/Chromium instead of Playwright's download
     browser_max_sessions: int = 4
     browser_generation_timeout_seconds: int = 300
+    # Arena Local Bridge (ADR-032): extra host names a bridge address may use besides loopback, host.docker.internal
+    # and private IPv4 addresses (comma-separated). Empty in production.
+    arena_bridge_allowed_hosts: str = ""
+    arena_bridge_health_interval_seconds: int = 30
+    workforce_attachment_max_bytes: int = 10 * 1024 * 1024
     skills_dir: str = "/data/skills"  # local skill folders that can be inspected and installed (no remote fetch)
     sandbox_image: str = "acc/sandbox:python"
     cli_sandbox_image: str = "acc/cli:latest"  # docker/cli/Dockerfile: the coding CLIs, built by the owner (EE-02)  # built from docker/sandbox/Dockerfile
