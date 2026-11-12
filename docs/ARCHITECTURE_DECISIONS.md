@@ -732,3 +732,14 @@ nothing typed; never finishes → typed once; unreachable → falls back to the 
 test_workforce_team_size.py). Browser E2E (ar/en): the simplified menu and the advanced toggle, add → room seat →
 archive, twelve seats without overlap on desktop and phone, the Manager set to the FAKE bridge, the Manager window
 button. **Not** run with a real Arena account or arena.ai.
+
+**ADR-035 follow-up (2026-11-12, owner report from arena.ai):** the prompt was placed in Arena's box but Send was
+never pressed (a rich editor ignores a value set from outside, so Send stays disabled); after 15 s the session
+FAILED and reopening the window landed on a new chat. Now: the prompt is typed through the keyboard
+(`insert_text`, fallback `fill`); Send is clicked once it is enabled, and Enter is pressed only if the text is still
+in the box (nothing went out); the bridge waits up to `SEND_WAIT_S = 120` s for the answer to start, so a person can
+press Send by hand; a completed answer records the conversation's address (`conversation_ref`, same https host as
+the site only) and a (re)started window of that profile reopens it; a FAILED window that is still open can be
+re-checked (`FAILED → READY/AUTH_REQUIRED`), and "Open this worker's window" re-checks it instead of opening a
+second one (an unusable one is closed and reopened). Tested on the local test page (Enter-only and manual-send
+modes); still not checked against arena.ai.

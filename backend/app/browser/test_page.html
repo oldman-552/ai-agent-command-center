@@ -17,7 +17,8 @@
 <main id="app"></main>
 <script>
 /* Modes (query ?mode=): login → signed-out page; captcha → a challenge iframe; broken → changed interface;
-   slow → slower streaming; mute → never answers. The "model" just echoes the prompt, streamed character by character. */
+   slow → slower streaming; mute → never answers; enter → no Send button, Enter sends;
+   manual → Send stays disabled and Enter does nothing (only a person — window.__send() — sends). The "model" just echoes the prompt, streamed character by character. */
 document.cookie = "acc_test_session=TOPSECRET-cookie-value; path=/";  // must never leave the browser
 const mode = new URLSearchParams(location.search).get("mode") || "";
 const app = document.getElementById("app");
@@ -51,6 +52,12 @@ if (mode === "login") {
       if (i >= reply.length) { clearInterval(timer); timer = null; stop.hidden = true; }
     }, speed);
   };
+  window.__send = send.onclick;  // "a person presses Send" in the tests
+  if (mode === "manual") send.disabled = true;
+  if (mode === "enter") {
+    send.hidden = true;
+    box.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); window.__send(); } });
+  }
 }
 </script>
 </body>

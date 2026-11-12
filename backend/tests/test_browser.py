@@ -235,7 +235,8 @@ async def test_auth_captcha_and_interface_changes_fail_safely(db, page_server, m
         await bridge.shutdown()
 
 
-async def test_unanswered_prompt_means_interface_changed(db, page_server):
+async def test_unanswered_prompt_means_interface_changed(db, page_server, monkeypatch):
+    monkeypatch.setattr(B, "SEND_WAIT_S", 2)
     _enable(db)
     bridge = B.Bridge(base_url=page_server, poll=0.05)
     s = _session(db)
@@ -245,6 +246,68 @@ async def test_unanswered_prompt_means_interface_changed(db, page_server):
         assert (snap["state"], snap["error"]) == ("FAILED", "interface_changed")
     finally:
         await bridge.shutdown()
+
+
+async def test_a_site_that_sends_on_enter_gets_enter(db, page_server):
+    """No usable Send button (a rich editor): the prompt still goes out, once."""
+    _enable(db)
+    bridge = B.Bridge(base_url=page_server, poll=0.05)
+    s = _session(db)
+    try:
+        await bridge.start(s.id, {"test_mode": "enter"})
+        await bridge.send(s.id, "sent with enter")
+        await _until(bridge, s.id, {"COMPLETED"})
+        db.expire_all()
+        assert db.get(BrowserSession, s.id).history[-1]["text"] == "Echo: sent with enter"
+        assert await bridge._rt[s.id].page.locator(".msg.user").count() == 1  # sent once, not twice
+    finally:
+        await bridge.shutdown()
+
+
+async def test_a_person_pressing_send_by_hand_is_waited_for(db, page_server):
+    """Send cannot be pressed by the bridge: the prompt waits in the box and the answer is picked up as soon as a
+    person presses Send in the open window (owner report, 2026-11-12)."""
+    _enable(db)
+    bridge = B.Bridge(base_url=page_server, poll=0.05)
+    s = _session(db)
+    try:
+        await bridge.start(s.id, {"test_mode": "manual"})
+        page = bridge._rt[s.id].page
+
+        async def person():
+            await asyncio.sleep(1.5)
+            await page.locator("#send").evaluate("b => { b.disabled = false; }")  # TEST ONLY: the person's click
+            await page.locator("#send").click()
+        helper = asyncio.create_task(person())
+        snap = await bridge.send(s.id, "waiting for a person")
+        await helper
+        assert snap["state"] == "GENERATING"
+        await _until(bridge, s.id, {"COMPLETED"})
+        db.expire_all()
+        assert db.get(BrowserSession, s.id).history[-1]["text"] == "Echo: waiting for a person"
+    finally:
+        await bridge.shutdown()
+
+
+async def test_a_failed_window_that_is_still_open_can_be_used_again(db, page_server, monkeypatch):
+    monkeypatch.setattr(B, "SEND_WAIT_S", 1)
+    _enable(db)
+    bridge = B.Bridge(base_url=page_server, poll=0.05)
+    s = _session(db)
+    try:
+        await bridge.start(s.id, {"test_mode": "mute"})
+        assert (await bridge.send(s.id, "lost"))["state"] == "FAILED"
+        assert (await bridge.recheck(s.id))["state"] == "READY"  # a person looked: the window is usable again
+    finally:
+        await bridge.shutdown()
+
+
+def test_only_a_conversation_on_the_sites_own_https_address_is_reopened():
+    same = B.Bridge._same_site
+    assert same("https://arena.ai/c/0b9d-42", "https://arena.ai/agent")
+    assert not same("http://arena.ai/c/1", "https://arena.ai/agent")
+    assert not same("https://evil.example/c/1", "https://arena.ai/agent")
+    assert not same("https://arena.ai/" + "x" * 300, "https://arena.ai/agent")
 
 
 async def test_gate_rechecked_on_every_prompt_and_no_secret_leaves(db, page_server):

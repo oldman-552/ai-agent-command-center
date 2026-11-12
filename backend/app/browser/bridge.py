@@ -42,7 +42,7 @@ TRANSITIONS: dict[str, set[str]] = {
     S.SENDING.value: {S.GENERATING.value, S.FAILED.value, S.STOPPED.value, S.AUTH_REQUIRED.value},
     S.GENERATING.value: {S.COMPLETED.value, S.READY.value, S.FAILED.value, S.STOPPED.value},
     S.COMPLETED.value: {S.SENDING.value, S.READY.value, S.FAILED.value, S.STOPPED.value, S.DISCONNECTED.value},
-    S.FAILED.value: {S.STARTING.value, S.STOPPED.value},
+    S.FAILED.value: {S.STARTING.value, S.STOPPED.value, S.READY.value, S.AUTH_REQUIRED.value},
     S.STOPPED.value: {S.STARTING.value},
 }
 PROFILE_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
@@ -50,6 +50,7 @@ SENDABLE = {S.READY.value, S.COMPLETED.value}
 ACTIVE = {S.STARTING.value, S.AUTH_REQUIRED.value, S.READY.value, S.SENDING.value, S.GENERATING.value,
           S.COMPLETED.value}
 MAX_PROMPT = 100_000
+SEND_WAIT_S = 120  # how long a typed prompt may take to start answering (incl. a person pressing Send by hand)
 
 
 class BridgeError(Exception):
@@ -178,7 +179,17 @@ class Bridge:
             page = ctx.pages[0] if ctx.pages else await ctx.new_page()
             rt = Runtime(context=ctx, page=page, adapter=a, profile=(s.organization_id, s.profile_name))
             self._rt[session_id] = rt
-            await page.goto(self._url(a, options or {}), wait_until="domcontentloaded", timeout=30_000)
+            # back to the conversation this window was in, if it had one on the same site (never a new chat)
+            with self._db() as db:
+                cur = db.get(BrowserSession, session_id)
+                ref = cur.conversation_ref or db.scalar(  # the profile's last conversation on this site
+                    select(BrowserSession.conversation_ref).where(
+                        BrowserSession.organization_id == cur.organization_id,
+                        BrowserSession.profile_name == cur.profile_name,
+                        BrowserSession.provider_key == cur.provider_key,
+                        BrowserSession.conversation_ref.is_not(None)).order_by(BrowserSession.id.desc()).limit(1))
+            url = ref if ref and self._same_site(ref, a.url) else self._url(a, options or {})
+            await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
             to, err = await self._detect(rt)
         except Exception as e:  # noqa: BLE001 — any launch/navigation failure fails the session safely
             to, err = S.FAILED.value, f"start_failed: {type(e).__name__}: {str(e)[:300]}"
@@ -198,9 +209,12 @@ class Bridge:
         to, err = await self._detect(rt)
         with self._db() as db:
             s = db.get(BrowserSession, session_id, with_for_update=True, populate_existing=True)
-            if s.state != S.AUTH_REQUIRED.value:
+            # waiting for a sign-in, or failed while its window is still open (e.g. Send did not go out): a person
+            # looked at the window; whatever is on screen now decides. Nothing is typed or sent here.
+            if s.state not in (S.AUTH_REQUIRED.value, S.FAILED.value):
                 raise BridgeError("not_waiting_for_auth")
-            transition(db, s, to, err)
+            if not (s.state == S.FAILED.value and to == S.FAILED.value):
+                transition(db, s, to, err)
             db.commit()
         return self.snapshot(session_id, state=to, error=err)
 
@@ -288,13 +302,11 @@ class Bridge:
                 before = await page.locator(a.response).count()
                 box = page.locator(a.input).first
                 await box.wait_for(state="visible", timeout=10_000)
-                await box.fill(prompt)
-                if await self._visible(page, a.send):
-                    await page.locator(a.send).first.click()
-                else:
-                    await box.press("Enter")
+                await self._type(page, box, prompt)
+                await self._submit(page, box, a, before)
                 rt.partial, rt.cancelled = "", False
-                deadline = asyncio.get_running_loop().time() + 15
+                # the site may need longer, or a person may press Send by hand in the open window: wait for it
+                deadline = asyncio.get_running_loop().time() + SEND_WAIT_S
                 while asyncio.get_running_loop().time() < deadline:
                     if await page.locator(a.response).count() > before or await self._visible(page, a.generating):
                         break
@@ -318,6 +330,46 @@ class Bridge:
             rt.monitor = asyncio.create_task(self._monitor(session_id, before))
         return self.snapshot(session_id)
 
+    @staticmethod
+    async def _box_text(box) -> str:
+        """What is still in the prompt box (a textarea's value, or a rich editor's text)."""
+        with contextlib.suppress(Exception):
+            return (await box.input_value(timeout=1_000)).strip()
+        with contextlib.suppress(Exception):
+            return (await box.inner_text(timeout=1_000)).strip()
+        return ""
+
+    async def _type(self, page, box, prompt: str) -> None:
+        """Put the prompt in the box so the site's editor registers it as typed (rich editors — ProseMirror, Lexical,
+        React-controlled textareas — ignore a value set from outside, which leaves Send disabled)."""
+        await box.click()
+        with contextlib.suppress(Exception):
+            await box.fill("")
+        await page.keyboard.insert_text(prompt)
+        if not await self._box_text(box):  # some editors drop inserted text: fall back to fill()
+            await box.fill(prompt)
+        await asyncio.sleep(0.3)
+
+    async def _submit(self, page, box, a: Adapter, before: int) -> None:
+        """Press Send once it is enabled; if the text is still in the box (nothing sent), press Enter. Never sends
+        a second time once anything shows that the first one went out."""
+        async def went_out() -> bool:
+            return (not await self._box_text(box) or await page.locator(a.response).count() > before
+                    or await self._visible(page, a.generating))
+        btn = page.locator(a.send).first
+        for _ in range(20):  # up to ~5 s for the button to become enabled
+            if await self._visible(page, a.send) and await btn.is_enabled():
+                with contextlib.suppress(Exception):
+                    await btn.click(timeout=3_000)
+                break
+            await asyncio.sleep(0.25)
+        for _ in range(8):
+            if await went_out():
+                return
+            await asyncio.sleep(0.25)
+        with contextlib.suppress(Exception):
+            await box.press("Enter")
+
     async def _monitor(self, session_id: int, before: int) -> None:
         rt = self._rt[session_id]
         page, a = rt.page, rt.adapter
@@ -333,6 +385,7 @@ class Bridge:
                 stable = stable + 1 if (rt.partial == last and not generating) else 0
                 last = rt.partial
                 if rt.partial and stable >= 2:
+                    self._remember_conversation(session_id, page.url, a)
                     self._finish(session_id, S.COMPLETED.value, None, answer=rt.partial)
                     return
                 if loop.time() > deadline:
@@ -345,6 +398,22 @@ class Bridge:
             raise
         except Exception as e:  # noqa: BLE001 — the page closed or crashed
             self._finish(session_id, S.FAILED.value, f"monitor_failed: {type(e).__name__}", answer=rt.partial)
+
+    def _remember_conversation(self, session_id: int, url: str, a: Adapter) -> None:
+        """The conversation the window is in (its address), so a restarted window reopens it, not a new chat."""
+        if a.key == "test" or not self._same_site(url, a.url):
+            return
+        with self._db() as db:
+            s = db.get(BrowserSession, session_id, with_for_update=True, populate_existing=True)
+            if s is not None and s.conversation_ref != url[:255]:
+                s.conversation_ref = url[:255]
+                db.commit()
+
+    @staticmethod
+    def _same_site(url: str, base: str) -> bool:
+        from urllib.parse import urlsplit
+        u, b = urlsplit(url), urlsplit(base)
+        return u.scheme == "https" and u.hostname is not None and u.hostname == b.hostname and len(url) <= 255
 
     def _finish(self, session_id: int, to: str, error: str | None, answer: str | None = None,
                 cancelled: bool = False) -> None:

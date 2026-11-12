@@ -269,7 +269,19 @@ async def _open_window(db, user: User, agent: Agent, site: str) -> int:
     profile = browser_api.own_profile(db, user, agent)  # one profile per worker / Manager
     s = db.scalar(select(BrowserSession).where(BrowserSession.organization_id == user.organization_id,
                                                BrowserSession.profile_name == profile,
-                                               BrowserSession.state.in_(ACTIVE)))
+                                               BrowserSession.state.in_([*ACTIVE, "FAILED"]))
+                  .order_by(BrowserSession.id.desc()).limit(1))
+    if s is not None and s.state == "FAILED":
+        # its window may still be open (e.g. Send did not go out): look at it again instead of a second window
+        try:
+            await browser_client.call("POST", f"/sessions/{s.id}/recheck")
+            db.expire_all()
+            s = db.get(BrowserSession, s.id)
+            if s.state == "FAILED":  # the window shows nothing usable: close it, a fresh one opens below
+                await browser_client.call("POST", f"/sessions/{s.id}/stop")
+                s = None
+        except BridgeError:
+            s = None  # not running any more: open it again (it goes back to its last conversation)
     if s is not None and s.provider_key != site:
         raise HTTPException(status.HTTP_409_CONFLICT, "profile_in_use")
     if s is None:
