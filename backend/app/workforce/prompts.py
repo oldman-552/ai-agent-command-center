@@ -20,7 +20,7 @@ ANALYZE_MARKER = "ACC_WF_ANALYZE_V1"
 PLAN_MARKER = "ACC_WF_PLAN_V1"
 REVIEW_MARKER = "ACC_WF_REVIEW_V1"
 REPORT_MARKER = "ACC_WF_REPORT_V1"
-MAX_TASKS = 12
+MAX_TASKS = 24             # room for one task per worker with up to 20 workers (ADR-036)
 MAX_ATTEMPTS = 3            # Manager answers that fail validation are asked again, with the error, this many times
 MAX_SUBMISSION_CHARS = 60_000
 

@@ -130,6 +130,7 @@ class ManagerPatch(BaseModel):
     timeout_seconds: int | None = Field(default=None, ge=30, le=3600)
     review_policy: Literal["manager", "human"] | None = None
     max_revisions: int | None = Field(default=None, ge=0, le=10)
+    browser_session_id: int | None = None
 
 
 @router.patch("/manager")
@@ -196,6 +197,41 @@ class WorkerPatch(BaseModel):
     browser_session_id: int | None = None  # ADR-035: drive this worker through its own visible browser window
 
 
+class WorkerIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=128)
+    role: str = Field(min_length=1, max_length=32, pattern=r"^[A-Za-z0-9_-]+$")
+    skills: list[str] | None = Field(default=None, max_length=20)
+    focus: str | None = Field(default=None, max_length=4000)
+
+
+@router.post("/workers", status_code=status.HTTP_201_CREATED)
+def add_worker(body: WorkerIn, db: DB, user: User = Depends(require("workforce.manage"))) -> dict:
+    """ADR-036: one more worker (up to 20). It starts Human-Assisted with no provider: nothing is sent anywhere until
+    a person sets it up."""
+    wf = _force(db, user)
+    try:
+        w = service.add_worker(db, wf, user=user, name=body.name, role=body.role.lower(),
+                               skills=[s.strip().lower()[:64] for s in body.skills or []], focus=body.focus)
+    except service.ConfigError as e:
+        db.rollback()
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
+    db.commit()
+    return service.worker_out(db, w)
+
+
+@router.delete("/workers/{worker_id}", status_code=status.HTTP_204_NO_CONTENT)
+def archive_worker(worker_id: int, db: DB, user: User = Depends(require("workforce.manage"))) -> None:
+    """Archive a worker: it leaves the team, its history stays. Refused while it has work in hand."""
+    w = get_scoped(db, WorkforceWorker, worker_id, user)
+    try:
+        service.archive_worker(db, w, user=user)
+    except service.ConfigError as e:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
+    db.commit()
+
+
 @router.patch("/workers/{worker_id}")
 def update_worker(worker_id: int, body: WorkerPatch, db: DB,
                   user: User = Depends(require("workforce.manage"))) -> dict:
@@ -222,38 +258,61 @@ class WorkerBrowserIn(BaseModel):
     site: str = Field(default="arena", max_length=32)
 
 
-@router.post("/workers/{worker_id}/browser")
-async def open_worker_browser(worker_id: int, body: WorkerBrowserIn, db: DB,
-                              user: User = Depends(require("workforce.manage"))) -> dict:
-    """ADR-035: open (or reuse) this worker's own visible browser window — a profile of its own, signed in by hand —
-    and make the worker drive it. Nothing is sent to the site; the window stays open for watching and stepping in."""
+async def _open_window(db, user: User, agent: Agent, site: str) -> int:
+    """Open (or reuse) the visible window of this agent's own profile (agent-<identifier>); returns its session id."""
     from app.browser import api as browser_api
     from app.browser import client as browser_client
     from app.browser.bridge import ACTIVE, BridgeError
     from app.models import BrowserSession
     if "browser_bridge.manage" not in {p.key for p in user.role.permissions}:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "browser_bridge.manage required")
-    w = get_scoped(db, WorkforceWorker, worker_id, user)
-    agent = db.get(Agent, w.agent_id)
-    profile = browser_api.own_profile(db, user, agent)  # agent-<identifier>: one profile per worker
+    profile = browser_api.own_profile(db, user, agent)  # one profile per worker / Manager
     s = db.scalar(select(BrowserSession).where(BrowserSession.organization_id == user.organization_id,
                                                BrowserSession.profile_name == profile,
                                                BrowserSession.state.in_(ACTIVE)))
-    if s is not None and s.provider_key != body.site:
+    if s is not None and s.provider_key != site:
         raise HTTPException(status.HTTP_409_CONFLICT, "profile_in_use")
     if s is None:
         db.commit()
-        snap = await browser_api.create_session(browser_api.SessionIn(provider=body.site, profile=profile,
+        snap = await browser_api.create_session(browser_api.SessionIn(provider=site, profile=profile,
                                                                       agent_id=agent.id), db, user)
-        sid = int(snap["id"])
-    else:
-        sid = s.id
-        if s.state == "AUTH_REQUIRED":  # the person may have signed in by hand meanwhile: look again
-            try:
-                await browser_client.call("POST", f"/sessions/{sid}/recheck")
-            except BridgeError as e:
-                if e.code != "not_waiting_for_auth":
-                    raise browser_api._http(e) from e
+        return int(snap["id"])
+    if s.state == "AUTH_REQUIRED":  # the person may have signed in by hand meanwhile: look again
+        try:
+            await browser_client.call("POST", f"/sessions/{s.id}/recheck")
+        except BridgeError as e:
+            if e.code != "not_waiting_for_auth":
+                raise browser_api._http(e) from e
+    return s.id
+
+
+@router.post("/manager/browser")
+async def open_manager_browser(body: WorkerBrowserIn, db: DB, user: User = Depends(require("workforce.manage"))) -> dict:
+    """ADR-036: the Manager's own visible window (a profile of its own, signed in by hand). An API model already
+    set stays as its fallback."""
+    wf = _force(db, user)
+    agent = db.get(Agent, wf.manager_agent_id) if wf.manager_agent_id else None
+    if agent is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "manager_missing")
+    sid = await _open_window(db, user, agent, body.site)
+    db.expire_all()
+    wf = _force(db, user)
+    try:
+        service.update_manager(db, wf, user=user, patch={"browser_session_id": sid})
+    except service.ConfigError as e:
+        db.rollback()
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
+    db.commit()
+    return service.workforce_out(db, wf)
+
+
+@router.post("/workers/{worker_id}/browser")
+async def open_worker_browser(worker_id: int, body: WorkerBrowserIn, db: DB,
+                              user: User = Depends(require("workforce.manage"))) -> dict:
+    """ADR-035: open (or reuse) this worker's own visible browser window — a profile of its own, signed in by hand —
+    and make the worker drive it. Nothing is sent to the site; the window stays open for watching and stepping in."""
+    w = get_scoped(db, WorkforceWorker, worker_id, user)
+    sid = await _open_window(db, user, db.get(Agent, w.agent_id), body.site)
     db.expire_all()
     w = get_scoped(db, WorkforceWorker, worker_id, user)
     try:

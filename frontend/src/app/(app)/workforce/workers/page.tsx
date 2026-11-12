@@ -1,8 +1,9 @@
 "use client";
-import { AlertTriangle, Settings2 } from "lucide-react";
+import { AlertTriangle, Archive, Info, Plus, Settings2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useCan } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,6 +26,11 @@ export default function WorkforceWorkersPage() {
   const options = useWfOptions(manage);
   const [editManager, setEditManager] = useState(false);
   const [editWorker, setEditWorker] = useState<Worker>();
+  const [adding, setAdding] = useState(false);
+  const [archiving, setArchiving] = useState<Worker>();
+  const a = useWorkforceActions();
+  const fail = useFail();
+  const toast = useToasts((s) => s.push);
   const force = wf.data?.workforce;
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -38,9 +44,21 @@ export default function WorkforceWorkersPage() {
           <ManagerCard force={force} onEdit={manage ? () => setEditManager(true) : undefined} />
           <DevelopmentCard force={force} manage={manage} />
           <section aria-labelledby="wf-workers-h" className="flex flex-col gap-3">
-            <h2 id="wf-workers-h" className="text-lg font-semibold">{t("workers.four")}</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 id="wf-workers-h" className="text-lg font-semibold">
+                {t("workers.four")} <span className="text-sm font-normal text-muted-foreground tabular-nums" data-testid="wf-workers-count">
+                  {t("workers.countOf", { n: force.workers.length, max: force.max_workers ?? 20 })}</span>
+              </h2>
+              {manage && (
+                <Button onClick={() => setAdding(true)} disabled={force.workers.length >= (force.max_workers ?? 20)} data-testid="wf-worker-add">
+                  <Plus aria-hidden />{t("workers.add")}
+                </Button>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">{t("workers.countHelp")}</p>
             <ul className="grid gap-3 md:grid-cols-2">
-              {force.workers.map((w) => <li key={w.id}><WorkerCard w={w} onEdit={manage ? () => setEditWorker(w) : undefined} /></li>)}
+              {force.workers.map((w) => <li key={w.id}><WorkerCard w={w} onEdit={manage ? () => setEditWorker(w) : undefined}
+                onArchive={manage && force.workers.length > 1 ? () => setArchiving(w) : undefined} /></li>)}
             </ul>
             <p className="text-sm text-muted-foreground">{t("binding.notAttested")}</p>
           </section>
@@ -48,6 +66,11 @@ export default function WorkforceWorkersPage() {
       )}
       {force && editManager && options.data && <ManagerDialog force={force} options={options.data} onClose={() => setEditManager(false)} />}
       {editWorker && options.data && <WorkerDialog w={editWorker} options={options.data} onClose={() => setEditWorker(undefined)} />}
+      {adding && <AddWorkerDialog onClose={() => setAdding(false)} />}
+      <ConfirmDialog open={!!archiving} onOpenChange={(o) => !o && setArchiving(undefined)} destructive busy={a.archiveWorker.isPending}
+        title={t("workers.archiveTitle", { label: archiving?.label ?? "" })} description={t("workers.archiveHelp")} confirmLabel={t("workers.archive")}
+        onConfirm={() => archiving && a.archiveWorker.mutate(archiving.id, {
+          onError: fail, onSuccess: () => { toast("success", t("workers.archived")); setArchiving(undefined); } })} />
     </div>
   );
 }
@@ -78,6 +101,10 @@ function ManagerCard({ force, onEdit }: { force: Workforce; onEdit?: () => void 
             {m.model ? <><span dir="auto">{m.model.provider}</span> · <span className="font-mono" dir="ltr">{m.model.model}</span></> : t("manager.noModel")}
             {m.is_mock && <MockBadge />}
           </dd>
+          {m.window && (<>
+            <dt className="text-muted-foreground">{t("manager.window")}</dt>
+            <dd data-testid="wf-manager-window"><span className="font-mono text-xs" dir="ltr">{m.window.site} · {m.window.profile} · {m.window.state}{m.window.error ? ` · ${m.window.error}` : ""}</span></dd>
+          </>)}
           <dt className="text-muted-foreground">{t("manager.fallback")}</dt>
           <dd>{m.fallback ? <><span dir="auto">{m.fallback.provider}</span> · <span className="font-mono" dir="ltr">{m.fallback.model}</span></> : t("manager.noFallback")}</dd>
           <dt className="text-muted-foreground">{t("manager.policy")}</dt>
@@ -86,12 +113,13 @@ function ManagerCard({ force, onEdit }: { force: Workforce; onEdit?: () => void 
           <dd className="tabular-nums">{force.max_revisions}</dd>
         </dl>
         {m.is_mock && <p className="text-sm">{t("overview.managerMock")}</p>}
+        {m.via_bridge && <p role="note" className="text-sm text-muted-foreground" data-testid="wf-manager-via-bridge">{t("manager.viaBridgeNote")}</p>}
       </Card>
     </section>
   );
 }
 
-function WorkerCard({ w, onEdit }: { w: Worker; onEdit?: () => void }) {
+function WorkerCard({ w, onEdit, onArchive }: { w: Worker; onEdit?: () => void; onArchive?: () => void }) {
   const t = useTranslations("workforce");
   const reason = useReason();
   const b = w.account_binding;
@@ -131,7 +159,11 @@ function WorkerCard({ w, onEdit }: { w: Worker; onEdit?: () => void }) {
       )}
       <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground">{t("workers.busy", { n: w.busy_tasks })}</span>
-        {onEdit && <Button variant="outline" size="sm" onClick={onEdit} data-testid={`wf-worker-edit-${w.slot}`}><Settings2 aria-hidden />{t("workers.configure")}</Button>}
+        <div className="flex flex-wrap gap-2">
+          {onArchive && <Button variant="ghost" size="sm" onClick={onArchive} disabled={w.busy_tasks > 0} title={w.busy_tasks > 0 ? t("workers.archiveBusy") : undefined}
+            data-testid={`wf-worker-archive-${w.slot}`}><Archive aria-hidden />{t("workers.archive")}</Button>}
+          {onEdit && <Button variant="outline" size="sm" onClick={onEdit} data-testid={`wf-worker-edit-${w.slot}`}><Settings2 aria-hidden />{t("workers.configure")}</Button>}
+        </div>
       </div>
     </Card>
   );
@@ -193,7 +225,7 @@ function ManagerDialog({ force, options, onClose }: { force: Workforce; options:
   const fail = useFail();
   const toast = useToasts((s) => s.push);
   const m = force.manager;
-  const usable = options.providers.filter((p) => !p.is_bridge);  // a bridge session cannot be the Manager
+  const usable = options.providers;  // ADR-036: an Arena Local Bridge can be the Manager too
   const [providerId, setProviderId] = useState<number | null>(m.model?.provider_id ?? null);
   const [model, setModel] = useState(m.model?.model ?? "");
   const [fbProvider, setFbProvider] = useState<number | null>(m.fallback?.provider_id ?? null);
@@ -203,10 +235,14 @@ function ManagerDialog({ force, options, onClose }: { force: Workforce; options:
   const [timeout, setTimeoutS] = useState(String(m.timeout_seconds ?? 600));
   const [instructions, setInstructions] = useState(m.instructions ?? "");
   const chosen = usable.find((p) => p.id === providerId);
+  const isWindow = m.engine === "browser" && !providerId;  // ADR-036: the Manager types into its own window
+  const openWindow = () => a.openManagerBrowser.mutate({ site: "arena" }, {
+    onError: fail, onSuccess: () => toast("success", t("workers.browserOpened")) });
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     a.updateManager.mutate({
-      provider_id: providerId, model: model || null, fallback_provider_id: fbProvider, fallback_model: fbModel || null,
+      ...(isWindow ? {} : { provider_id: providerId, model: model || null }),
+      fallback_provider_id: fbProvider, fallback_model: fbModel || null,
       review_policy: policy, max_revisions: Number(maxRevisions), timeout_seconds: Number(timeout), instructions,
     }, { onError: fail, onSuccess: () => { toast("success", tc("saved")); onClose(); } });
   };
@@ -216,8 +252,27 @@ function ManagerDialog({ force, options, onClose }: { force: Workforce; options:
         <DialogTitle>{t("manager.editTitle")}</DialogTitle>
         <DialogDescription>{t("manager.editHelp")}</DialogDescription>
         <form onSubmit={save} className="mt-4 flex flex-col gap-4">
+          <section className="flex flex-col gap-2 rounded-lg border p-3" aria-labelledby="wf-m-browser-h" data-testid="wf-manager-browser">
+            <h3 id="wf-m-browser-h" className="text-sm font-semibold">{t("manager.windowTitle")}</h3>
+            <p className="text-sm text-muted-foreground">{t("manager.windowHelp")}</p>
+            {m.window && <p className="text-sm">{t("workers.browserCurrent")}: <span className="font-mono text-xs" dir="ltr">{m.window.site} · {m.window.profile} · {m.window.state}</span></p>}
+            <div>
+              <Button type="button" variant="outline" onClick={openWindow} disabled={a.openManagerBrowser.isPending} data-testid="wf-manager-open-browser">
+                {m.window ? t("workers.browserReopen") : t("workers.browserOpen")}
+              </Button>
+            </div>
+          </section>
           <RoutePicker idPrefix="wf-m" providers={usable} providerId={providerId} model={model} allowNone
             onChange={(p, mo) => { setProviderId(p); setModel(mo); }} />
+          {isWindow && <p className="text-xs text-muted-foreground">{t("manager.windowKeeps")}</p>}
+          {chosen?.is_bridge && (
+            <p role="note" className="flex gap-2 rounded-md border p-3 text-sm" data-testid="wf-manager-bridge-note">
+              <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />{t("manager.bridgeHelp")}
+            </p>
+          )}
+          {chosen?.is_bridge && !chosen.terms_acknowledged && (
+            <p role="alert" className="text-sm text-destructive">{t("manager.bridgeTerms")}</p>
+          )}
           {chosen?.is_mock && (
             <p role="note" className="flex gap-2 rounded-md border border-warning p-3 text-sm">
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />{t("overview.managerMock")}
@@ -429,5 +484,68 @@ function DevelopmentCard({ force, manage }: { force: Workforce; manage: boolean 
         </form>
       </Card>
     </section>
+  );
+}
+
+
+/** ADR-036: one more worker (up to the limit). It starts Human-Assisted with no provider, like the default four; the
+ * person then configures it like any other worker. */
+const SPECIALTIES = ["research", "engineering", "qa", "documentation"] as const;
+function AddWorkerDialog({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("workforce");
+  const tc = useTranslations("common");
+  const a = useWorkforceActions();
+  const fail = useFail();
+  const toast = useToasts((s) => s.push);
+  const [name, setName] = useState("");
+  const [specialty, setSpecialty] = useState<string>("research");
+  const [custom, setCustom] = useState("");
+  const [focus, setFocus] = useState("");
+  const role = specialty === "custom" ? custom.trim().toLowerCase() : specialty;
+  const roleOk = /^[a-z0-9_-]{1,32}$/.test(role);
+  const save = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!roleOk) return;
+    a.addWorker.mutate({ name: name.trim(), role, ...(focus.trim() ? { focus: focus.trim() } : {}) }, {
+      onError: fail, onSuccess: (w) => { toast("success", t("workers.added", { label: w.label })); onClose(); } });
+  };
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent closeLabel={tc("close")} className="max-h-[90dvh] max-w-lg overflow-y-auto">
+        <DialogTitle>{t("workers.addTitle")}</DialogTitle>
+        <DialogDescription>{t("workers.addHelp")}</DialogDescription>
+        <form onSubmit={save} className="mt-4 flex flex-col gap-4" data-testid="wf-worker-add-form">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="wf-add-name">{t("workers.name")}</Label>
+            <Input id="wf-add-name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={128} dir="auto" autoFocus />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="wf-add-specialty">{t("workers.specialty")}</Label>
+            <NativeSelect id="wf-add-specialty" value={specialty} onChange={(e) => setSpecialty(e.target.value)}>
+              {SPECIALTIES.map((x) => <option key={x} value={x}>{t(`workers.specialties.${x}`)}</option>)}
+              <option value="custom">{t("workers.specialties.custom")}</option>
+            </NativeSelect>
+          </div>
+          {specialty === "custom" && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="wf-add-role">{t("workers.customRole")}</Label>
+              <Input id="wf-add-role" value={custom} onChange={(e) => setCustom(e.target.value)} required maxLength={32} dir="ltr"
+                aria-invalid={!!custom && !roleOk} aria-describedby="wf-add-role-help" />
+              <p id="wf-add-role-help" className={!!custom && !roleOk ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{t("workers.customRoleHelp")}</p>
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="wf-add-focus">{t("workers.focus")} <span className="font-normal text-muted-foreground">({tc("optional")})</span></Label>
+            <Textarea id="wf-add-focus" value={focus} onChange={(e) => setFocus(e.target.value)} maxLength={4000} dir="auto" aria-describedby="wf-add-focus-help" />
+            <p id="wf-add-focus-help" className="text-xs text-muted-foreground">{t("workers.focusHelp")}</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>{tc("cancel")}</Button>
+            <Button type="submit" disabled={a.addWorker.isPending || !name.trim() || !roleOk} data-testid="wf-worker-add-save">
+              {a.addWorker.isPending ? tc("saving") : t("workers.add")}</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

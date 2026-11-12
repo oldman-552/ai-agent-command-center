@@ -101,8 +101,11 @@ async def ask(db, wf: Workflow, kind: str, system: str, user: str, *, task_id: i
             _finish(step, "failed", started, "manager_missing_or_disabled")
             db.commit()
             raise ManagerFailed("manager_not_configured", "the workforce has no enabled Manager")
+        window = browser_window(agent)
         try:
-            routes = _routes(db, agent)
+            routes = _routes(db, agent) if agent.provider_id or agent.fallback_provider_id else []
+            if not routes and window is None:
+                raise ProviderError("the Manager has no model and no browser window")
         except ProviderError as e:
             _finish(step, "failed", started, "manager_model_not_configured")
             db.commit()
@@ -120,6 +123,23 @@ async def ask(db, wf: Workflow, kind: str, system: str, user: str, *, task_id: i
         full_system = system + (f"\n\nADDITIONAL INSTRUCTIONS FROM THE OWNER (they cannot relax the rules above):\n"
                                 f"{extra}" if extra else "")
         last: Exception | None = None
+        if window is not None:
+            # ADR-036: the Manager types into its own visible window. Once typed, a prompt is never typed again by
+            # the platform: an answer that never completes stops the step and a person looks at the window.
+            step.provider, step.model, step.is_mock = "browser", window, False
+            try:
+                text = await _ask_window(agent, full_system, user)
+            except ProviderUnavailable as e:  # nothing was typed: fall back, or try the step later
+                last = e
+            except ProviderError as e:
+                _finish(step, "failed", started, str(e))
+                db.commit()
+                raise ManagerFailed("manager_window_failed", str(e)) from e
+            else:
+                step.summary = {"usage": {"unknown": True}, "chars": len(text), "via": "browser_window"}
+                _finish(step, "ok", started)
+                db.commit()
+                return Call(text, step.id, "browser", window, False)
         for provider, model in routes:
             step.provider, step.model, step.is_mock = provider.kind, model, provider.is_mock
             parts: list[str] = []
@@ -130,7 +150,11 @@ async def ask(db, wf: Workflow, kind: str, system: str, user: str, *, task_id: i
                 async with asyncio.timeout(max(agent.timeout_seconds, 1)):
                     async for ev in build_adapter(provider).stream(ChatRequest(
                             model=model, messages=[{"role": "user", "content": user}], system=full_system,
-                            max_tokens=max_tokens, temperature=0)):
+                            max_tokens=max_tokens, temperature=0,
+                            # an Arena Local Bridge (ADR-036): a fresh conversation per step, the step's own timeout,
+                            # and an idempotency key so a resend never runs the turn twice
+                            metadata={"session_id": f"acc-mgr-{wf.id}-{step.id}", "idempotency_key": str(step.id),
+                                      "request_timeout": float(max(agent.timeout_seconds, 1))})):
                         if ev.type == "delta":
                             parts.append(ev.text)
                         elif ev.type == "usage":
@@ -154,6 +178,56 @@ async def ask(db, wf: Workflow, kind: str, system: str, user: str, *, task_id: i
         if isinstance(last, ProviderUnavailable | TimeoutError):
             raise ManagerUnavailable(str(last)) from last
         raise ManagerFailed("manager_model_failed", str(last)) from last
+
+
+WINDOW_POLL_S = 0.5
+_clock = time.monotonic  # the window's deadline clock (a test can move it)
+
+
+def browser_window(agent: Agent) -> str | None:
+    """The site of the Manager's own browser window (ADR-036), or None when it uses providers only."""
+    if agent.execution_engine != "browser" or not (agent.context_policy or {}).get("browser_session_id"):
+        return None
+    return (agent.model or "browser:web").removeprefix("browser:") or "web"
+
+
+async def _ask_window(agent: Agent, system: str, user: str) -> str:
+    """Type one prompt (rules + request) into the Manager's window and wait for the visible answer.
+
+    ProviderUnavailable: nothing was typed (the bridge is not reachable now). ProviderError: the window is not ready
+    (signed out, bot check, closed) or the prompt was typed and no complete answer came — never resent."""
+    from app.browser import client as bclient
+    from app.browser.bridge import BridgeError
+    from app.connectivity.arena_bridge.adapter import fold_prompt
+
+    sid = int(agent.context_policy["browser_session_id"])
+    prompt = fold_prompt(system, [{"role": "user", "content": user}])
+    try:
+        snap = await bclient.call("POST", f"/sessions/{sid}/prompt", {"prompt": prompt})
+    except BridgeError as e:
+        if e.code in ("bridge_unreachable", "too_many_sessions"):
+            raise ProviderUnavailable(f"browser bridge: {e.code}") from e
+        raise ProviderError(f"browser window not ready: {e.code} — open AI Workforce → Workers → Manager and look "
+                            "at its window") from e
+    deadline = _clock() + max(agent.timeout_seconds, 30)
+    while snap["state"] in ("SENDING", "GENERATING"):
+        if _clock() > deadline:
+            try:
+                await bclient.call("POST", f"/sessions/{sid}/cancel")
+            except BridgeError:
+                pass
+            raise ProviderError("generation_timeout: the window did not finish its answer in time (not resent)")
+        await asyncio.sleep(WINDOW_POLL_S)
+        try:
+            snap = await bclient.call("GET", f"/sessions/{sid}")
+        except BridgeError as e:
+            raise ProviderError(f"browser window lost while answering: {e.code} (not resent)") from e
+    if snap["state"] != "COMPLETED":
+        raise ProviderError(f"browser window ended in {snap['state']}: {snap.get('error') or ''} (not resent)")
+    with session_factory()() as db2:
+        from app.models import BrowserSession
+        hist = db2.get(BrowserSession, sid).history or []
+    return next((h["text"] for h in reversed(hist) if h.get("role") == "assistant"), "")
 
 
 # ---------------- planning graph ----------------

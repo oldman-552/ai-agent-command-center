@@ -25,7 +25,8 @@ import s from "./room.module.css";
 
 type View = "map" | "sum" | "tv";
 type WState = "work" | "person" | "offer" | "ask" | "review" | "revise" | "block" | "idle" | "off";
-const SLOT_VARS = ["var(--w1)", "var(--w2)", "var(--w3)", "var(--w4)"];
+const SLOT_NAMES = ["--w1", "--w2", "--w3", "--w4", "--w5", "--w6", "--w7", "--w8"];  // up to 20 workers cycle these (ADR-036)
+const SLOT_VARS = SLOT_NAMES.map((n) => `var(${n})`);
 const slotColor = (slot: number) => SLOT_VARS[(slot - 1) % SLOT_VARS.length];
 const STATE_COLOR: Record<WState, string> = {
   work: "var(--ok)", person: "var(--ok)", offer: "var(--ask)", ask: "var(--ask)", review: "var(--merge)",
@@ -261,7 +262,7 @@ export default function OperationsRoomPage() {
   useEffect(() => {
     const read = () => {
       const cs = room.current ? getComputedStyle(room.current) : null;
-      setWcolors(["--w1", "--w2", "--w3", "--w4"].map((n) => cs?.getPropertyValue(n).trim() || "#5b8cff"));
+      setWcolors(SLOT_NAMES.map((n) => cs?.getPropertyValue(n).trim() || "#5b8cff"));
     };
     read();
     const mo = new MutationObserver(read);
@@ -269,7 +270,7 @@ export default function OperationsRoomPage() {
     return () => mo.disconnect();
   }, []);
   const effects = useEffects(room, bg, fx, {
-    working: paused ? [] : working.map((v) => wcolors[(v.w.slot - 1) % 4] || "#5b8cff"), asking: asking && !paused, on: bgOn,
+    working: paused ? [] : working.map((v) => wcolors[(v.w.slot - 1) % SLOT_NAMES.length] || "#5b8cff"), asking: asking && !paused, on: bgOn,
   });
 
   // ---- map geometry: edges between the nodes, recomputed on resize ----
@@ -327,7 +328,7 @@ export default function OperationsRoomPage() {
     prev.current = { life, review, obj: obj.data.status, id: obj.data.id };
     if (!p || p.id !== obj.data.id || paused) return;
     for (const x of tasks) {
-      const was = p.life[x.id], now = x.lifecycle, wid = x.worker?.id, col = wid ? wcolors[((x.worker?.slot ?? 1) - 1) % 4] : "#5b8cff";
+      const was = p.life[x.id], now = x.lifecycle, wid = x.worker?.id, col = wid ? wcolors[((x.worker?.slot ?? 1) - 1) % SLOT_NAMES.length] : "#5b8cff";
       if (was === now) continue;
       if (wid && ["QUEUED", "RUNNING", "ACCEPTED"].includes(now) && !["QUEUED", "RUNNING", "ACCEPTED"].includes(was ?? "")) {
         effects.packet(edgeRefs.current[`q-${wid}`], col, pktLayer.current);
@@ -467,8 +468,17 @@ function MapView({ workers, mapRef, edgeRefs, pktLayer, nodeRefs, objective, tas
   const tl = useTranslations("workforce.lifecycle");
   const a = useWorkforceActions();
   const fail = useFail();
+  // Seats: one row for up to five workers; more (up to 20) wrap into rows of at most six, smaller, and the map grows
+  // one band per extra row (ADR-036).
   const n = workers.length || 1;
-  const xs = workers.map((_, i) => 100 - (100 / n) * (i + .5));  // right to left in Arabic; mirrored by `dir`
+  const rows = n <= 5 ? 1 : Math.ceil(n / 6);
+  const perRow = Math.ceil(n / rows);
+  const compact = n > 5;
+  const seat = (i: number) => {
+    const r = Math.floor(i / perRow), inRow = Math.min(perRow, n - r * perRow), c = i - r * perRow;
+    const y = rows === 1 ? 52 : 32 + (46 * (r + .5)) / rows;
+    return { x: 100 - (100 / inRow) * (c + .5), y };  // right to left in Arabic; mirrored by `dir`
+  };
   const waiting = tasks.filter((x) => ["PLANNED", "READY", "BLOCKED"].includes(x.lifecycle));
   const inReview = tasks.filter((x) => ["SUBMITTED", "UNDER_REVIEW", "APPROVED"].includes(x.lifecycle)).length;
   const planning = objective?.status === "planning";
@@ -480,7 +490,7 @@ function MapView({ workers, mapRef, edgeRefs, pktLayer, nodeRefs, objective, tas
   const pos = (x: number, y: number) => ({ insetInlineStart: `${100 - x}%`, top: `${y}%` } as React.CSSProperties);
   return (
     <section className={`${s.glass} ${s.mapCard}`} aria-labelledby="room-map-h">
-      <div className={s.map} ref={mapRef}>
+      <div className={s.map} ref={mapRef} style={{ "--rows": rows } as React.CSSProperties} data-compact={compact || undefined}>
         <svg className={s.edges} aria-hidden>
           <g>
             {edge("mp", "var(--primary)", planning)}
@@ -518,7 +528,7 @@ function MapView({ workers, mapRef, edgeRefs, pktLayer, nodeRefs, objective, tas
           const frac = step < 0 ? 0 : (step + 1) / STEPS.length;
           const sc = STATE_COLOR[v.state];
           return (
-            <div key={v.w.id} className={s.slot} style={pos(xs[i], 52)} ref={reg(`w${v.w.id}`)}>
+            <div key={v.w.id} className={s.slot} style={pos(seat(i).x, seat(i).y)} ref={reg(`w${v.w.id}`)}>
               <button className={s.node} data-state={v.state} data-testid={`room-worker-${v.w.slot}`}
                 style={{ "--c": slotColor(v.w.slot), "--sc": sc } as React.CSSProperties}
                 onClick={() => onWatch(v.w.id)}>

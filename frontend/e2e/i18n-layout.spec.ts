@@ -9,7 +9,8 @@ async function login(page: Page) {
   await page.locator("#username").fill(USER);
   await page.locator("#password").fill(PASS);
   await page.locator("button[type=submit]").click();
-  await page.waitForURL("/");
+  await page.waitForURL("/workforce/room"); // ADR-036: signing in opens the Operations Room
+  await page.goto("/");
 }
 
 test.beforeEach(async ({ context }) => {

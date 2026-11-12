@@ -10,7 +10,7 @@ export async function login(page: Page, lang: "ar" | "en" = "ar") {
   await page.locator("#username").fill(USER);
   await page.locator("#password").fill(PASS);
   await page.locator("button[type=submit]").click();
-  await page.waitForURL("/");
+  await page.waitForURL("/workforce/room"); // the simplified layout opens on the Operations Room (ADR-036)
   // the login restores the user's saved language; force the one under test
   await page.context().addCookies([{ name: "NEXT_LOCALE", value: lang, url: page.url() }]);
   await expect(page.getByTestId("current-user")).toBeVisible();

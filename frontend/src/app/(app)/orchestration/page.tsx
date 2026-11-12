@@ -1,5 +1,5 @@
 "use client";
-import { CalendarClock, History, Pause, Pencil, Play, Plus, Trash2, Workflow as WorkflowIcon, Zap } from "lucide-react";
+import { CalendarClock, History, Pause, Pencil, Play, Plus, Trash2, Waypoints, Workflow as WorkflowIcon, Zap } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
@@ -32,6 +32,14 @@ export default function OrchestrationPage() {
       <div>
         <h1 className="text-2xl font-bold">{t("title")}</h1>
         <p className="max-w-3xl text-sm text-muted-foreground">{t("subtitle")}</p>
+      </div>
+      {/* ADR-036: the AI Workforce is the way of working; this page stays for the older general-purpose agents */}
+      <div role="note" data-testid="orch-use-workforce" className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 p-4 text-sm">
+        <Waypoints className="size-5 shrink-0 text-primary" aria-hidden />
+        <p className="min-w-0 flex-1">{t("useWorkforce")}</p>
+        <Link href="/workforce" className="inline-flex min-h-10 items-center rounded-md bg-primary px-4 font-medium text-primary-foreground hover:bg-primary/90">
+          {t("useWorkforceLink")}
+        </Link>
       </div>
       <div role="tablist" aria-label={t("title")} className="flex flex-wrap gap-2 border-b pb-2">
         {(["workflows", "automations"] as const).map((x) => (
