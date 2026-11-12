@@ -45,6 +45,8 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
   `manager._ask_window`, never typed twice); `POST/DELETE /api/workforce/workers` add (max 20) / archive workers;
   plan limit 24 tasks; room seats wrap into rows of five. `tests/wf.reset` archives extra workers and leaves windows.
 - Not checked against arena.ai or a real Arena account. Workforce selectors for `arena` are guesses.
+- ADR-037: `./start.sh` sets up and runs the desktop bridge on a Linux desktop; readiness panel
+  (`components/workforce/readiness.tsx`, `GET /api/workforce/readiness`); `POST /api/workforce/windows/all`.
 
 ### Session 2026-11-11 — AI Workforce (M16, branch `arena/2b22bc10-ai-agent-command-center`)
 - Read first: `docs/AI_WORKFORCE.md` (what it does), ADR-032/033 (why), `docs/ARENA_LOCAL_BRIDGE.md` (the bridge).

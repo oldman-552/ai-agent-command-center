@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { TeamReadiness } from "@/components/workforce/readiness";
 import { useCan } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -36,6 +37,7 @@ export default function WorkforceWorkersPage() {
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <PageHeader title={t("workers.title")} subtitle={t("workers.subtitle")} />
       <WorkforceTabs />
+      <TeamReadiness />
       {wf.isLoading && <Skeleton className="h-64" aria-busy="true" />}
       {wf.isError && <Card role="alert" className="p-6 text-center text-destructive">{tc("error")}</Card>}
       {wf.data && !force && <Card className="p-6 text-sm text-muted-foreground">{t("notSetUp")}</Card>}

@@ -135,3 +135,40 @@ bridge_probe() {
   fi
   return 0
 }
+
+# ---- the Browser Bridge with visible windows on this computer (ADR-037) ----
+# On a Linux desktop, ./start.sh sets it up once (asks for your password to install Chromium's system libraries),
+# starts it in the background and ./stop.sh stops it — no second terminal. ACC_DESKTOP_BRIDGE=0 in .env turns this
+# off. Its output goes to logs/bridge-desktop.log.
+DESKTOP_PID="$ROOT/.bridge-desktop.pid"
+export PATH="$HOME/.local/bin:$PATH"
+desktop_bridge_wanted() {
+  [ "$(uname -s)" = Linux ] && [ "$(env_get ACC_DESKTOP_BRIDGE)" != "0" ] && [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]
+}
+desktop_bridge_running() { [ -f "$DESKTOP_PID" ] && kill -0 "$(cat "$DESKTOP_PID")" 2>/dev/null; }
+desktop_bridge_setup() {
+  [ "$(env_get ACC_DESKTOP_BRIDGE)" = "1" ] && return 0
+  say "First start on this desktop: setting up the Browser Bridge windows (once, a few minutes)…"
+  ACC_QUIET_SETUP=1 "$ROOT/bridge-desktop.sh" --setup || fail "Browser Bridge setup failed (see logs). Set ACC_DESKTOP_BRIDGE=0 in .env to skip it."
+  COMPOSE+=(-f "$ROOT/docker-compose.desktop.yml")
+}
+desktop_bridge_start() {
+  if desktop_bridge_running; then say "  Browser Bridge (windows): already running"; return 0; fi
+  (cd "$ROOT/backend" && uv sync --frozen --no-dev >>"$LOG" 2>&1) || say "WARNING: could not update the bridge's packages (see $LOG)"
+  setsid nohup "$ROOT/bridge-desktop.sh" >>"$LOGS/bridge-desktop.log" 2>&1 </dev/null &
+  echo $! > "$DESKTOP_PID"
+  local gw i; gw="$(docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null || true)"; gw="${gw:-172.17.0.1}"
+  for i in $(seq 1 30); do
+    # any HTTP answer means it is listening (its /health needs the platform's internal key: 401 is expected)
+    [ "$(curl -s -o /dev/null -w '%{http_code}' "http://$gw:$(port BRIDGE_PORT 8100)/health" 2>/dev/null)" != "000" ] \
+      && { say "  Browser Bridge (windows): ready"; return 0; }
+    desktop_bridge_running || break
+    sleep 1
+  done
+  say "WARNING: the Browser Bridge did not start — see $LOGS/bridge-desktop.log (the platform works; windows will not open)"
+}
+desktop_bridge_stop() {
+  desktop_bridge_running || { rm -f "$DESKTOP_PID"; return 0; }
+  kill -- -"$(cat "$DESKTOP_PID")" 2>/dev/null || kill "$(cat "$DESKTOP_PID")" 2>/dev/null || true
+  rm -f "$DESKTOP_PID"; say "  Browser Bridge (windows): stopped"
+}

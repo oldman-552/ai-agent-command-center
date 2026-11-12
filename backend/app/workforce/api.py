@@ -298,6 +298,66 @@ async def _open_window(db, user: User, agent: Agent, site: str) -> int:
     return s.id
 
 
+@router.get("/readiness")
+async def team_readiness(db: DB, user: User = Depends(require("workforce.read"))) -> dict:
+    """ADR-037: can every member work through its own window now, and what is missing (read-only)."""
+    from app.workforce import readiness
+    return await readiness.readiness(db, _force(db, user))
+
+
+class AllWindowsIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    site: str = "arena"
+    automatic: bool = True  # workers that are not Disabled become Automatic (a window that is not ready hands the
+                            # task to a person — fallback_to_human is switched on with it)
+
+
+@router.post("/windows/all")
+async def open_all_windows(body: AllWindowsIn, db: DB, user: User = Depends(require("workforce.manage"))) -> dict:
+    """ADR-037: move the Manager and every worker that is not Disabled to its own window — one profile each, opened
+    (or reused) one after another. Nothing is typed or sent; each window still needs its own sign-in by hand."""
+    from app.workforce import readiness
+    wf = _force(db, user)
+    results: list[dict] = []
+    members: list[tuple[str, int | None]] = [("manager", None)]
+    members += [("worker", w.id) for w in service.workers(db, wf.id) if w.mode != "DISABLED"]
+    for kind, wid in members:
+        label = "Manager"
+        try:
+            db.expire_all()
+            wf = _force(db, user)
+            if kind == "manager":
+                agent = db.get(Agent, wf.manager_agent_id)
+                sid = await _open_window(db, user, agent, body.site)
+                db.expire_all()
+                service.update_manager(db, _force(db, user), user=user, patch={"browser_session_id": sid})
+            else:
+                w = get_scoped(db, WorkforceWorker, wid, user)
+                label = f"W{w.slot}"
+                sid = await _open_window(db, user, db.get(Agent, w.agent_id), body.site)
+                db.expire_all()
+                w = get_scoped(db, WorkforceWorker, wid, user)
+                patch: dict[str, Any] = {"browser_session_id": sid}
+                if body.automatic:
+                    patch |= {"mode": "AUTOMATIC", "fallback_to_human": True}
+                service.update_worker(db, w, user=user, patch=patch)
+            db.commit()
+            results.append({"label": label, "ok": True, "session_id": sid})
+        except HTTPException as e:
+            db.rollback()
+            results.append({"label": label, "ok": False, "error": str(e.detail)})
+            if e.status_code in (403,) or str(e.detail) in ("bridge_disabled", "terms_not_acknowledged"):
+                break  # the same answer for everyone: stop here
+        except service.ConfigError as e:
+            db.rollback()
+            results.append({"label": label, "ok": False, "error": str(e)})
+    db.expire_all()
+    wf = _force(db, user)
+    scheduler.request_tick(db, wf, "team moved to its own windows")
+    db.commit()
+    return {"results": results, "readiness": await readiness.readiness(db, _force(db, user))}
+
+
 @router.post("/manager/browser")
 async def open_manager_browser(body: WorkerBrowserIn, db: DB, user: User = Depends(require("workforce.manage"))) -> dict:
     """ADR-036: the Manager's own visible window (a profile of its own, signed in by hand). An API model already

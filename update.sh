@@ -10,5 +10,6 @@ PULL=(--pull); [ "${ACC_UPDATE_NO_PULL:-}" = "1" ] && PULL=()   # offline/air-ga
 "${COMPOSE[@]}" build "${PULL[@]}" >>"$LOG" 2>&1 || fail "image build failed"
 "${COMPOSE[@]}" up -d >>"$LOG" 2>&1 || fail "restart failed"
 wait_http "http://localhost:$(port API_PORT 8000)/api/health" "API" 120
+if desktop_bridge_wanted; then desktop_bridge_setup; desktop_bridge_stop; desktop_bridge_start; fi  # new code, same windows
 health || true
 say "Updated."

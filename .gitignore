@@ -47,3 +47,7 @@ docker/offline/uv
 docker/offline/ca.crt
 docker/offline/node
 docker-compose.override.yml
+
+# Browser Bridge on this computer: sign-ins (cookies) of every window — never commit (ADR-037)
+browser-profiles/
+.bridge-desktop.pid

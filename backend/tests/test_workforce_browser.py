@@ -210,3 +210,63 @@ def test_an_unreachable_bridge_falls_back_to_the_managers_api_model(db, monkeypa
     db.commit()
     wf = h.objective(db, "1. Summarise the options [research]")
     assert asyncio.run(control.plan(wf.id)) == "planned" and fake.typed == []
+
+
+# ---------------- ADR-037: team readiness and "move everyone to their own window" ----------------
+def test_readiness_names_every_missing_piece_and_moving_everyone_fixes_them(db, page_server, monkeypatch):  # noqa: F811
+    from app.config import get_settings
+    from app.workforce import readiness
+    h.reset(db)
+    monkeypatch.setattr(get_settings(), "browser_max_sessions", 10)
+
+    async def go():
+        bridge = B.Bridge(base_url=page_server, poll=0.05)
+        bridge_client.LOCAL = bridge
+        try:
+            # nothing set up: the bridge is off, nobody has a window
+            r = await readiness.readiness(db, service.get(db, 1))
+            assert r["ready"] is False and r["checks"]["bridge_enabled"] is False
+            assert {m["label"]: m["problem"] for m in r["members"]}["W1"] in ("no_connection", "old_connection")
+            # moving everyone while the bridge is off stops at the first answer, opens nothing
+            out = await wf_api.open_all_windows(wf_api.AllWindowsIn(site="test"), db, h.admin(db))
+            assert out["results"][0]["ok"] is False and len(out["results"]) == 1
+            _enable(db)
+            service.update_worker(db, h.worker(db, 4), user=h.admin(db), patch={"mode": "DISABLED"})
+            db.commit()
+            out = await wf_api.open_all_windows(wf_api.AllWindowsIn(site="test"), db, h.admin(db))
+            assert [x["label"] for x in out["results"]] == ["Manager", "W1", "W2", "W3"]  # Disabled W4 left alone
+            assert all(x["ok"] for x in out["results"]), out["results"]
+            sessions = {x["session_id"] for x in out["results"]}
+            assert len(sessions) == 4  # one window per member, never shared
+            db.expire_all()
+            r = out["readiness"]
+            assert r["checks"]["bridge_enabled"] and r["checks"]["bridge_running"]
+            members = {m["label"]: m for m in r["members"]}
+            assert all(members[x]["connection"] == "window" and members[x]["problem"] is None
+                       for x in ("Manager", "W1", "W2", "W3"))
+            assert members["W4"]["problem"] is None and members["W4"]["mode"] == "DISABLED"
+            assert service.eligibility(db, h.worker(db, 1)).mode == "AUTOMATIC"
+            # doing it again reuses the same windows
+            again = await wf_api.open_all_windows(wf_api.AllWindowsIn(site="test"), db, h.admin(db))
+            assert {x["session_id"] for x in again["results"]} == sessions
+        finally:
+            await bridge.shutdown()
+
+    asyncio.run(go())
+
+
+def test_readiness_tells_a_signed_out_window_from_a_closed_one(db):
+    from app.workforce import readiness
+    h.reset(db)
+    _enable(db)
+    for slot, state in ((1, "AUTH_REQUIRED"), (2, "STOPPED")):
+        s = BrowserSession(organization_id=1, provider_key="test", profile_name=f"agent-ready-{slot}", state=state,
+                           history=[])
+        db.add(s)
+        db.commit()
+        service.update_worker(db, h.worker(db, slot), user=h.admin(db), patch={"browser_session_id": s.id})
+    db.commit()
+    bridge_client.LOCAL = None
+    r = asyncio.run(readiness.readiness(db, service.get(db, 1)))
+    m = {x["label"]: x["problem"] for x in r["members"]}
+    assert m["W1"] == "sign_in" and m["W2"] == "window_closed" and r["ready"] is False

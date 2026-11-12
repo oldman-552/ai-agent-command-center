@@ -2378,6 +2378,40 @@
       },
       "kind": "Code task",
       "commandPlaceholder": "python3 -m pytest -q"
+    },
+    "readiness": {
+      "ready": "The team is ready",
+      "readyHelp": "Every member has its own window and it is ready ({n} working).",
+      "notReady": "The team is not ready yet: {n, plural, one {# thing missing} other {# things missing}}",
+      "details": "Details",
+      "hide": "Hide",
+      "setupAll": "Set up the whole team",
+      "settingUp": "Setting up…",
+      "setupBlocked": "Finish the first three steps first",
+      "setupDone": "Opened its own window for {n}. Sign in in every window that asks.",
+      "setupPartly": "Not everyone was set up: {list}",
+      "running": "The Browser Bridge runs on this computer",
+      "runningHelp": "./start.sh starts it for you on a Linux desktop. If you stopped it, run ./start.sh again.",
+      "enabled": "The Browser Bridge is on in the platform",
+      "enabledHelp": "Lets the workers and the Manager open their windows.",
+      "enable": "Turn it on",
+      "terms": "Acknowledge Arena's terms",
+      "termsHelp": "Arena's terms prohibit automated access. Read the statement below; nothing opens until you acknowledge it.",
+      "acknowledge": "I acknowledge this statement",
+      "manager": "Manager",
+      "openWindow": "Open its window",
+      "signedIn": "I signed in — check again",
+      "windowOpened": "{label}: the window is open. Sign in there if it asks.",
+      "okSr": "(ready)",
+      "missingSr": "(missing)",
+      "problem": {
+        "sign_in": "Its window is open but asks for a sign-in or a bot check. Finish it in the window, then press the button.",
+        "window_closed": "Its window is closed or stopped. Open it again; it returns to the last conversation.",
+        "no_window": "Linked to a window that no longer exists. Open a new one.",
+        "old_connection": "Still on the old Arena Local Bridge. Move it to its own window.",
+        "no_connection": "It has no connection yet."
+      },
+      "startCmd": "./start.sh"
     }
   }
 }

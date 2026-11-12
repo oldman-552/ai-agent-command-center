@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { MockBadge, ModeBadge, PageHeader, useActor, useFail, WorkforceTabs } from "@/components/workforce/shared";
+import { TeamReadiness } from "@/components/workforce/readiness";
 import { api } from "@/lib/api";
 import { type Approval, useApprovals, useDecide } from "@/lib/approvals";
 import { useToasts } from "@/lib/toast";
@@ -425,6 +426,7 @@ export default function OperationsRoomPage() {
   return (
     <div className="mx-auto flex max-w-[1560px] flex-col gap-4">
       <WorkforceTabs />
+      <TeamReadiness compact />
       <div ref={room} className={`${s.room} ${big ? s.fullscreen : ""}`} data-testid="ops-room">
         <canvas ref={bg} className={s.bg} aria-hidden />
         <div className={s.inner}>

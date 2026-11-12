@@ -743,3 +743,28 @@ the site only) and a (re)started window of that profile reopens it; a FAILED win
 re-checked (`FAILED → READY/AUTH_REQUIRED`), and "Open this worker's window" re-checks it instead of opening a
 second one (an unusable one is closed and reopened). Tested on the local test page (Enter-only and manual-send
 modes); still not checked against arena.ai.
+
+
+## ADR-037 — Zero-setup windows: the bridge starts with the platform, a readiness panel, and "set up the whole team" (owner decision, 2026-11-12)
+**Context:** the owner kept meeting the same failures — the desktop bridge not running (tasks handed to him), a
+worker still on the old Arena Local Bridge (`bridge_unavailable`), a window signed out — and asked for something
+that needs no setup.
+**Decision:** (1) On a Linux desktop session `./start.sh` runs `bridge-desktop.sh --setup` once (installs the
+bridge's packages and Chromium, asks for sudo for its system libraries, sets `ACC_DESKTOP_BRIDGE=1`), then starts
+the bridge in the background (`setsid nohup`, pid in `.bridge-desktop.pid`, output in `logs/bridge-desktop.log`);
+`./stop.sh` stops it; `./update.sh` restarts it on the new code. `ACC_DESKTOP_BRIDGE=0` turns it off; without a
+screen nothing changes. The desktop bridge allows 21 sessions (the Manager and 20 workers). (2) `GET
+/api/workforce/readiness` (read-only) reports the bridge on/off and running, the site's terms, and each member's
+connection: own window (ready / needs a sign-in / closed / missing), old bridge, API provider (fine) or none;
+Disabled workers are never a problem. The panel shows it at the top of the Operations Room (folded) and of Manager
+& workers, each item with its fix (turn the bridge on; acknowledge the terms — the statement is shown and the
+person's click is the acknowledgement, as ADR-005 requires; open/re-check a window). (3) `POST
+/api/workforce/windows/all` opens (or reuses) a window for the Manager and every worker that is not Disabled, one
+after another, switches the workers to Automatic with fallback to a person, and stops at the first answer that is
+the same for everyone (bridge off, terms missing). Nothing is typed or sent to a site by any of this. Also:
+`browser-profiles/` (every window's sign-in cookies) and the pid file are now in `.gitignore` — they were not.
+**Tested:** readiness and "move everyone" against the real bridge on the local test page (off → stops at once; on
+→ four members, four distinct windows, Disabled W4 untouched, Automatic, idempotent); signed-out vs closed windows;
+the script helpers under Xvfb (start → ready, second start → already running, stop → no process left, no screen
+or `ACC_DESKTOP_BRIDGE=0` → skipped); E2E (ar/en) for the panel steps. **Not** tested: the first-run setup itself
+(apt/sudo inside `playwright install --with-deps`) and arena.ai.

@@ -302,8 +302,20 @@ export const useExecEvents = (id: string | null | undefined, after: number) =>
 export const useBridges = () =>
   useQuery({ queryKey: ["wf-bridges"], queryFn: () => api<BridgeList>(`${W}/bridges`), refetchInterval: 15_000 });
 
+export type ReadinessProblem = "sign_in" | "window_closed" | "no_window" | "old_connection" | "no_connection";
+export type Readiness = {
+  ready: boolean; site: string; bridge_error: string | null;
+  checks: { bridge_enabled: boolean; bridge_running: boolean; terms: boolean };
+  terms: { site: string; acknowledged: boolean; statement: string | null };
+  members: { kind: "manager" | "worker"; worker_id: number | null; label: string; name: string; mode: string | null;
+    connection: "window" | "old_bridge" | "provider" | "none"; window_state: string | null; window_error: string | null;
+    problem: ReadinessProblem | null }[];
+};
+export const useReadiness = (enabled = true) =>
+  useQuery({ queryKey: ["wf-readiness"], queryFn: () => api<Readiness>(`${W}/readiness`), refetchInterval: 10_000, enabled });
+
 // ---------- mutations ----------
-const KEYS = ["wf", "wf-options", "wf-dashboard", "wf-objectives", "wf-objective", "wf-report", "wf-history",
+const KEYS = ["wf", "wf-readiness", "wf-options", "wf-dashboard", "wf-objectives", "wf-objective", "wf-report", "wf-history",
   "wf-tasks", "wf-task", "wf-bridges", "approvals"];
 
 export function useWorkforceActions() {
@@ -317,6 +329,8 @@ export function useWorkforceActions() {
       send<Workforce>(`${W}/development`, patch, "PATCH")),
     updateWorker: m(({ id, patch }: { id: number; patch: Record<string, unknown> }) =>
       send<Worker>(`${W}/workers/${id}`, patch, "PATCH")),
+    openAllWindows: m(() => send<{ results: { label: string; ok: boolean; error?: string }[]; readiness: Readiness }>(
+      `${W}/windows/all`, { site: "arena", automatic: true })),
     openManagerBrowser: m(({ site }: { site?: string }) => send<WorkforceOverview>(`${W}/manager/browser`, { site: site ?? "arena" })),
     addWorker: m((b: { name: string; role: string; skills?: string[]; focus?: string }) => send<Worker>(`${W}/workers`, b)),
     archiveWorker: m((id: number) => send<void>(`${W}/workers/${id}`, undefined, "DELETE")),
