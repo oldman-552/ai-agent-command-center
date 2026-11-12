@@ -36,9 +36,9 @@ for (const lang of ["ar", "en"] as const) {
       await page.locator("#username").fill(USER);
       await page.locator("#password").fill(PASS);
       await page.locator("button[type=submit]").click();
-      await page.waitForURL("/");
-      await page.context().addCookies([{ name: "NEXT_LOCALE", value: lang, url: page.url() }]);
-      await page.reload();
+      await page.waitForURL("/workforce/room"); // ADR-036: signing in opens the Operations Room
+      await page.context().addCookies([{ name: "NEXT_LOCALE", value: lang, url: new URL(page.url()).origin }]);
+      await page.goto("/");
       await expect(page.locator("[data-testid=recent-activity]")).toBeVisible();
       await audit(page);
     });

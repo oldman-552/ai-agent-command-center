@@ -37,6 +37,15 @@ See the bottom of `progress.txt` (UPDATE HISTORY) for the latest entry and `NEXT
 - Still owner-only: GW-10 (live key), FI-06 (real GitHub repo — creating one was blocked here), SEC-08 (Trivy),
   FI-01 (Windows).
 
+### Session 2026-11-12 — owner decisions ADR-035/036
+- ADR-035: a worker can drive its own visible Browser Bridge window (`agent-<identifier>` profile, signed in by hand).
+- ADR-036: simplified menu (advanced tools hidden behind *Settings → Show advanced tools*, `src/lib/nav-mode.ts`;
+  login lands on `/workforce/room`; E2E `login()` waits for that); the Manager may run through an Arena Local Bridge
+  (`agent` route, one conversation per step) or its own window (`POST /api/workforce/manager/browser`,
+  `manager._ask_window`, never typed twice); `POST/DELETE /api/workforce/workers` add (max 20) / archive workers;
+  plan limit 24 tasks; room seats wrap into rows of five. `tests/wf.reset` archives extra workers and leaves windows.
+- Not checked against arena.ai or a real Arena account. Workforce selectors for `arena` are guesses.
+
 ### Session 2026-11-11 — AI Workforce (M16, branch `arena/2b22bc10-ai-agent-command-center`)
 - Read first: `docs/AI_WORKFORCE.md` (what it does), ADR-032/033 (why), `docs/ARENA_LOCAL_BRIDGE.md` (the bridge).
 - Code: `backend/app/workforce/` (lifecycle, service, manager, scheduler, review, report, human, control, history,

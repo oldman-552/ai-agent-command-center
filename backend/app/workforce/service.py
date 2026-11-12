@@ -98,9 +98,13 @@ def get(db: Session, organization_id: int) -> Workforce | None:
                      .limit(1))
 
 
-def workers(db: Session, workforce_id: int) -> list[WorkforceWorker]:
-    return list(db.scalars(select(WorkforceWorker).where(WorkforceWorker.workforce_id == workforce_id)
-                           .order_by(WorkforceWorker.slot)))
+def workers(db: Session, workforce_id: int, *, include_archived: bool = False) -> list[WorkforceWorker]:
+    """The workforce's workers by slot. An archived worker (ADR-036) keeps its row and history but takes no work and
+    is not listed."""
+    stmt = select(WorkforceWorker).where(WorkforceWorker.workforce_id == workforce_id)
+    if not include_archived:
+        stmt = stmt.join(Agent, Agent.id == WorkforceWorker.agent_id).where(Agent.archived_at.is_(None))
+    return list(db.scalars(stmt.order_by(WorkforceWorker.slot)))
 
 
 def worker_for_agent(db: Session, agent_id: int | None) -> WorkforceWorker | None:
@@ -182,6 +186,62 @@ def ensure_default(db: Session, organization_id: int, *, actor: str = "system") 
     log_activity(db, "workforce.created", category="workforce", organization_id=organization_id, actor=actor,
                  details={"workforce_id": wf.id, "workers": len(DEFAULT_WORKERS), "default_mode": M.HUMAN_ASSISTED.value})
     return wf
+
+
+# ---------------- adding and archiving workers (ADR-036) ----------------
+MAX_WORKERS = 20
+SPECIALTIES = {spec.role: spec for spec in DEFAULT_WORKERS}
+
+
+def add_worker(db: Session, wf: Workforce, *, user: User, name: str, role: str, skills: list[str] | None = None,
+               focus: str | None = None) -> WorkforceWorker:
+    """A new worker in the next free slot: Human-Assisted, no provider — nothing is sent anywhere until a person
+    configures it, exactly like the default four. Does not commit."""
+    if len(workers(db, wf.id)) >= MAX_WORKERS:
+        raise ConfigError("too_many_workers")
+    base = SPECIALTIES.get(role)
+    focus = (focus or "").strip() or (base.focus if base else
+                                       f"You work on tasks for the specialty “{role}”. Deliver complete, concrete "
+                                       "results and say plainly what you could not do.")
+    skills = [s.strip() for s in (skills or []) if s.strip()] or (list(base.skills) if base else [role])
+    slot = (db.scalar(select(func.max(WorkforceWorker.slot)).where(WorkforceWorker.workforce_id == wf.id)) or 0) + 1
+    spec = WorkerSpec(slot, name.strip(), role, tuple(skills), focus)
+    agent = Agent(
+        organization_id=wf.organization_id, name=spec.name, role=role, state="IDLE", execution_engine="api",
+        identifier=_unique_identifier(db, wf.organization_id, f"wf-worker-{slot}"), description=focus,
+        system_instructions=worker_prompt(spec), tool_permissions=[], skills=skills, security_profile="read_only",
+        timeout_seconds=900, concurrency_limit=1,
+        retry_policy={"max_attempts": 2, "backoff_seconds": 5, "backoff_multiplier": 2.0},
+        context_policy={"max_output_tokens": 8000, "max_context_tokens": 24000})
+    db.add(agent)
+    db.flush()
+    w = WorkforceWorker(organization_id=wf.organization_id, workforce_id=wf.id, slot=slot, agent_id=agent.id,
+                        mode=M.HUMAN_ASSISTED.value, fallback_to_human=True,
+                        client_session_id=f"acc-wf{wf.id}-w{slot}-{secrets.token_hex(6)}")
+    db.add(w)
+    db.flush()
+    log_activity(db, "workforce.worker_added", category="workforce", organization_id=wf.organization_id,
+                 user_id=user.id, agent_id=agent.id, details={"worker_id": w.id, "slot": slot, "role": role})
+    return w
+
+
+def archive_worker(db: Session, w: WorkforceWorker, *, user: User) -> None:
+    """Remove a worker from the team without losing its history: refused while it has work in hand. Does not
+    commit."""
+    from datetime import UTC, datetime
+    agent = db.get(Agent, w.agent_id)
+    if len(workers(db, w.workforce_id)) <= 1:
+        raise ConfigError("last_worker")
+    if load(db, [agent.id]).get(agent.id, 0):
+        raise ConfigError("worker_busy")
+    agent.archived_at, agent.is_enabled = datetime.now(UTC), False
+    w.mode = M.DISABLED.value
+    s = browser_session_of(db, agent)
+    if s is not None and s.agent_id == agent.id:
+        s.agent_id = None  # the window and its profile stay; nobody drives it now
+    log_activity(db, "workforce.worker_archived", category="workforce", level="warning",
+                 organization_id=w.organization_id, user_id=user.id, agent_id=agent.id,
+                 details={"worker_id": w.id, "slot": w.slot})
 
 
 # ---------------- account binding ----------------
@@ -393,6 +453,13 @@ def manager_out(db: Session, wf: Workforce) -> dict[str, Any]:
                 "enabled": p.enabled}
 
     primary = route(agent.provider_id, agent.model)
+    window = None
+    if agent.execution_engine == "browser":
+        bs = browser_session_of(db, agent)
+        window = ({"session_id": bs.id, "site": bs.provider_key, "profile": bs.profile_name, "state": bs.state,
+                   "error": bs.error} if bs else None)
+        primary = ({"provider_id": None, "provider": f"browser:{bs.provider_key}", "kind": "browser",
+                    "model": bs.provider_key, "is_mock": False, "enabled": True} if bs else None)
     problem = None
     if primary is None:
         problem = "manager_model_not_configured"
@@ -403,7 +470,8 @@ def manager_out(db: Session, wf: Workforce) -> dict[str, Any]:
     return {"configured": problem is None, "problem": problem, "agent_id": agent.id, "name": agent.name,
             "model": primary, "fallback": route(agent.fallback_provider_id, agent.fallback_model),
             "instructions": agent.system_instructions, "timeout_seconds": agent.timeout_seconds,
-            "is_mock": bool(primary and primary["is_mock"])}
+            "is_mock": bool(primary and primary["is_mock"]), "engine": agent.execution_engine, "window": window,
+            "via_bridge": bool(primary and primary["kind"] in (bridge.KIND, "browser"))}
 
 
 def _development_out(wf: Workforce) -> dict[str, Any]:
@@ -420,7 +488,7 @@ def workforce_out(db: Session, wf: Workforce) -> dict[str, Any]:
     outs = [worker_out(db, w, a, busy=busy.get(a.id, 0), shared=shared) for w, a in pairs]
     return {"id": wf.id, "name": wf.name, "project_id": wf.project_id, "review_policy": wf.review_policy,
             "max_revisions": wf.max_revisions, "manager": manager_out(db, wf), "workers": outs,
-            "development": _development_out(wf),
+            "development": _development_out(wf), "max_workers": MAX_WORKERS,
             "accounts": accounts_summary(outs), "created_at": wf.created_at, "updated_at": wf.updated_at}
 
 
@@ -509,6 +577,16 @@ def update_worker(db: Session, w: WorkforceWorker, *, user: User, patch: dict[st
     return w
 
 
+def _leave_browser(agent: Agent) -> None:
+    """Back to a provider: the agent no longer drives a browser window."""
+    if agent.execution_engine == "browser":
+        agent.execution_engine = "api"
+        if (agent.model or "").startswith("browser:"):
+            agent.model = None
+    if (agent.context_policy or {}).get("browser_session_id") is not None:
+        agent.context_policy = {k: v for k, v in agent.context_policy.items() if k != "browser_session_id"}
+
+
 def update_manager(db: Session, wf: Workforce, *, user: User, patch: dict[str, Any]) -> Workforce:
     agent = db.get(Agent, wf.manager_agent_id) if wf.manager_agent_id else None
     if agent is None:
@@ -516,15 +594,30 @@ def update_manager(db: Session, wf: Workforce, *, user: User, patch: dict[str, A
     for pid_field, model_field in (("provider_id", "model"), ("fallback_provider_id", "fallback_model")):
         if pid_field in patch:
             p = _provider(db, wf.organization_id, patch[pid_field], pid_field)
-            if p is not None and bridge.is_bridge(p):
-                # The Manager needs a system prompt, structured answers and reported usage; a bridge session offers
-                # none of them (ADR-032), so it cannot be the Manager's model.
-                raise ConfigError("manager_cannot_use_a_bridge")
+            # ADR-036 (owner decision, reverses ADR-032's refusal): the Manager may run through an Arena Local Bridge.
+            # The bridge folds the system prompt into the message, usage is reported as unknown, and every answer is
+            # still schema- and graph-validated (an invalid one is asked again with the error, then a person acts).
+            if p is not None and bridge.is_bridge(p) and not bridge.acknowledged(p):
+                raise ConfigError("bridge_terms_not_acknowledged")
             setattr(agent, pid_field, p.id if p else None)
+            if pid_field == "provider_id" and p is not None:
+                _leave_browser(agent)
             if p is None:
                 setattr(agent, model_field, None)
         if model_field in patch:
             setattr(agent, model_field, (patch[model_field] or "").strip() or None)
+    if "browser_session_id" in patch:
+        if patch["browser_session_id"] is None:
+            _leave_browser(agent)
+        else:
+            s = db.get(BrowserSession, int(patch["browser_session_id"]))
+            if s is None or s.organization_id != wf.organization_id:
+                raise ConfigError("browser_session_not_found")
+            # ADR-036: the Manager types into its own visible window; an API model can stay as the fallback
+            agent.execution_engine, agent.provider_id = "browser", None
+            agent.model = f"browser:{s.provider_key}"[:128]
+            agent.context_policy = {**(agent.context_policy or {}), "browser_session_id": s.id}
+            s.agent_id = agent.id
     if patch.get("instructions") is not None:
         agent.system_instructions = patch["instructions"]
     if patch.get("timeout_seconds") is not None:

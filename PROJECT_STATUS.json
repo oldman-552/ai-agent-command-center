@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-12 00:14",
+  "date": "2026-11-12 09:25",
   "spec_version": "4.0",
   "current_phase": "Phases 16, 17, 22",
   "current_milestone": {
@@ -273,23 +273,13 @@
     "WF-17"
   ],
   "files_changed": [
-    "backend/app/browser/adapters.py",
-    "backend/app/browser/engine.py",
-    "backend/app/browser/gate.py",
-    "backend/app/workforce/api.py",
-    "backend/app/workforce/service.py",
-    "backend/tests/test_browser.py",
-    "backend/tests/test_integrations.py",
     "docs/ARCHITECTURE_DECISIONS.md",
-    "docs/USER_GUIDE_AR.md",
-    "frontend/e2e/browser-bridge.spec.ts",
-    "frontend/messages/ar.json",
-    "frontend/messages/en.json",
-    "frontend/src/app/(app)/browser-bridge/page.tsx",
-    "frontend/src/app/(app)/workforce/workers/page.tsx",
-    "frontend/src/lib/workforce.ts",
-    "backend/tests/test_workforce_browser.py",
-    "frontend/e2e/workforce-worker-window.spec.ts"
+    "docs/HANDOFF.md",
+    "frontend/e2e/a11y.spec.ts",
+    "frontend/e2e/helpers.ts",
+    "frontend/e2e/navigation.spec.ts",
+    "frontend/src/app/(app)/workforce/room/page.tsx",
+    "frontend/src/app/(app)/workforce/room/room.module.css"
   ],
   "tests": {
     "passed": [

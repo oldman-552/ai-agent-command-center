@@ -47,12 +47,14 @@ export type Route = { provider_id: number; provider: string; kind: string; model
 export type Manager = {
   configured: boolean; problem: string | null; agent_id: number | null; name?: string; model?: Route | null;
   fallback?: Route | null; instructions?: string; timeout_seconds?: number; is_mock?: boolean;
+  engine?: string; via_bridge?: boolean;
+  window?: { session_id: number; site: string; profile: string; state: string; error: string | null } | null;
 };
 export type Development = { enabled: boolean; test_command: string[] | null; timeout_seconds: number;
   allowed_test_commands: string[] };
 export type Workforce = {
   id: number; name: string; project_id: number | null; review_policy: "manager" | "human"; max_revisions: number;
-  manager: Manager; workers: Worker[]; development: Development;
+  manager: Manager; workers: Worker[]; development: Development; max_workers?: number;
   accounts: { automatic_workers: number; deterministic: number; pooled: number; unknown: number;
     distinct_accounts: number; shared_accounts: string[][]; attested: false };
 };
@@ -315,6 +317,9 @@ export function useWorkforceActions() {
       send<Workforce>(`${W}/development`, patch, "PATCH")),
     updateWorker: m(({ id, patch }: { id: number; patch: Record<string, unknown> }) =>
       send<Worker>(`${W}/workers/${id}`, patch, "PATCH")),
+    openManagerBrowser: m(({ site }: { site?: string }) => send<WorkforceOverview>(`${W}/manager/browser`, { site: site ?? "arena" })),
+    addWorker: m((b: { name: string; role: string; skills?: string[]; focus?: string }) => send<Worker>(`${W}/workers`, b)),
+    archiveWorker: m((id: number) => send<void>(`${W}/workers/${id}`, undefined, "DELETE")),
     openWorkerBrowser: m(({ id, site }: { id: number; site?: string }) =>
       send<Worker>(`${W}/workers/${id}/browser`, { site: site ?? "arena" })),
     submitObjective: m((b: { prompt: string; title?: string; review_policy?: "manager" | "human" }) =>

@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/select";
 import { useAdminActions, useRoles, useUsers } from "@/lib/admin";
 import { ApiError } from "@/lib/api";
+import { setShowAdvanced, useShowAdvanced } from "@/lib/nav-mode";
 import { useToasts } from "@/lib/toast";
 
 export default function SettingsPage() {
@@ -38,6 +39,7 @@ export default function SettingsPage() {
           <div className="flex items-center gap-2 text-sm"><span>{t("theme")}</span><ThemeToggle /></div>
         </div>
       </Card>
+      <AdvancedTools />
       {can("users.manage") && <Users />}
       <Card className="flex flex-col gap-2 p-4" aria-labelledby="more-h">
         <h2 id="more-h" className="text-lg font-semibold">{t("more")}</h2>
@@ -114,6 +116,26 @@ function Users() {
           </tbody>
         </table>
       </div>
+    </Card>
+  );
+}
+
+
+/** ADR-036: the older general-purpose pages are hidden from the menu by default; this brings them back. Nothing is
+ * removed either way. */
+function AdvancedTools() {
+  const t = useTranslations("settings.advanced");
+  const on = useShowAdvanced();
+  return (
+    <Card className="flex flex-col gap-3 p-4" aria-labelledby="nav-advanced-h" id="nav-advanced">
+      <h2 id="nav-advanced-h" className="text-lg font-semibold">{t("title")}</h2>
+      <p className="max-w-3xl text-sm text-muted-foreground">{t("help")}</p>
+      <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium">
+        <input type="checkbox" role="switch" aria-checked={on} checked={on} onChange={(e) => setShowAdvanced(e.target.checked)}
+          className="size-5 accent-[hsl(var(--primary))]" data-testid="settings-show-advanced" />
+        {t("toggle")}
+      </label>
+      <p className="text-xs text-muted-foreground" aria-live="polite">{on ? t("onNote") : t("offNote")}</p>
     </Card>
   );
 }

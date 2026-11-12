@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
-from app.models import Agent, AuditLog, Workforce, WorkforceWorker
+from app.models import Agent, AuditLog, Workforce
 from app.workforce import service
 from tests import wf as h
 from tests.fakebridge import ACCOUNTS, session_id
@@ -45,18 +45,19 @@ def test_the_default_workforce_has_a_manager_without_a_model_and_four_independen
     assert len({w["agent_id"] for w in ws}) == 4 and len({w["identifier"] for w in ws}) == 4
     assert len({w["prompt"] for w in ws}) == 4 and all("You are one worker in a team" in w["prompt"] for w in ws)
     assert all(w["timeout_seconds"] >= 30 and w["retry_policy"]["max_attempts"] >= 1 for w in ws)
-    rows = db.scalars(select(WorkforceWorker).where(WorkforceWorker.workforce_id == force["id"])).all()
+    rows = service.workers(db, force["id"])  # workers archived by another test (ADR-036) are not part of the team
     assert len({r.client_session_id for r in rows}) == 4  # one conversation id per worker, never shared
     assert force["accounts"] == {"automatic_workers": 0, "deterministic": 0, "pooled": 0, "unknown": 0,
                                  "distinct_accounts": 0, "shared_accounts": [], "attested": False}
 
 
 def test_setup_is_idempotent_and_another_organization_gets_its_own_workforce(db):
-    before = (db.scalar(select(Workforce.id).where(Workforce.organization_id == 1)),
-              len(service.managed_agent_ids(db, 1)))
+    def active() -> int:  # the Manager plus the workers that are not archived (ADR-036)
+        return 1 + len(service.workers(db, service.get(db, 1).id))
+    before = (db.scalar(select(Workforce.id).where(Workforce.organization_id == 1)), active())
     assert service.ensure_default(db, 1).id == before[0]
     db.commit()
-    assert len(service.managed_agent_ids(db, 1)) == before[1] == 5  # Manager + four workers, not ten
+    assert active() == before[1] == 5  # Manager + four workers, not ten
     from app.models import Organization
     org = db.scalar(select(Organization).where(Organization.slug == "wf-second-org"))
     if org is None:

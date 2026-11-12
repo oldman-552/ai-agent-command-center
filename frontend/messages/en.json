@@ -30,7 +30,16 @@
     "skills": "Skills",
     "analytics": "Analytics",
     "settings": "Settings",
-    "workforce": "AI Workforce"
+    "workforce": "AI Workforce",
+    "wfTasks": "Team tasks",
+    "wfWorkers": "Manager & workers",
+    "arenaBridge": "Arena bridge",
+    "showAdvancedHint": "Show advanced tools…",
+    "groups": {
+      "daily": "Daily work",
+      "setup": "Setup",
+      "advanced": "Advanced tools"
+    }
   },
   "language": {
     "label": "Language",
@@ -1333,7 +1342,9 @@
       "event": "event",
       "manual": "manual"
     },
-    "mock": "MOCK"
+    "mock": "MOCK",
+    "useWorkforce": "To have a Manager and workers handle a request, use the AI Workforce. This page is for the older general-purpose agents and stays available.",
+    "useWorkforceLink": "Go to the AI Workforce"
   },
   "runtime": {
     "title": "Agent Runtime",
@@ -1447,6 +1458,13 @@
     "errors": {
       "cannot_grant_higher_privileges": "You cannot grant a role with more permissions than your own.",
       "username_taken": "This username is taken."
+    },
+    "advanced": {
+      "title": "Advanced tools",
+      "help": "The AI Workforce is the main way of working. The older pages (general agents, teams, orchestration, executions, memory, skills, MCP, evaluation, logs …) are hidden from the menu to keep it simple, but they still exist and the Workforce still relies on them. Nothing is removed.",
+      "toggle": "Show advanced tools in the menu",
+      "onNote": "Advanced tools are in the menu, and signing in opens the dashboard.",
+      "offNote": "The menu is simplified, and signing in opens the Operations Room."
     }
   },
   "live": {
@@ -1456,7 +1474,7 @@
   },
   "workforce": {
     "title": "AI Workforce",
-    "subtitle": "Give one prompt. The Manager analyses it, splits it into tasks for four workers, reviews every result and hands you one report.",
+    "subtitle": "Write one request. The Manager analyses it, splits it into tasks for the workers, reviews every result, then gives you one report.",
     "mock": "MOCK — not real AI",
     "mockShort": "MOCK",
     "notSetUp": "This organization has no AI workforce yet.",
@@ -1634,11 +1652,18 @@
       "editTitle": "Configure the Manager",
       "editHelp": "The Manager needs a real chat model (for example Claude through its API). An Arena Local Bridge session cannot be the Manager.",
       "instructions": "Extra instructions",
-      "instructionsHelp": "Added to the Manager’s rules. They cannot switch off the review rules of the platform."
+      "instructionsHelp": "Added to the Manager’s rules. They cannot switch off the review rules of the platform.",
+      "window": "Manager window",
+      "windowTitle": "The Manager's own window (through Arena)",
+      "windowHelp": "Opens a browser window with a profile of the Manager's own on your computer. Sign in there yourself; the Manager types in it and reads the answers, and it stays open for watching or stepping in. A model you choose below becomes the fallback.",
+      "windowKeeps": "The Manager now works through its window. Choose a provider above to go back to a model with an API.",
+      "bridgeHelp": "The Manager through Arena Local Bridge: prefer “agent”, so Arena opens a new conversation for every Manager step. Every answer is checked; an invalid one is asked again, and if it keeps failing the plan stops and comes to you. Usage shows as unknown.",
+      "bridgeTerms": "Nobody has acknowledged this bridge's terms yet. Acknowledge them under Arena bridge before choosing it for the Manager.",
+      "viaBridgeNote": "The Manager works through Arena: its answers are checked like any model's, and usage is unknown."
     },
     "workers": {
       "title": "Manager & workers",
-      "subtitle": "Choose the Manager’s model and decide, for each of the four workers, how it works and through which session.",
+      "subtitle": "Choose the Manager's model, and how each worker works and through which session. You can add workers, up to 20.",
       "four": "Workers",
       "configure": "Configure",
       "role": "Role",
@@ -1679,7 +1704,30 @@
       "browserOpened": "The worker's window is open. Sign in there if asked.",
       "browserCurrent": "Current window",
       "browserUsesProvider": "Choosing a provider below moves the worker back to that provider instead of the window.",
-      "browserProfile": "Profile"
+      "browserProfile": "Profile",
+      "countOf": "({n} of {max})",
+      "countHelp": "The Manager gives tasks only to workers that are not disabled. To use fewer, set the others to Disabled.",
+      "add": "Add worker",
+      "addTitle": "Add a worker",
+      "addHelp": "A new worker starts Human-Assisted with no provider, so nothing is sent anywhere until you set it up under Configure.",
+      "added": "Worker {label} added. Set it up under Configure.",
+      "specialty": "Specialty",
+      "specialties": {
+        "research": "Research & analysis",
+        "engineering": "Engineering & development",
+        "qa": "QA & security",
+        "documentation": "Documentation & strategy",
+        "custom": "Another specialty (type it)"
+      },
+      "customRole": "Specialty name",
+      "customRoleHelp": "Lower-case letters, digits, - or _ only, e.g. translation. It is also a skill the Manager matches.",
+      "focus": "What it does",
+      "focusHelp": "What this worker does and how it delivers. Added to its instructions. Leave empty to use the specialty's description.",
+      "archive": "Archive",
+      "archiveTitle": "Archive worker {label}?",
+      "archiveHelp": "The worker leaves the team and takes no new tasks. Its record and past tasks stay in the platform; its window and profile are left as they are.",
+      "archived": "Worker archived.",
+      "archiveBusy": "It cannot be archived while it is working on a task"
     },
     "bridge": {
       "title": "Arena Local Bridge",
@@ -2068,7 +2116,6 @@
       "manager_model_not_configured": "Choose a model for the Manager first.",
       "manager_provider_disabled": "The Manager’s provider is disabled.",
       "manager_disabled": "The Manager is disabled.",
-      "manager_cannot_use_a_bridge": "An Arena Local Bridge session cannot be the Manager. Choose a chat model with an API.",
       "automatic_needs_provider_and_model": "Automatic mode needs a provider and a session (or model).",
       "invalid_provider_id": "This provider cannot be used.",
       "invalid_fallback_provider_id": "This fallback provider cannot be used.",
@@ -2108,7 +2155,13 @@
       "invalid_setting": "A setting has an invalid value.",
       "statement_mismatch": "The statement changed. Close this window and open it again.",
       "bridge_in_use": "Workers still use this bridge in Automatic mode. Switch them first.",
-      "managed_at": "This is configured on the AI Workforce pages."
+      "managed_at": "This is configured on the AI Workforce pages.",
+      "too_many_workers": "The team is at its limit (20 workers). Archive one to add another.",
+      "worker_busy": "The worker is on a task now. Wait for it to finish or reassign it, then archive.",
+      "last_worker": "The last worker of the team cannot be archived.",
+      "bridge_terms_not_acknowledged": "Acknowledge this bridge's terms first under Arena bridge.",
+      "browser_session_not_found": "This browser window does not exist.",
+      "manager_window_failed": "The Manager's window is not ready or did not finish its answer. Open it and check."
     },
     "activity": {
       "created": "Workforce created",

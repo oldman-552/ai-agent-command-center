@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api, ApiError, type User } from "@/lib/api";
+import { homePath } from "@/lib/nav-mode";
 
 const KNOWN = ["invalid_credentials", "too_many_attempts", "network"] as const;
 
@@ -33,7 +34,7 @@ export function LoginForm() {
         body: JSON.stringify({ username, password }),
       });
       await setLocaleCookie(user.language); // restore the user's saved language
-      window.location.assign("/");
+      window.location.assign(homePath()); // the Operations Room, or the dashboard with advanced tools on (ADR-036)
     } catch (err) {
       const code = err instanceof ApiError ? err.code : "network";
       setError((KNOWN as readonly string[]).includes(code) ? code : "network");

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -67,10 +68,15 @@ def reset(db, *, manager: str | None = "mock") -> Workforce:
     p = mock_provider(db)
     m.provider_id, m.model = (p.id, "mock-model") if manager == "mock" else (None, None)
     m.fallback_provider_id = m.fallback_model = None
+    service._leave_browser(m)  # no Manager window left over from another test (ADR-036)
     m.system_instructions, m.is_enabled, m.archived_at, m.timeout_seconds = "", True, None, 600
     force.review_policy, force.max_revisions = "manager", 2
     for w in service.workers(db, force.id):
         a = db.get(Agent, w.agent_id)
+        if w.slot > len(service.DEFAULT_WORKERS):  # a worker added by another test (ADR-036): archive it
+            a.archived_at = a.archived_at or datetime.now(UTC)
+            continue
+        service._leave_browser(a)
         spec = service.DEFAULT_WORKERS[w.slot - 1]
         a.provider_id = a.model = None
         a.is_enabled, a.archived_at, a.state, a.concurrency_limit = True, None, "IDLE", 1

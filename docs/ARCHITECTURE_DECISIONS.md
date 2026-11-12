@@ -691,3 +691,44 @@ Arena's terms still prohibit automated access; the acknowledgement records that 
 opens its own window, drives it through the scheduler and runtime, the window stays open; a window that is not ready
 hands the task to a person with nothing typed; failure categories (tests/test_workforce_browser.py). Browser E2E:
 the worker dialog offers the window (ar/en). **Not** run against arena.ai.
+
+
+## ADR-036 — Simplified navigation, a Manager through Arena, and a team of up to 20 workers (owner decision, 2026-11-12)
+**Context:** The owner works only through the AI Workforce and found the older general-purpose pages confusing; he
+has no paid Claude API credit and wants the Manager to run through Arena like the workers; and he wants to choose how
+many workers the team has (four today, up to twenty).
+**Decision:**
+1. *Navigation.* The menu has three groups: daily work (Operations Room, team tasks, Manager & workers, approvals,
+   projects, dashboard), setup (providers, Arena bridge, Browser Bridge, settings) and **advanced tools** (agents,
+   teams, tasks, orchestration, supervisor, executions, integrations, runtime, memory, skills, GitHub, evaluation,
+   analytics, audit). The advanced group is hidden until *Settings → Show advanced tools* is on (a per-browser
+   preference, `localStorage acc-nav-advanced`); it also appears while one of its pages is open. Nothing is removed
+   — the Workforce still runs on agents, the runtime, approvals, the sandbox and the bridges — and every address
+   still opens. Signing in opens the Operations Room (the dashboard when advanced tools are on). The Orchestration page
+   points to the AI Workforce. It is a convenience, not a permission: the backend enforces permissions as before.
+2. *Manager through Arena* (reverses ADR-032's `manager_cannot_use_a_bridge`). An Arena Local Bridge may be the
+   Manager's provider once its terms are acknowledged (`bridge_terms_not_acknowledged` otherwise). Each Manager step
+   sends its own client session (`acc-mgr-<objective>-<step>`), so with the `agent` route Arena opens a fresh
+   conversation per step; an idempotency key per step; the step's own timeout. Or the Manager gets its own visible
+   window (`POST /api/workforce/manager/browser`, profile `agent-<identifier>`, ADR-035): the folded prompt is typed
+   once; *nothing typed* (bridge unreachable) → fall back to the Manager's API route or try later; *not ready* or
+   *typed but unfinished* → the step fails with `manager_window_failed` and a person looks — never typed twice. The
+   ADR-032 objections are answered, not ignored: the system prompt is folded into the message; every answer is still
+   schema- and graph-validated and an invalid one is asked again with the error (3 attempts) before planning stops;
+   usage is recorded as unknown.
+3. *Team size.* `POST /api/workforce/workers` adds a worker in the next slot (limit `MAX_WORKERS = 20`), starting
+   Human-Assisted with no provider like the default four; a known specialty brings its skills and focus, a new one is
+   its own skill. `DELETE /api/workforce/workers/{id}` archives (agent `archived_at`, mode DISABLED) — refused while
+   it has work in hand, and for the last worker; history and its window stay. Archived workers leave the roster, the
+   scheduler and the views. Disabling remains the way to run four of twenty. The plan limit rises from 12 to 24
+   tasks. The Operations Room wraps more than five seats into rows of at most five, smaller, with eight seat colours.
+**Consequences:** free Arena models follow the plan schema less reliably than Claude — more re-asks, sometimes a
+stopped plan, never an invalid one executed. Twenty automatic workers on Arena means twenty windows or a heavily
+loaded bridge; Arena may throttle or show bot checks. The navigation preference is per browser.
+**Tested:** backend — the Manager through the FAKE Arena Local Bridge (valid plan; garbage → three re-asks then
+stop; unacknowledged terms refused), the Manager window with a fake Browser Bridge (plans; signed out → stops with
+nothing typed; never finishes → typed once; unreachable → falls back to the API route), add up to 20 / refuse the
+21st / archive with history kept / refuse while busy (tests/test_workforce_manager.py, test_workforce_browser.py,
+test_workforce_team_size.py). Browser E2E (ar/en): the simplified menu and the advanced toggle, add → room seat →
+archive, twelve seats without overlap on desktop and phone, the Manager set to the FAKE bridge, the Manager window
+button. **Not** run with a real Arena account or arena.ai.

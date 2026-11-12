@@ -109,3 +109,104 @@ def test_switching_back_to_a_provider_leaves_the_browser(db):
     db.commit()
     a = h.agent_of(db, 2)
     assert a.execution_engine == "api" and "browser_session_id" not in (a.context_policy or {})
+
+
+# ---------------- ADR-036: the Manager in its own window ----------------
+class _FakeWindow:
+    """Stands in for the Browser Bridge (TEST ONLY): what the Manager types, and a window that answers like the
+    deterministic mock Manager — or is signed out, or never finishes."""
+
+    def __init__(self, db, sid: int, behaviour: str = "answer"):
+        self.db, self.sid, self.behaviour, self.typed = db, sid, behaviour, []
+
+    async def call(self, method, path, body=None):
+        from app.browser.bridge import BridgeError
+        from app.connectivity.arena_bridge.adapter import TASK_HEADER
+        from app.connectivity.gateway.adapters import MOCK_RESPONDERS
+        from app.connectivity.gateway.base import ChatRequest
+        if path.endswith("/prompt"):
+            if self.behaviour == "signed_out":
+                raise BridgeError("auth_required")
+            if self.behaviour == "unreachable":
+                raise BridgeError("bridge_unreachable")
+            self.typed.append(body["prompt"])
+            rules, _, task = body["prompt"].partition(TASK_HEADER)
+            text = next(r(ChatRequest(model="x", system=rules, messages=[{"role": "user", "content": task.strip()}]))
+                        for m, r in MOCK_RESPONDERS.items() if m in rules)
+            s = self.db.get(BrowserSession, self.sid)
+            s.history = [*(s.history or []), {"role": "user", "text": "…"}, {"role": "assistant", "text": text}]
+            s.state = "GENERATING" if self.behaviour == "hang" else "COMPLETED"
+            self.db.commit()
+            return {"state": s.state}
+        if path.endswith("/cancel"):
+            return {"state": "READY"}
+        return {"state": "GENERATING" if self.behaviour == "hang" else "COMPLETED"}
+
+
+def _manager_window(db, monkeypatch, behaviour="answer"):
+    from app.browser import client as bclient
+    s = BrowserSession(organization_id=1, provider_key="test", profile_name=f"agent-mgr-{behaviour}", state="READY",
+                       history=[])
+    db.add(s)
+    db.commit()
+    force = service.get(db, 1)
+    service.update_manager(db, force, user=h.admin(db), patch={"browser_session_id": s.id})
+    db.commit()
+    fake = _FakeWindow(db, s.id, behaviour)
+    monkeypatch.setattr(bclient, "call", fake.call)
+    return fake, force
+
+
+def test_the_manager_plans_through_its_own_window(db, monkeypatch):
+    from app.models import Agent, ManagerStep
+    h.reset(db)
+    fake, force = _manager_window(db, monkeypatch)
+    out = service.manager_out(db, force)
+    assert out["configured"] and out["engine"] == "browser" and out["window"]["site"] == "test" and out["via_bridge"]
+    wf = h.objective(db, "1. Summarise the options [research]\n2. Write it up [documentation] (after 1)")
+    assert asyncio.run(control.plan(wf.id)) == "planned"
+    assert len(h.tasks_of(db, wf)) == 2
+    steps = db.scalars(select(ManagerStep).where(ManagerStep.workflow_id == wf.id)).all()
+    assert {s.provider for s in steps} == {"browser"} and all(s.status == "ok" for s in steps)
+    assert len(fake.typed) == len(steps) and all("### YOUR TASK" in p for p in fake.typed)  # rules travel with it
+    # choosing an API model again leaves the window
+    service.update_manager(db, force, user=h.admin(db), patch={"provider_id": h.mock_provider(db).id, "model": "mock-model"})
+    db.commit()
+    m = db.get(Agent, force.manager_agent_id)
+    assert m.execution_engine == "api" and "browser_session_id" not in (m.context_policy or {})
+
+
+def test_a_signed_out_manager_window_stops_planning_for_a_person(db, monkeypatch):
+    h.reset(db)
+    fake, _ = _manager_window(db, monkeypatch, "signed_out")
+    wf = h.objective(db, "1. Summarise the options [research]")
+    assert asyncio.run(control.plan(wf.id)) == "failed"
+    db.expire_all()
+    assert "manager_window_failed" in db.get(type(wf), wf.id).error and fake.typed == []
+
+
+def test_a_manager_window_that_never_finishes_is_not_typed_into_twice(db, monkeypatch):
+    from app.models import Agent
+    h.reset(db)
+    fake, force = _manager_window(db, monkeypatch, "hang")
+    m = db.get(Agent, force.manager_agent_id)
+    m.timeout_seconds = 30
+    db.commit()
+    from app.workforce import manager
+    ticks = iter(range(0, 10_000, 40))
+    monkeypatch.setattr(manager, "_clock", lambda: next(ticks))
+    monkeypatch.setattr(manager, "WINDOW_POLL_S", 0)
+    wf = h.objective(db, "1. Summarise the options [research]")
+    assert asyncio.run(control.plan(wf.id)) == "failed"
+    assert len(fake.typed) == 1  # typed once; the timeout stops the step instead of sending it again
+
+
+def test_an_unreachable_bridge_falls_back_to_the_managers_api_model(db, monkeypatch):
+    from app.models import Agent
+    h.reset(db)
+    fake, force = _manager_window(db, monkeypatch, "unreachable")
+    m = db.get(Agent, force.manager_agent_id)
+    m.fallback_provider_id, m.fallback_model = h.mock_provider(db).id, "mock-model"
+    db.commit()
+    wf = h.objective(db, "1. Summarise the options [research]")
+    assert asyncio.run(control.plan(wf.id)) == "planned" and fake.typed == []
