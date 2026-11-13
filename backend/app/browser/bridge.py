@@ -56,6 +56,9 @@ SEND_WAIT_S = 120  # how long a typed prompt may take to start answering (incl. 
 # profile, so the worker does not have to sign in again after every window is closed.
 SESSION_COOKIE_DAYS = 14
 SIGN_IN_SAVE_S = 60  # how often a live window's session cookies are written into its profile
+# An answer is final only after the text has stopped changing for this long. Models that think before answering
+# pause with no visible change; a shorter window cut the answer off (the Manager then got no JSON).
+SETTLE_S = 4.0
 
 
 class BridgeError(Exception):
@@ -102,9 +105,10 @@ class Runtime:
 class Bridge:
     """Owns the live browsers of this process. Use one instance per process (see `get_bridge`)."""
 
-    def __init__(self, base_url: str | None = None, poll: float = 0.25):
+    def __init__(self, base_url: str | None = None, poll: float = 0.25, settle: float = SETTLE_S):
         self.base_url = (base_url or "http://127.0.0.1:8000").rstrip("/")
         self.poll = poll
+        self.settle = settle
         self.save_every = SIGN_IN_SAVE_S
         self._pw = None
         self._rt: dict[int, Runtime] = {}
@@ -472,16 +476,18 @@ class Bridge:
         page, a = rt.page, rt.adapter
         loop = asyncio.get_running_loop()
         deadline = loop.time() + get_settings().browser_generation_timeout_seconds
-        stable, last = 0, None
+        last, quiet_since = None, loop.time()
         try:
             while True:
                 n = await page.locator(a.response).count()
                 if n > before:
                     rt.partial = await page.locator(a.response).nth(n - 1).inner_text()
                 generating = await self._visible(page, a.generating)
-                stable = stable + 1 if (rt.partial == last and not generating) else 0
+                now = loop.time()
+                if rt.partial != last or generating:
+                    quiet_since = now  # still changing or still generating: not finished
                 last = rt.partial
-                if rt.partial and stable >= 2:
+                if rt.partial and now - quiet_since >= self.settle:
                     self._remember_conversation(session_id, page.url, a)
                     self._finish(session_id, S.COMPLETED.value, None, answer=rt.partial)
                     return
