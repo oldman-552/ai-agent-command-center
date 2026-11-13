@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-13 09:36",
+  "date": "2026-11-13 13:42",
   "spec_version": "4.0",
   "current_phase": "Phases 16, 17, 22",
   "current_milestone": {
@@ -273,10 +273,10 @@
     "WF-17"
   ],
   "files_changed": [
-    "backend/app/browser/bridge.py",
-    "backend/app/worker.py",
-    "backend/tests/test_browser.py",
-    "docs/ARCHITECTURE_DECISIONS.md"
+    "backend/app/workforce/manager.py",
+    "backend/tests/wf.py",
+    "docs/ARCHITECTURE_DECISIONS.md",
+    "backend/tests/test_workforce_manager_routes.py"
   ],
   "tests": {
     "passed": [

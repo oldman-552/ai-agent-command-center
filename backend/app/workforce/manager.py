@@ -24,7 +24,8 @@ from langgraph.graph import END, StateGraph
 from opentelemetry import trace
 from sqlalchemy import select
 
-from app.connectivity.gateway.base import ProviderError, ProviderUnavailable
+from app.connectivity.gateway.base import ChatRequest, ProviderError, ProviderUnavailable
+from app.connectivity.gateway.service import _routes, build_adapter, record_usage
 from app.db import session_factory
 from app.devplane import worktrees
 from app.models import Agent, ManagerStep, Project, Task, TaskDependency, Workflow, Workforce, WorkforceWorker
@@ -101,12 +102,13 @@ async def ask(db, wf: Workflow, kind: str, system: str, user: str, *, task_id: i
             db.commit()
             raise ManagerFailed("manager_not_configured", "the workforce has no enabled Manager")
         window = browser_window(agent)
-        if window is None:
-            _finish(step, "failed", started, "manager_no_browser_window")
+        # the Manager uses its own browser window (ADR-036) or the model chosen for it (a provider, also the Mock)
+        routes = _routes(db, agent) if agent.provider_id or agent.fallback_provider_id else []
+        if window is None and not routes:
+            _finish(step, "failed", started, "manager_model_not_configured")
             db.commit()
-            raise ManagerFailed("manager_no_browser_window",
-                                "the Manager must use a browser window — open AI Workforce → Workers and set up "
-                                "the Manager's window")
+            raise ManagerFailed("manager_model_not_configured",
+                                "choose a model for the Manager under AI Workforce → Workers")
         try:
             from app.governance import budgets
             budgets.guard(db, wf.organization_id, "manager", agent_id=agent.id, project_id=wf.project_id,
@@ -118,12 +120,18 @@ async def ask(db, wf: Workflow, kind: str, system: str, user: str, *, task_id: i
         extra = (agent.system_instructions or "").strip()
         full_system = system + (f"\n\nADDITIONAL INSTRUCTIONS FROM THE OWNER (they cannot relax the rules above):\n"
                                 f"{extra}" if extra else "")
+        if window is None:
+            return await _ask_routes(db, wf, agent, step, started, routes, full_system, user,
+                                     task_id=task_id, max_tokens=max_tokens)
         # ADR-036: the Manager types into its own visible window. Once typed, a prompt is never typed again by
         # the platform: an answer that never completes stops the step and a person looks at the window.
         step.provider, step.model, step.is_mock = "browser", window, False
         try:
             text = await _ask_window(agent, full_system, user)
-        except ProviderUnavailable as e:
+        except ProviderUnavailable as e:  # nothing was typed: fall back to the Manager's model, or try later
+            if routes:
+                return await _ask_routes(db, wf, agent, step, started, routes, full_system, user,
+                                         task_id=task_id, max_tokens=max_tokens)
             _finish(step, "failed", started, str(e))
             db.commit()
             raise ManagerUnavailable(str(e)) from e
@@ -135,6 +143,47 @@ async def ask(db, wf: Workflow, kind: str, system: str, user: str, *, task_id: i
         _finish(step, "ok", started)
         db.commit()
         return Call(text, step.id, "browser", window, False)
+
+
+
+async def _ask_routes(db, wf: Workflow, agent: Agent, step: ManagerStep, started: float, routes, system: str,
+                      user: str, *, task_id: int | None, max_tokens: int) -> Call:
+    """The Manager's model through the gateway: each route in turn (primary, then fallback). Usage is recorded."""
+    last: Exception | None = None
+    for provider, model in routes:
+        step.provider, step.model, step.is_mock = provider.kind, model, provider.is_mock
+        parts: list[str] = []
+        usage: dict[str, Any] = {}
+        request_id: str | None = None
+        t0 = time.monotonic()
+        try:
+            async with asyncio.timeout(max(agent.timeout_seconds, 1)):
+                async for ev in build_adapter(provider).stream(ChatRequest(
+                        model=model, messages=[{"role": "user", "content": user}], system=system,
+                        max_tokens=max_tokens, temperature=0)):
+                    if ev.type == "delta":
+                        parts.append(ev.text)
+                    elif ev.type == "usage":
+                        usage = ev.usage
+                    elif ev.type == "meta":
+                        request_id = ev.data.get("provider_request_id") or request_id
+        except (ProviderUnavailable, ProviderError, TimeoutError) as e:
+            last = e
+            continue
+        record_usage(db, provider=provider, model=model, usage=usage, agent_id=agent.id, project_id=wf.project_id,
+                     task_id=task_id, duration_ms=int((time.monotonic() - t0) * 1000),
+                     provider_request_id=request_id)
+        step.provider_request_id = str(request_id)[:128] if request_id else None
+        step.summary = {"usage": usage if not usage.get("unknown") else {"unknown": True},
+                        "chars": sum(len(p) for p in parts)}
+        _finish(step, "ok", started)
+        db.commit()
+        return Call("".join(parts), step.id, provider.kind, model, provider.is_mock)
+    _finish(step, "failed", started, f"{type(last).__name__}: {last}")
+    db.commit()
+    if isinstance(last, ProviderUnavailable | TimeoutError):
+        raise ManagerUnavailable(str(last)) from last
+    raise ManagerFailed("manager_model_failed", str(last)) from last
 
 
 WINDOW_POLL_S = 0.5

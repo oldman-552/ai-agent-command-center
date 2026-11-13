@@ -1,7 +1,7 @@
 """Helpers for the AI Workforce tests.
 
 Tier: mock + local integration. The Manager is the built-in mock provider (labelled, deterministic, not AI); Automatic
-workers talk to the FAKE Arena Local Bridge over real HTTP. Nothing here is evidence of a real Claude or Arena run.
+workers use the MOCK provider. Nothing here is evidence of a real Claude or Arena run.
 """
 from __future__ import annotations
 
@@ -26,9 +26,6 @@ from app.models import (
 )
 from app.runtime import service as runtime
 from app.workforce import control, scheduler, service
-from tests.fakebridge import KEY, session_id
-
-BRIDGES = "/api/workforce/bridges"
 
 
 def mock_provider(db) -> Provider:
@@ -149,30 +146,18 @@ def states(db, wf) -> dict[str, str]:
     return {k: t.lifecycle for k, t in tasks_of(db, wf).items()}
 
 
-# ---------------- Automatic workers on the FAKE bridge ----------------
-def bridge(admin_client, fake_bridge, **settings) -> dict:
-    r = admin_client.post(BRIDGES, json={"name": f"Bridge {uuid.uuid4().hex[:8]}", "base_url": fake_bridge.url,
-                                         "api_key": KEY, **({"settings": settings} if settings else {})})
-    assert r.status_code == 201, r.text
-    b = r.json()
-    r = admin_client.post(f"{BRIDGES}/{b['id']}/terms", json={"statement": b["terms"]["statement"]})
-    assert r.status_code == 200, r.text
-    return r.json()
-
-
-def automatic(db, slot: int, provider_id: int, model: str | None = None, **kw) -> WorkforceWorker:
+# ---------------- Automatic workers on the MOCK provider (ADR-038 removed the Arena Local Bridge) ----------------
+def automatic(db, slot: int, provider_id: int | None = None, model: str | None = None, **kw) -> WorkforceWorker:
     w = worker(db, slot)
-    service.update_worker(db, w, user=admin(db), patch={"provider_id": provider_id, "mode": "AUTOMATIC",
-                                                        "model": model or session_id(slot), **kw})
+    service.update_worker(db, w, user=admin(db), patch={
+        "provider_id": provider_id or mock_provider(db).id, "mode": "AUTOMATIC", "model": model or "mock-model", **kw})
     db.commit()
     return w
 
 
-def all_automatic(db, admin_client, fake_bridge, **settings) -> dict:
-    b = bridge(admin_client, fake_bridge, **settings)
+def all_automatic(db) -> None:
     for slot in (1, 2, 3, 4):
-        automatic(db, slot, b["id"])
-    return b
+        automatic(db, slot)
 
 
 def second_person(make_user, username: str = "wf_second_person", role: str = "ORGANIZATION_ADMIN"):

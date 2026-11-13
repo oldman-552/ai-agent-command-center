@@ -822,3 +822,19 @@ This is a deliberate loosening of ADR-025's "no path to cookies" rule, and it al
 cookie stored in a profile directory: anyone with access to `./browser-profiles` gains that sign-in for up to 14 days.
 Access to that directory must stay restricted (it is `chmod 700`). Sites that revoke sessions on the server still require a new sign-in.
 Tests: `test_a_sign_in_kept_by_a_session_cookie_survives_closing_the_window`; the cookie-rule test was narrowed to the bridge's keeper.
+
+## ADR-041 — The Manager runs on its chosen model again, not only through a browser window (2026-11-13)
+**Context:** ADR-038 removed Arena Local Bridge, and with it the Manager's whole provider path: `manager.ask` refused
+every Manager without a browser window (`manager_no_browser_window`), also one set to the Mock provider or to an
+official API key, while the Workers page still offers that choice and `docs/AI_WORKFORCE.md` §2/§11 describe it.
+Found in a full run on the owner's machine: objectives with a Mock Manager failed before planning.
+**Decision:** restored the provider route (`manager._ask_routes`: primary then fallback through the gateway, usage
+recorded). A Manager with its own window still uses the window first; if nothing could be typed (bridge unreachable) it
+falls back to its model, as before ADR-038. A Manager with neither is refused at submit (`manager_model_not_configured`).
+`tests/wf.py` no longer imports the deleted `tests.fakebridge`; `automatic()`/`all_automatic()` use the Mock provider.
+**Verified:** two live objectives with Mock Manager + four Automatic Mock workers completed end to end (plan, order of
+dependencies, review, report). Backend: 710 passed outside the items below; `test_workforce_manager_routes.py` added.
+**Still open (ADR-038 debt):** 7 test files still import the deleted bridge modules (`test_workforce_bus`, `_manager`,
+`_history`, `_workers`, `_recovery`, `_execution`, `_security`, plus `test_real_provider`) and 6 tests in `_modes`,
+`_report`, `_review` use the removed `fake_bridge` fixture. They must be ported to the Mock provider or dropped where they
+only tested the bridge.
