@@ -145,12 +145,14 @@ class Bridge:
         for sel in a.captcha:
             if await page.locator(sel).count() > 0:
                 return S.AUTH_REQUIRED.value, "captcha_detected"
-        if await self._visible(page, a.login):
-            return S.AUTH_REQUIRED.value, "login_required"
         with contextlib.suppress(Exception):
             await page.locator(a.input).first.wait_for(state="visible", timeout=5_000)
+        # the chat box is the proof of a signed-in page: a "Sign in" link that stays in a header or menu after sign-in
+        # must not keep the window in AUTH_REQUIRED
         if await self._visible(page, a.input):
             return S.READY.value, None
+        if await self._visible(page, a.login):
+            return S.AUTH_REQUIRED.value, "login_required"
         return S.FAILED.value, "interface_changed"
 
     # ---------------- lifecycle ----------------
