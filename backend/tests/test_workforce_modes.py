@@ -1,14 +1,14 @@
 """WF-10 — Disabled workers receive no new tasks; the plan is redistributed; a person can reassign, and that is
 audited. Also: mixed modes in one objective, and one task at a time per worker.
 
-Tier: mock + local integration (mock Manager, FAKE bridge for the Automatic worker).
+Tier: mock (mock Manager, MOCK provider for the Automatic workers).
 """
 from __future__ import annotations
 
 import pytest
 from sqlalchemy import func, select
 
-from app.models import AuditLog, Execution, Task, TaskTransition
+from app.models import AuditLog, Execution, Task, TaskTransition, UsageRecord
 from tests import wf as h
 
 API = "/api/workforce"
@@ -70,9 +70,8 @@ def test_without_an_eligible_worker_the_task_waits_with_a_reason_until_one_is_en
     assert admin_client.get(f"{API}/tasks/{test.id}").json()["waiting"] is None
 
 
-def test_a_disabled_worker_gets_nothing_new_and_nothing_is_sent_for_it(admin_client, db, force, fake_bridge):
-    b = h.all_automatic(db, admin_client, fake_bridge)
-    admin_client.post(f"{API}/bridges/{b['id']}/health")
+def test_a_disabled_worker_gets_nothing_new_and_nothing_is_sent_for_it(admin_client, db, force):
+    h.all_automatic(db)
     wf = h.planned(db, PLAN)
     disable(admin_client, db, 2)
     disable(admin_client, db, 3)
@@ -82,15 +81,16 @@ def test_a_disabled_worker_gets_nothing_new_and_nothing_is_sent_for_it(admin_cli
     assert (build.lifecycle, test.lifecycle) == ("READY", "READY") and build.attempts == test.attempts == 0
     assert db.scalar(select(func.count()).select_from(Execution).where(
         Execution.task_id.in_([build.id, test.id]))) == 0
-    sessions = {c["model"] for c in fake_bridge.completions()} - {"ping"}  # (the health reading's local probe)
-    assert sessions == {h.session_id(1)}  # only W1's session ever received a request
+    sent_for = set(db.scalars(select(Execution.agent_id).join(Task, Task.id == Execution.task_id)
+                              .where(Task.workflow_id == wf.id)))
+    assert sent_for == {h.worker(db, 1).agent_id}  # only W1 ever had a request made for it
     # even an execution started by hand for a worker that is not Automatic sends nothing
-    before = len(fake_bridge.completions())
+    before = db.scalar(select(func.count()).select_from(UsageRecord))
     r = admin_client.post("/api/executions", json={"agent_id": h.worker(db, 2).agent_id, "input": {"prompt": "hi"}})
     assert r.status_code == 201
     ex = admin_client.get(f"/api/executions/{r.json()['id']}").json()
     assert ex["status"] == "FAILED" and "worker_not_automatic" in ex["error"]
-    assert len(fake_bridge.completions()) == before
+    assert db.scalar(select(func.count()).select_from(UsageRecord)) == before
 
 
 def test_disabling_does_not_take_away_a_card_that_is_already_with_a_person(admin_client, db, force):
@@ -138,12 +138,11 @@ def test_a_person_reassigns_a_task_and_it_is_audited(admin_client, db, force):
     assert rows == [(None, "PLANNED"), ("PLANNED", "PLANNED")]
 
 
-def test_reassignment_is_refused_when_it_would_lose_work_or_reach_nobody(admin_client, db, force, fake_bridge):
-    b = h.bridge(admin_client, fake_bridge)
-    h.automatic(db, 1, b["id"])
+def test_reassignment_is_refused_when_it_would_lose_work_or_reach_nobody(admin_client, db, force):
+    h.automatic(db, 1)
     wf = h.planned(db, PLAN)
     disable(admin_client, db, 3)
-    h.tick(wf)  # W1's task is now on its way to the bridge
+    h.tick(wf)  # W1's task is now on its way to its provider
     research, build, _test = h.tasks_of(db, wf).values()
     assert research.lifecycle == "QUEUED"
     w = {s: h.worker(db, s) for s in (1, 2, 3, 4)}
@@ -162,9 +161,8 @@ def test_reassignment_is_refused_when_it_would_lose_work_or_reach_nobody(admin_c
 
 
 # ---------------- mixed modes, one objective ----------------
-def test_automatic_human_and_disabled_workers_finish_one_objective_together(admin_client, db, force, fake_bridge):
-    b = h.bridge(admin_client, fake_bridge)
-    h.automatic(db, 1, b["id"])                       # W1 Automatic through the (fake) bridge
+def test_automatic_human_and_disabled_workers_finish_one_objective_together(admin_client, db, force):
+    h.automatic(db, 1)                                # W1 Automatic on the mock provider
     h.agent_of(db, 4).skills = ["documentation", "qa"]  # W4 can stand in for W3
     db.commit()
     wf = h.planned(db, PLAN)

@@ -2,7 +2,7 @@
 because a request succeeded; every attempt is an immutable version; a criterion marked unmet can never be approved by
 the Manager.
 
-Tier: mock + local integration (mock Manager; FAKE bridge for Automatic results).
+Tier: mock (mock Manager; MOCK provider for Automatic results).
 """
 from __future__ import annotations
 
@@ -78,19 +78,18 @@ def test_a_quote_counts_only_if_it_really_occurs_in_the_result():
 
 
 # ---------------- a successful request is not an accepted result ----------------
-def test_http_200_from_the_provider_only_makes_a_submission(admin_client, db, force, fake_bridge):
-    b = h.bridge(admin_client, fake_bridge)
-    h.automatic(db, 1, b["id"])
+def test_http_200_from_the_provider_only_makes_a_submission(admin_client, db, force):
+    h.automatic(db, 1)
     wf = h.planned(db, "1. Summarise the options [[mock:review-fail]] [research]")
     h.tick(wf)
     assert h.run_executions(db, wf) == ["submitted"]
     t = next(iter(h.tasks_of(db, wf).values()))
     ex = db.scalar(select(Execution).where(Execution.task_id == t.id))
-    assert ex.status == "COMPLETED" and len(fake_bridge.completions()) == 1  # the request succeeded…
+    assert ex.status == "COMPLETED"  # the request succeeded…
     assert t.lifecycle == "SUBMITTED" and t.status == "IN_PROGRESS" and (t.result or {}).get("output") is None
     sub = h.subs(db, t)[0]
-    assert sub.decision is None and sub.mode == "AUTOMATIC" and sub.source == "arena_local_bridge"
-    assert sub.content.startswith("[FAKE ARENA BRIDGE — not Arena]") and sub.is_mock is True
+    assert sub.decision is None and sub.mode == "AUTOMATIC" and sub.source == "mock"
+    assert sub.content.startswith("[MOCK — not real AI]") and sub.is_mock is True
     h.tick(wf)  # …and the review does not accept it
     t = next(iter(h.tasks_of(db, wf).values()))
     assert t.lifecycle != "COMPLETED" and h.subs(db, t)[0].decision == "revision_requested"
@@ -297,9 +296,9 @@ def test_a_critical_task_is_completed_only_by_a_human_approval_of_exactly_that_r
     assert h.tick(wf)["status"] == "completed"
 
 
-def test_a_critical_result_of_an_automatic_worker_is_requested_by_the_platform(admin_client, db, force, fake_bridge):
+def test_a_critical_result_of_an_automatic_worker_is_requested_by_the_platform(admin_client, db, force):
     """No person wrote it, so any person with the approval right may decide — the worker's agent never can."""
-    h.all_automatic(db, admin_client, fake_bridge)
+    h.all_automatic(db)
     wf = h.planned(db, "1. Release notes for the public launch [documentation] {exposure.public}")
     h.drive(db, wf)
     task = next(iter(h.tasks_of(db, wf).values()))

@@ -1,10 +1,10 @@
-"""WF-08 / WF-13 over the real bus: the API process, a real worker process, RabbitMQ, PostgreSQL and the FAKE bridge.
+"""WF-08 / WF-13 over the real bus: the API process, a real worker process, RabbitMQ and PostgreSQL.
 
-Nothing is driven by hand here: the worker process plans with the Manager, sends the Automatic task to the bridge
-over real HTTP, reviews, offers the Human-Assisted task, and consolidates — from the messages the API wrote to the
-outbox. The worker is killed half-way and a second one finishes the objective.
+Nothing is driven by hand here: the worker process plans with the Manager, sends the Automatic task to the worker's
+provider, reviews, offers the Human-Assisted task, and consolidates — from the messages the API wrote to the outbox.
+The worker is killed half-way and a second one finishes the objective.
 
-Tier: local integration. The Manager is the mock provider and the bridge is the fake; no Claude, no Arena.
+Tier: local integration. The Manager and the Automatic worker use the mock provider; no Claude, no Arena.
 """
 from __future__ import annotations
 
@@ -25,7 +25,6 @@ from app.db import get_engine
 from app.models import Execution, ManagerStep, Task, WorkforceReport
 from tests import wf as h
 from tests.conftest import TEST_AMQP
-from tests.fakebridge import session_id
 
 API = "/api/workforce"
 BACKEND = Path(__file__).resolve().parent.parent
@@ -88,10 +87,9 @@ def wait_for(pred, timeout: float = 60.0) -> bool:
     return bool(pred())
 
 
-def test_an_objective_runs_over_the_real_bus_and_survives_a_killed_worker(admin_client, db, fake_bridge, clean_bus):
+def test_an_objective_runs_over_the_real_bus_and_survives_a_killed_worker(admin_client, db, clean_bus):
     h.reset(db)
-    b = h.bridge(admin_client, fake_bridge)
-    h.automatic(db, 1, b["id"])  # W1 works through the bridge; W2 stays Human-Assisted
+    h.automatic(db, 1)  # W1 works on the mock provider; W2 stays Human-Assisted
     r = admin_client.post(f"{API}/objectives", json={
         "title": "Over the bus", "prompt": "1. Research part [research]\n2. Build part [engineering] (after 1)"})
     assert r.status_code == 201 and r.json()["status"] == "planning"  # the API process plans nothing itself
@@ -109,21 +107,23 @@ def test_an_objective_runs_over_the_real_bus_and_survives_a_killed_worker(admin_
 
     w = start_worker()
     try:
-        # plan (Manager) → task 1 to W1's session → its result reviewed → task 2 offered to a person
+        # plan (Manager) → task 1 to W1's provider → its result reviewed → task 2 offered to a person
         assert wait_for(lambda: state("Build part") == "WAITING_FOR_ACCEPTANCE"), objective()
     finally:
         stop_worker(w, hard=True)  # the orchestrator and the executors die
     first, second = tasks()["Research part"], tasks()["Build part"]
     assert first["lifecycle"] == "COMPLETED" and first["mode"] == "AUTOMATIC" and first["attempts"] == 1
     assert second["mode"] == "HUMAN_ASSISTED" and second["worker"]["label"] == "W2"
-    assert len(fake_bridge.turns(session_id(1))) == 1 and fake_bridge.turns(session_id(2)) == []
+    db.expire_all()
+    assert db.scalar(select(func.count()).select_from(Execution).where(Execution.task_id == first["id"])) == 1
+    assert db.scalar(select(func.count()).select_from(Execution).where(Execution.task_id == second["id"])) == 0
 
     # a person does the second task while no worker process is alive: recorded, and it waits
     assert admin_client.post(f"{API}/tasks/{second['id']}/accept").status_code == 200
     brief = admin_client.get(f"{API}/tasks/{second['id']}").json()["brief"]["message"]
     # the person gets the same brief a model would: W1's approved result as fenced, untrusted data
     assert "UNTRUSTED DATA" in brief and "output of prerequisite task" in brief
-    assert "[FAKE ARENA BRIDGE — not Arena]" in brief
+    assert "[MOCK — not real AI]" in brief
     r = admin_client.post(f"{API}/tasks/{second['id']}/submit", json={"content": "built by hand from the research"})
     assert r.status_code == 201
     time.sleep(1.0)
@@ -137,8 +137,8 @@ def test_an_objective_runs_over_the_real_bus_and_survives_a_killed_worker(admin_
     done = objective()
     assert [t["lifecycle"] for t in done["tasks"]] == ["COMPLETED", "COMPLETED"]
     assert all(t["attempts"] == 1 for t in done["tasks"])                # nothing ran twice
-    assert len(fake_bridge.turns(session_id(1))) == 1                    # …and nothing was sent twice
     db.expire_all()
+    # …and nothing was sent twice
     assert db.scalar(select(func.count()).select_from(Execution).join(Task, Task.id == Execution.task_id)
                      .where(Task.workflow_id == oid)) == 1
     steps = db.scalars(select(ManagerStep).where(ManagerStep.workflow_id == oid)

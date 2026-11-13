@@ -279,7 +279,11 @@ def binding_for(db: Session, w: WorkforceWorker, agent: Agent) -> dict[str, Any]
     """What can be said about the account behind this worker."""
     if agent.execution_engine == "browser":
         return browser_binding(db, agent)
-    return {"type": "unconfigured", "attested": False}
+    provider = db.get(Provider, agent.provider_id) if agent.provider_id else None
+    if provider is None or not agent.model:
+        return {"type": "unconfigured", "attested": False}
+    return {"type": "not_applicable", "attested": False, "provider_kind": provider.kind,
+            "reason": "a provider has no account behind this worker that the platform could show"}
 
 
 
@@ -303,6 +307,11 @@ def automatic_problem(db: Session, w: WorkforceWorker, agent: Agent) -> str | No
         if problem is not None:
             return problem
         return None if circuit.available(db, "agent", agent.id) else "circuit_open"
+    provider = db.get(Provider, agent.provider_id) if agent.provider_id else None
+    if provider is None or not agent.model:
+        return "not_configured"
+    if not provider.enabled:
+        return "provider_disabled"
     if not circuit.available(db, "agent", agent.id):
         return "circuit_open"
     return None

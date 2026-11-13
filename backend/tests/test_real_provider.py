@@ -2,7 +2,7 @@
 
 This is the only place where the Manager's prompts meet a real model: every other test uses the built-in mock
 provider, whose answers are written by hand. **Nobody ran this file against a real model during development.**
-(`test_real_tiers_selftest.py` runs the same steps on the mock provider, so the steps themselves are known to work.)
+(The mock-provider tests in `test_workforce_*.py` cover the same flow; the selftest file was removed with ADR-038.)
 
 Run it on your own machine — `REAL-TESTS.bat` does this for you, or by hand:
 

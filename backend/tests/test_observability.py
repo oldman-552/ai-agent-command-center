@@ -57,13 +57,23 @@ def test_live_updates_are_published_after_commit_only(db):
     ps = r.pubsub()
     ps.subscribe(live.channel(1))
     ps.get_message(timeout=1)  # subscribe confirmation
+    def ours(timeout: float) -> list[dict]:
+        """This test's events only: other work (e.g. a browser window closing late) may publish on the same channel."""
+        out, end = [], time.monotonic() + timeout
+        while time.monotonic() < end:
+            m = ps.get_message(timeout=0.1)
+            if m and m.get("type") == "message":
+                data = json.loads(m["data"])
+                if str(data.get("action", "")).startswith("test."):
+                    out.append(data)
+        return out
+
     log_activity(db, "test.rolled_back", category="tasks", organization_id=1, task_id=1)
     db.rollback()
-    assert ps.get_message(timeout=0.5) is None  # nothing for work that never happened
+    assert ours(0.5) == []  # nothing for work that never happened
     log_activity(db, "test.committed", category="tasks", organization_id=1)
     db.commit()
-    msg = ps.get_message(timeout=2)
-    assert msg and json.loads(msg["data"]) == {"topic": "tasks", "action": "test.committed"}
+    assert ours(2) == [{"topic": "tasks", "action": "test.committed"}]
     ps.close()
 
 

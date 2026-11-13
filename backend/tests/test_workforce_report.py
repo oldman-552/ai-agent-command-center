@@ -140,18 +140,16 @@ def test_mock_results_are_labelled_everywhere(admin_client, db, force):
     assert listed["report"]["is_mock"] is True
 
 
-def test_a_result_that_came_through_the_fake_bridge_says_so(admin_client, db, force, fake_bridge):
-    b = h.all_automatic(db, admin_client, fake_bridge)
-    assert admin_client.post(f"{API}/bridges/{b['id']}/health").status_code == 200  # a reading with the session list
+def test_a_result_that_came_through_a_mock_provider_says_so(admin_client, db, force):
+    h.all_automatic(db)
     wf = h.planned(db, "1. Summarise the options [research]")
     assert h.drive(db, wf)["status"] == "completed"
     c = admin_client.get(f"{API}/objectives/{wf.id}/report").json()["content"]
     i = c["items"][0]
-    assert i["mode"] == "AUTOMATIC" and i["submission"]["source"] == "arena_local_bridge"
+    assert i["mode"] == "AUTOMATIC" and i["submission"]["source"] == "mock"
     assert i["mock_reasons"] == ["delivered through a mock provider or the fake bridge",
                                  "reviewed by the mock Manager model"]
-    assert i["submission"]["account_binding"] == "deterministic_session" and i["submission"]["provider_request_id"]
-    assert f"automatically through arena_local_bridge (request {i['submission']['provider_request_id']})" in c["facts"][1]
+    assert "delivered automatically through mock for W1" in c["facts"][1]
 
 
 def test_the_managers_words_cannot_change_a_class(admin_client, db, force, monkeypatch):

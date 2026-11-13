@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-13 13:42",
+  "date": "2026-11-13 14:45",
   "spec_version": "4.0",
   "current_phase": "Phases 16, 17, 22",
   "current_milestone": {
@@ -273,10 +273,22 @@
     "WF-17"
   ],
   "files_changed": [
-    "backend/app/workforce/manager.py",
+    "backend/app/workforce/scheduler.py",
+    "backend/app/workforce/service.py",
+    "backend/tests/test_observability.py",
+    "backend/tests/test_real_provider.py",
+    "backend/tests/test_workforce_bus.py",
+    "backend/tests/test_workforce_execution.py",
+    "backend/tests/test_workforce_history.py",
+    "backend/tests/test_workforce_manager.py",
+    "backend/tests/test_workforce_modes.py",
+    "backend/tests/test_workforce_recovery.py",
+    "backend/tests/test_workforce_report.py",
+    "backend/tests/test_workforce_review.py",
+    "backend/tests/test_workforce_security.py",
+    "backend/tests/test_workforce_workers.py",
     "backend/tests/wf.py",
-    "docs/ARCHITECTURE_DECISIONS.md",
-    "backend/tests/test_workforce_manager_routes.py"
+    "docs/ARCHITECTURE_DECISIONS.md"
   ],
   "tests": {
     "passed": [

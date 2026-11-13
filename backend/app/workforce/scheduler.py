@@ -289,8 +289,8 @@ def _offer_human(db: Session, t: Task, w: WorkforceWorker, agent: Agent, choice:
     b = brief(db, t, agent)
     note = None
     if from_failure and from_failure.get("delivered") is not False:
-        note = ("The last automatic request may have reached the Arena session. Look at that conversation before "
-                "you send the task again.")
+        note = ("The last automatic request may have reached the worker's provider or its window. Look at that "
+                "conversation before you send the task again.")
     _set(t, brief={"attempt": t.attempts, "sha256": b["sha256"], "at": datetime.now(UTC).isoformat()},
          fallback=({"reason": fallback, "note": note, **({"failure": from_failure} if from_failure else {})}
                    if fallback else None))

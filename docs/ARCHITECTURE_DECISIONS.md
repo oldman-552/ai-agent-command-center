@@ -834,7 +834,14 @@ falls back to its model, as before ADR-038. A Manager with neither is refused at
 `tests/wf.py` no longer imports the deleted `tests.fakebridge`; `automatic()`/`all_automatic()` use the Mock provider.
 **Verified:** two live objectives with Mock Manager + four Automatic Mock workers completed end to end (plan, order of
 dependencies, review, report). Backend: 710 passed outside the items below; `test_workforce_manager_routes.py` added.
-**Still open (ADR-038 debt):** 7 test files still import the deleted bridge modules (`test_workforce_bus`, `_manager`,
-`_history`, `_workers`, `_recovery`, `_execution`, `_security`, plus `test_real_provider`) and 6 tests in `_modes`,
-`_report`, `_review` use the removed `fake_bridge` fixture. They must be ported to the Mock provider or dropped where they
-only tested the bridge.
+**Follow-up (same day): ADR-038 test debt paid.** Every workforce test that used the deleted fake bridge now runs on
+the MOCK provider: `tests/wf.py::worker_provider` injects worker-only failures (transient errors, slowness, empty
+answers) without touching the Manager; the restart tests give the mock a `replay_window`, so the gateway's
+no-duplicate-turn rule (ADR-032) stays covered. Tests of the bridge itself (account bindings, bridge health, bridge
+terms, bridge key, bridge as Manager) were removed with the bridge. Two general checks that ADR-038 had dropped were
+restored in `service.automatic_problem` (`not_configured`, `provider_disabled`): without them an Automatic worker on a
+switched-off provider looked ready and its tasks failed instead of going to a person. The fallback note no longer
+names Arena for every provider. Full backend run: 834 passed, 7 skipped, 4 failed — two sandbox tests that need the
+backend to run as the sandbox uid 10001 (it runs as 1000 on the host; true in Docker deployments), and two
+order-dependent tests fixed afterwards (`test_live_updates_are_published_after_commit_only` now ignores other events
+on the shared channel; the options test no longer assumes seeded mock models). Re-run of those files: 51 passed.

@@ -1,8 +1,9 @@
-"""WF-13 — failure recovery: bridge or account unavailable, timeout, invalid response, rate limit, and interrupted
-worker / queue / database. Every failure is classified, retries are bounded, and the task is left in a state from
-which it can go on (a new attempt, a person, or a visible FAILED that a person can reopen).
+"""WF-13 — failure recovery: provider unavailable or switched off, timeout, invalid response, rate limit, and
+interrupted worker / queue / database. Every failure is classified, retries are bounded, and the task is left in a
+state from which it can go on (a new attempt, a person, or a visible FAILED that a person can reopen).
 
-Tier: local integration (FAKE bridge over real HTTP, mock Manager).
+Tier: mock (mock Manager; MOCK provider for workers, its failures injected with `h.worker_provider`). The policy
+table still names the bridge's codes: `failure_action` keeps classifying them.
 """
 from __future__ import annotations
 
@@ -18,7 +19,6 @@ from app.orchestration.scheduler import recover_running
 from app.workforce import control, manager, scheduler
 from app.workforce.scheduler import failure_action
 from tests import wf as h
-from tests.fakebridge import ACCOUNTS, session_id
 
 API = "/api/workforce"
 
@@ -29,8 +29,8 @@ def force(db):
 
 
 @pytest.fixture()
-def auto(db, admin_client, fake_bridge, force):
-    return h.all_automatic(db, admin_client, fake_bridge)
+def auto(db, force):
+    h.all_automatic(db)
 
 
 def executions(db, task: Task) -> list[Execution]:
@@ -71,96 +71,55 @@ def test_every_failure_class_has_one_bounded_answer(code, category, failures, fa
     assert failure_action(info, 99, 3, fallback) in ("human", "fail")  # never retried without end
 
 
-# ---------------- bridge unavailable ----------------
+# ---------------- provider unavailable ----------------
 @pytest.mark.parametrize("fallback,final", [(True, "WAITING_FOR_ACCEPTANCE"), (False, "FAILED")])
-def test_an_unreachable_bridge_is_retried_a_bounded_number_of_times(admin_client, db, auto, fake_bridge, fallback,
-                                                                    final):
+def test_an_unreachable_provider_is_retried_a_bounded_number_of_times(admin_client, db, auto, monkeypatch,
+                                                                      fallback, final):
     admin_client.patch(f"{API}/workers/{h.worker(db, 1).id}", json={"fallback_to_human": fallback})
     wf, t = one(db)
-    fake_bridge.stop()  # the bridge goes away after the plan was made; no health reading has noticed yet
+    h.worker_provider(monkeypatch, fail=99)  # the provider goes away after the plan was made
     h.drive(db, wf)
     task = h.task(db, t.id)
     runs = executions(db, t)
     assert len(runs) == 3 == task.max_attempts and {e.status for e in runs} == {"FAILED"}  # bounded
     assert [e.idempotency_key for e in runs] == [f"wf-task:{t.id}:attempt:{i}" for i in (1, 2, 3)]
     fails = task.result["failures"]
-    assert [f["code"] for f in fails] == ["unreachable"] * 3 and {f["category"] for f in fails} == {
-        "bridge_unavailable"}
+    assert {f["category"] for f in fails} == {"bridge_unavailable"}  # (the transient class, whatever the provider)
     assert [f["action"] for f in fails] == ["retry", "retry", "human" if fallback else "fail"]
-    assert all(f["delivered"] is False for f in fails)  # nothing ever reached a session
     assert task.lifecycle == final and task.result["auto_failures"] == 3
     card = admin_client.get(f"{API}/tasks/{t.id}").json()
     if fallback:
-        assert card["mode"] == "HUMAN_ASSISTED" and card["fallback"]["reason"] == "unreachable"
-        assert card["fallback"]["note"] is None  # nothing was delivered: no warning about a possible duplicate
-        # the person finishes the task; the objective completes without the bridge
+        assert card["mode"] == "HUMAN_ASSISTED" and card["fallback"]["reason"] == fails[-1]["code"]
+        # the person finishes the task; the objective completes without the provider
         admin_client.post(f"{API}/tasks/{t.id}/accept")
-        admin_client.post(f"{API}/tasks/{t.id}/submit", json={"content": "done by hand while the bridge was down"})
+        admin_client.post(f"{API}/tasks/{t.id}/submit", json={"content": "done by hand while the provider was down"})
         assert h.drive(db, wf)["status"] == "completed"
     else:
-        assert card["error"].startswith("unreachable") and h.tick(wf)["status"] == "failed"
+        assert card["error"].startswith(fails[-1]["code"]) and h.tick(wf)["status"] == "failed"
     assert len(executions(db, t)) == 3  # and no further attempt afterwards
 
 
-def test_a_bridge_known_to_be_down_sends_new_tasks_straight_to_a_person(admin_client, db, auto, fake_bridge):
-    fake_bridge.stop()
-    admin_client.post(f"{API}/bridges/{auto['id']}/health")  # a fresh reading: unreachable
-    wf, t = one(db)
-    out = h.tick(wf)
-    task = h.task(db, t.id)
-    assert out["offered"] == [t.id] and out["dispatched"] == []
-    assert task.lifecycle == "WAITING_FOR_ACCEPTANCE" and task.execution_mode == "HUMAN_ASSISTED"
-    assert task.result["fallback"]["reason"] == "bridge_unavailable" and executions(db, t) == []
-
-
-# ---------------- account and session ----------------
-def test_an_unavailable_account_is_not_retried(admin_client, db, auto, fake_bridge):
-    wf, t = one(db)
-    fake_bridge.bridge.accounts[0]["disabled"] = True  # the owner of W1's session, disabled inside the bridge
-    h.drive(db, wf)
-    task = h.task(db, t.id)
-    assert len(executions(db, t)) == 1  # one attempt, classified, no blind repetition
-    f = task.result["failures"][0]
-    assert (f["code"], f["category"], f["action"], f["delivered"]) == (
-        "session_account_unavailable", "account_unavailable", "human", False)
-    assert task.lifecycle == "WAITING_FOR_ACCEPTANCE"
-    # the bridge names the account in its message; only the masked form is kept, anywhere
-    assert "o***@accounts.example.test" in f["message"]
-    card = admin_client.get(f"{API}/tasks/{t.id}").json()
-    history = admin_client.get(f"{API}/objectives/{wf.id}/history").json()
-    for where in (task.result, card, history, executions(db, t)[0].error):
-        assert not any(a in str(where) for a in ACCOUNTS)
-    assert len(fake_bridge.turns(session_id(1))) == 0
-
-
-def test_a_missing_session_fails_visibly_when_the_worker_has_no_human_fallback(admin_client, db, auto, fake_bridge):
-    admin_client.patch(f"{API}/workers/{h.worker(db, 1).id}", json={"model": "active", "fallback_to_human": False})
-    wf, t = one(db)
-    h.drive(db, wf)  # the bridge has no session selected in its window
-    task = h.task(db, t.id)
-    assert task.lifecycle == "FAILED" and task.status == "FAILED" and len(executions(db, t)) == 1
-    assert task.error.startswith("no_active_session") and task.result["failures"][0]["category"] == (
-        "session_unavailable")
-    # recoverable: a person fixes the cause and reopens the task
-    fake_bridge.bridge.active_session = session_id(1)
-    r = admin_client.post(f"{API}/tasks/{t.id}/reopen", json={"note": "selected a session in the bridge"})
-    assert r.status_code == 200 and r.json()["lifecycle"] == "READY"
-    assert h.drive(db, wf)["status"] == "completed"
-    assert h.task(db, t.id).lifecycle == "COMPLETED" and len(executions(db, t)) == 2
-
-
-def test_revoked_terms_stop_everything_before_a_request_is_made(admin_client, db, auto, fake_bridge):
-    wf, t = one(db)
-    admin_client.delete(f"{API}/bridges/{auto['id']}/terms")
-    before = len(fake_bridge.completions())
-    out = h.tick(wf)
-    assert out["offered"] == [t.id] and executions(db, t) == [] and len(fake_bridge.completions()) == before
-    assert h.task(db, t.id).result["fallback"]["reason"] == "terms_not_acknowledged"
+def test_a_switched_off_provider_sends_new_tasks_straight_to_a_person(admin_client, db, auto):
+    wf, t = one(db)  # planned while the provider works (the Manager uses it too)
+    mock = h.mock_provider(db)
+    mock.enabled = False
+    db.commit()
+    try:
+        out = h.tick(wf)
+        task = h.task(db, t.id)
+        assert out["offered"] == [t.id] and out["dispatched"] == []
+        assert task.lifecycle == "WAITING_FOR_ACCEPTANCE" and task.execution_mode == "HUMAN_ASSISTED"
+        assert task.result["fallback"]["reason"] == "provider_disabled" and executions(db, t) == []
+    finally:
+        db.rollback()
+        h.mock_provider(db).enabled = True
+        db.commit()
 
 
 # ---------------- timeout and invalid responses ----------------
-def test_a_task_timeout_is_enforced_and_bounded(admin_client, db, auto, fake_bridge):
-    wf, t = one(db, "1. Think for a long time [[fake:slow:20]] [research]")
+def test_a_task_timeout_is_enforced_and_bounded(admin_client, db, auto, monkeypatch):
+    h.worker_provider(monkeypatch, slow=20)
+    wf, t = one(db, "1. Think for a long time [research]")
     t.timeout_seconds, t.max_attempts = 1, 2
     db.commit()
     h.drive(db, wf)
@@ -171,29 +130,27 @@ def test_a_task_timeout_is_enforced_and_bounded(admin_client, db, auto, fake_bri
     assert [f["code"] for f in task.result["failures"]] == ["timeout", "timeout"]
     assert [f["action"] for f in task.result["failures"]] == ["retry", "human"]
     assert task.lifecycle == "WAITING_FOR_ACCEPTANCE"
-    # the request may have reached Arena: the person is told before sending it again
-    assert "may have reached the Arena session" in task.result["fallback"]["note"]
+    # the request may have reached the provider: the person is told before sending it again
+    assert "may have reached the worker's provider" in task.result["fallback"]["note"]
 
 
-@pytest.mark.parametrize("marker,code", [("[[fake:empty]]", "empty_response"),
-                                         ("[[fake:toolcall]]", "unexpected_tool_call"),
-                                         ("[[fake:garbage]]", "invalid_response")])
-def test_an_invalid_response_is_never_a_result(admin_client, db, auto, fake_bridge, marker, code):
-    wf, t = one(db, f"1. Answer strangely {marker} [research]")
+def test_an_empty_response_is_never_a_result(admin_client, db, auto, monkeypatch):
+    h.worker_provider(monkeypatch, empty=True)
+    wf, t = one(db, "1. Answer strangely [research]")
     t.max_attempts = 2
     db.commit()
     h.drive(db, wf)
     task = h.task(db, t.id)
     assert h.subs(db, t) == [] and len(executions(db, t)) == 2
-    assert [f["code"] for f in task.result["failures"]] == [code, code]
+    assert [f["code"] for f in task.result["failures"]] == ["empty_response", "empty_response"]
     assert {f["category"] for f in task.result["failures"]} == {"invalid_response"}
     assert task.lifecycle == "WAITING_FOR_ACCEPTANCE"
 
 
-def test_a_rate_limit_is_waited_out_inside_the_attempt(admin_client, db, auto, fake_bridge):
+def test_a_rate_limit_is_waited_out_inside_the_attempt(admin_client, db, auto, monkeypatch):
     h.agent_of(db, 1).retry_policy = {"max_attempts": 2, "backoff_seconds": 0, "backoff_multiplier": 1}
     db.commit()
-    fake_bridge.bridge.fail_next = [{"status": 429, "code": "rate_limited", "retry_after": 1}]
+    seen = h.worker_provider(monkeypatch, fail=1)
     wf, t = one(db)
     h.drive(db, wf)
     task = h.task(db, t.id)
@@ -201,15 +158,15 @@ def test_a_rate_limit_is_waited_out_inside_the_attempt(admin_client, db, auto, f
     assert task.lifecycle == "COMPLETED" and len(runs) == 1 and runs[0].attempt == 2  # one task attempt
     retry = db.scalar(select(ExecutionEvent).where(ExecutionEvent.execution_id == runs[0].id,
                                                    ExecutionEvent.type == "retry"))
-    assert retry.payload["after_seconds"] == 1.0  # the bridge's Retry-After
-    assert "failures" not in task.result and len(fake_bridge.turns(session_id(1))) == 1
+    assert retry is not None and retry.payload["attempt"] == 2
+    assert "failures" not in task.result and len(seen) == 2
 
 
 def test_repeated_failures_open_the_workers_circuit_and_new_tasks_go_to_a_person(admin_client, db, auto,
-                                                                                 fake_bridge, monkeypatch):
+                                                                                 monkeypatch):
     from app.config import get_settings
     monkeypatch.setattr(get_settings(), "circuit_failure_threshold", 2)
-    fake_bridge.stop()
+    h.worker_provider(monkeypatch, fail=99)
     wf, t = one(db)
     h.drive(db, wf)
     task = h.task(db, t.id)
@@ -260,7 +217,7 @@ async def test_the_bus_commands_drive_a_workforce_objective(db, force):
     assert db.get(Workflow, stuck.id).status == "failed" and "could not be reached" in db.get(Workflow, stuck.id).error
 
 
-def test_execution_finished_events_reach_the_right_scheduler(db, admin_client, auto, fake_bridge):
+def test_execution_finished_events_reach_the_right_scheduler(db, admin_client, auto):
     from app.bus.contract import Envelope
     from app.runtime import service as runtime
     wf = h.planned(db, "1. First [research]")
@@ -302,9 +259,11 @@ def test_a_round_that_breaks_half_way_leaves_nothing_half_done(db, force, monkey
     assert set(h.states(db, wf).values()) == {"WAITING_FOR_ACCEPTANCE"}
 
 
-def test_reopening_a_failed_task_reopens_the_objective_and_adds_a_report_version(admin_client, db, auto, fake_bridge):
+def test_reopening_a_failed_task_reopens_the_objective_and_adds_a_report_version(admin_client, db, auto,
+                                                                                 monkeypatch):
     admin_client.patch(f"{API}/workers/{h.worker(db, 1).id}", json={"fallback_to_human": False})
-    wf, t = one(db, "1. Answer strangely [[fake:empty]] [research]")
+    h.worker_provider(monkeypatch, empty=True)
+    wf, t = one(db, "1. Answer strangely [research]")
     t.max_attempts = 1
     db.commit()
     out = h.drive(db, wf)

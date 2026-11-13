@@ -160,6 +160,43 @@ def all_automatic(db) -> None:
         automatic(db, slot)
 
 
+WORKER_RULES = "You are one worker in a team"  # in every worker's system prompt, never in the Manager's
+
+
+def worker_provider(monkeypatch, *, fail: int = 0, error: Exception | None = None, slow: float = 0,
+                    empty: bool = False) -> list:
+    """TEST ONLY: change what the MOCK provider does for workers' requests (the Manager is untouched).
+
+    fail   the first `fail` worker requests raise `error` (default: a transient ProviderUnavailable)
+    slow   every worker request waits this many seconds before answering
+    empty  every worker request answers with no text
+    Returns the list of worker requests seen."""
+    from app.connectivity.gateway import adapters
+    from app.connectivity.gateway.base import GatewayEvent, ProviderUnavailable
+
+    real, seen = adapters.MockAdapter.stream, []
+
+    def stream(self, req):
+        if WORKER_RULES not in (req.system or ""):
+            return real(self, req)
+        seen.append(req)
+        n = len(seen)
+
+        async def run():
+            if n <= fail:
+                raise error or ProviderUnavailable("rate limited (injected by the test)")
+            if slow:
+                await asyncio.sleep(slow)
+            if empty:
+                yield GatewayEvent("usage", usage={"input_tokens": 1, "output_tokens": 0, "cached_tokens": 0})
+                return
+            async for ev in real(self, req):
+                yield ev
+        return run()
+    monkeypatch.setattr(adapters.MockAdapter, "stream", stream)
+    return seen
+
+
 def second_person(make_user, username: str = "wf_second_person", role: str = "ORGANIZATION_ADMIN"):
     """Another signed-in person who may decide approvals: the author of a critical result cannot approve it."""
     from fastapi.testclient import TestClient

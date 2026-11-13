@@ -1,8 +1,8 @@
 """WF-18 — observability: one prompt can be followed through the platform by ids — objective, thread, Manager
 steps, tasks, workers, attempts, provider requests and traces — with times, retries and errors. Usage is shown only
-where a provider reported it; a bridge reports none, and that is "not reported", never zero.
+where a provider reported it.
 
-Tier: local integration (FAKE bridge, mock Manager).
+Tier: mock (mock Manager, MOCK provider for the Automatic worker; a transient failure is injected once).
 """
 from __future__ import annotations
 
@@ -11,9 +11,8 @@ import re
 import pytest
 from sqlalchemy import select
 
-from app.models import CostRecord, Execution, ManagerStep, UsageRecord
+from app.models import Execution, ManagerStep, UsageRecord
 from tests import wf as h
-from tests.fakebridge import ACCOUNTS, KEY, session_id
 
 API = "/api/workforce"
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -25,13 +24,12 @@ def force(db):
 
 
 @pytest.fixture()
-def run(db, admin_client, fake_bridge, force):
-    """W1 Automatic through the fake bridge (first request rate-limited once), W2 a person."""
-    b = h.bridge(admin_client, fake_bridge)
-    h.automatic(db, 1, b["id"])
+def run(db, admin_client, force, monkeypatch):
+    """W1 Automatic on the mock provider (its first request fails once, transiently), W2 a person."""
+    h.automatic(db, 1)
     h.agent_of(db, 1).retry_policy = {"max_attempts": 2, "backoff_seconds": 0, "backoff_multiplier": 1}
     db.commit()
-    fake_bridge.bridge.fail_next = [{"status": 429, "code": "rate_limited", "retry_after": 1}]
+    h.worker_provider(monkeypatch, fail=1)
     wf = h.planned(db, "1. Research part [research]\n2. Build part [engineering] (after 1)")
     h.drive(db, wf)
     second = h.tasks_of(db, wf)["Build part"]
@@ -41,7 +39,7 @@ def run(db, admin_client, fake_bridge, force):
     return wf
 
 
-def test_the_history_carries_every_id_from_the_prompt_to_the_provider_request(admin_client, db, run, fake_bridge):
+def test_the_history_carries_every_id_from_the_prompt_to_the_provider_request(admin_client, db, run):
     wf = run
     r = admin_client.get(f"{API}/objectives/{wf.id}/history")
     assert r.status_code == 200
@@ -68,20 +66,14 @@ def test_the_history_carries_every_id_from_the_prompt_to_the_provider_request(ad
     e = first["executions"][0]
     ex = db.get(Execution, e["id"])
     assert UUID.match(e["id"]) and e["idempotency_key"] == f"wf-task:{first['id']}:attempt:1"
-    assert (e["status"], e["engine"], e["provider"], e["model"]) == ("COMPLETED", "api", "arena_local_bridge",
-                                                                    session_id(1))
+    assert (e["status"], e["engine"], e["provider"], e["model"]) == ("COMPLETED", "api", "mock", "mock-model")
     assert e["is_mock"] is True and e["attempts"] == 2  # two tries inside one task attempt
     assert e["retries"] == [{"seq": e["retries"][0]["seq"], "at": e["retries"][0]["at"], "attempt": 2,
-                             "after_seconds": 1.0}]
-    assert [(x["code"], x["category"], x["delivered"]) for x in e["provider_errors"]] == [
-        ("rate_limited", "rate_limit", False)]
-    assert e["provider_request_id"] and e["provider_request_id"] == ex.provider_request_id
-    assert e["provider_request_id"] in e["provider_request_ids"]
-    # the failed try has its own request id, kept with its error
-    assert e["provider_errors"][0]["request_id"] and e["provider_errors"][0]["request_id"] != e["provider_request_id"]
+                             "after_seconds": 0.0}]
+    assert e["provider_request_id"] == ex.provider_request_id
     assert e["created_at"] and e["started_at"] and e["ended_at"]
     # it succeeded: the earlier error is what it recovered from, not its outcome
-    assert e["error"] is None and e["error_category"] is None and "rate_limited" in e["recovered_from"]
+    assert e["error"] is None and e["error_category"] is None and "rate limited" in e["recovered_from"]
     assert [t["to"] for t in first["transitions"]] == ["PLANNED", "READY", "ASSIGNED", "QUEUED", "RUNNING",
                                                       "SUBMITTED", "UNDER_REVIEW", "APPROVED", "COMPLETED"]
     assert all(t["at"] and t["actor"] for t in first["transitions"])
@@ -103,32 +95,23 @@ def test_the_history_carries_every_id_from_the_prompt_to_the_provider_request(ad
     assert rows[rep[0]["manager_step_id"]].kind == "consolidate"
 
 
-def test_bridge_usage_is_not_reported_and_is_never_shown_as_zero(admin_client, db, run):
+def test_usage_is_shown_where_the_provider_reported_it(admin_client, db, run):
     wf = run
     hist = admin_client.get(f"{API}/objectives/{wf.id}/history").json()
     e = hist["tasks"][0]["executions"][0]
-    assert e["usage_reported"] is False and e["usage"] is None  # no numbers at all, not zeros
-    assert "Arena Local Bridge reports none" in hist["usage_note"]
+    assert e["usage_reported"] is True and e["usage"]["output_tokens"] > 0  # the mock provider reports usage
     ex = db.get(Execution, e["id"])
-    assert (ex.input_tokens, ex.output_tokens, ex.cached_tokens, ex.cost_usd) == (None, None, None, None)
-    usage = db.scalars(select(UsageRecord).where(UsageRecord.execution_id == ex.id)).all()
-    assert usage and all(u.usage_known is False for u in usage)
-    assert db.scalars(select(CostRecord).where(CostRecord.usage_record_id.in_([u.id for u in usage]))).all() == []
-    # the report agrees: it names the provider request, and carries no token or cost figure for the bridge
-    c = admin_client.get(f"{API}/objectives/{wf.id}/report").json()["content"]
-    sub = c["items"][0]["submission"]
-    assert sub["provider_request_id"] == e["provider_request_id"]
-    assert not any(k for k in sub if "token" in k or "cost" in k or "usage" in k)
-    assert not any("token" in f.lower() or "cost" in f.lower() for f in c["facts"])
-    # the card of the result says the same in words
-    card = admin_client.get(f"{API}/tasks/{hist['tasks'][0]['id']}").json()
-    assert card["submissions"][0]["provider"]["usage_reported"] is False
+    assert ex.output_tokens == e["usage"]["output_tokens"]
+    assert db.scalars(select(UsageRecord).where(UsageRecord.execution_id == ex.id)).all()
+    assert "usage is listed only where a provider reported it" in hist["usage_note"]
+    # a person's result has no execution and so no usage at all, not zeros
+    assert hist["tasks"][1]["executions"] == []
 
 
-def test_a_failed_attempt_stays_in_the_history_with_its_error(admin_client, db, fake_bridge, force):
-    b = h.bridge(admin_client, fake_bridge)
-    h.automatic(db, 1, b["id"])
-    wf = h.planned(db, "1. Answer strangely [[fake:empty]] [research]")
+def test_a_failed_attempt_stays_in_the_history_with_its_error(admin_client, db, force, monkeypatch):
+    h.automatic(db, 1)
+    h.worker_provider(monkeypatch, fail=99)  # the worker's provider stays unavailable
+    wf = h.planned(db, "1. Answer strangely [research]")
     t = next(iter(h.tasks_of(db, wf).values()))
     t.max_attempts = 2
     db.commit()
@@ -139,19 +122,16 @@ def test_a_failed_attempt_stays_in_the_history_with_its_error(admin_client, db, 
     assert [e["status"] for e in task["executions"]] == ["FAILED", "FAILED"]
     assert [e["idempotency_key"] for e in task["executions"]] == [f"wf-task:{task['id']}:attempt:{i}" for i in (1, 2)]
     for e in task["executions"]:
-        assert e["error"].startswith("ProviderError: empty_response") and e["error_category"] == "provider"
-        assert e["provider_errors"][-1]["code"] == "empty_response" and e["provider_errors"][-1]["request_id"]
+        assert "rate limited (injected by the test)" in e["error"] and e["error_category"] == "transient"
         assert e["ended_at"] >= e["started_at"]
-    assert [(f["attempt"], f["code"], f["action"]) for f in task["failures"]] == [
-        (1, "empty_response", "retry"), (2, "empty_response", "human")]
+    assert [(f["attempt"], f["action"]) for f in task["failures"]] == [(1, "retry"), (2, "human")]
     assert task["failures"][0]["execution_id"] == task["executions"][0]["id"]
     moves = [(x["from"], x["to"]) for x in task["transitions"]]
     assert moves.count(("RUNNING", "READY")) == 1 and moves[-1] == ("RUNNING", "WAITING_FOR_ACCEPTANCE")
 
 
-def test_the_history_shows_no_secret_and_no_account_address(admin_client, db, run):
+def test_the_history_shows_no_secret(admin_client, db, run):
     text = admin_client.get(f"{API}/objectives/{run.id}/history").text
-    assert KEY not in text and not any(a in text for a in ACCOUNTS)
     assert "api_key" not in text and "authorization" not in text.lower()
 
 

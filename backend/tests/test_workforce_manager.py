@@ -183,61 +183,6 @@ def test_no_objective_without_a_manager_model_and_never_a_silent_mock(db, admin_
                                                                       Workflow.status == "planning")) == 0
 
 
-def _bridge_speaks_like_the_mock_manager(fake_bridge):
-    """The FAKE bridge answers each Manager step with the deterministic mock Manager's JSON (TEST ONLY): what Arena
-    receives is the folded prompt — rules, then the task — exactly as the real bridge would send it."""
-    from app.connectivity.arena_bridge.adapter import TASK_HEADER
-    from app.connectivity.gateway.adapters import MOCK_RESPONDERS
-
-    def answer(key, account, prompt):
-        rules, _, task = prompt.partition(TASK_HEADER)
-        for marker, responder in MOCK_RESPONDERS.items():
-            if marker in rules:
-                return responder(ChatRequest(model="fake", system=rules, messages=[{"role": "user", "content": task.strip()}]))
-        return "no marker"
-    fake_bridge.bridge._answer = answer
-
-
-def test_the_manager_runs_through_the_arena_bridge(db, admin_client, fake_bridge, force):
-    """ADR-036 (owner decision): an Arena Local Bridge session can be the Manager. Each step is its own conversation,
-    usage is unknown, and the answers are validated exactly like an API model's."""
-    b = h.bridge(admin_client, fake_bridge)
-    # "agent": the bridge opens a new Arena conversation for every client session (one per Manager step)
-    r = admin_client.patch("/api/workforce/manager", json={"provider_id": b["id"], "model": "agent"})
-    assert r.status_code == 200, r.text
-    m = r.json()["manager"]
-    assert m["configured"] and m["via_bridge"] and m["model"]["kind"] == "arena_local_bridge"
-    _bridge_speaks_like_the_mock_manager(fake_bridge)
-    wf = h.objective(db, DIAMOND)
-    assert asyncio.run(control.plan(wf.id)) == "planned"
-    tasks = h.tasks_of(db, wf)
-    assert len(tasks) == 4
-    ok = [s for s in steps(db, wf) if s.status == "ok"]
-    assert {s.kind for s in ok} >= {"analyze", "plan"} and all(s.provider == "arena_local_bridge" for s in ok)
-    assert all(s.summary["usage"] == {"unknown": True} for s in ok)
-    # every step is a fresh Arena conversation, never one long chat that drifts away from the rules
-    keys = [k for k in fake_bridge.bridge.turns if k.startswith(f"agent:acc-mgr-{wf.id}-")]
-    assert len(keys) == len(ok)
-
-
-def test_a_bridge_manager_that_answers_garbage_is_asked_again_then_stops(db, admin_client, fake_bridge, force):
-    b = h.bridge(admin_client, fake_bridge)
-    admin_client.patch("/api/workforce/manager", json={"provider_id": b["id"], "model": "agent"})
-    fake_bridge.bridge._answer = lambda key, account, prompt: "Sure! Here is my plan: do everything at once."
-    wf = h.objective(db, DIAMOND)
-    assert asyncio.run(control.plan(wf.id)) == "failed"
-    db.expire_all()
-    assert "analysis was not valid" in db.get(Workflow, wf.id).error
-    assert [s.status for s in steps(db, wf, "analyze")] == ["invalid"] * prompts.MAX_ATTEMPTS
-    assert h.tasks_of(db, wf) == {}  # nothing invented from an answer that did not validate
-
-
-def test_the_manager_refuses_a_bridge_whose_terms_nobody_acknowledged(db, admin_client, fake_bridge, force):
-    r = admin_client.post(h.BRIDGES, json={"name": "Unacknowledged", "base_url": fake_bridge.url, "api_key": h.KEY})
-    r = admin_client.patch("/api/workforce/manager", json={"provider_id": r.json()["id"], "model": h.session_id(1)})
-    assert r.status_code == 422 and r.json()["detail"] == "bridge_terms_not_acknowledged"
-
-
 def test_a_manager_that_loses_its_model_after_submission_fails_the_objective_with_the_reason(db, force):
     wf = h.objective(db, DIAMOND)
     m = db.get(type(h.agent_of(db, 1)), force.manager_agent_id)
