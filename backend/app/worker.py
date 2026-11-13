@@ -16,6 +16,7 @@ are restored, and unpublished outbox rows wait in PostgreSQL.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 import signal
@@ -143,6 +144,12 @@ async def main() -> int:
         await memory_index
     if workforce is not None:
         await workforce
+    # BB-02: shut down any open browser windows so pages are closed cleanly
+    from app.browser.client import LOCAL as _browser_bridge
+    if _browser_bridge is not None:
+        log.info("worker stopping: closing browser bridge sessions")
+        with contextlib.suppress(Exception):
+            await _browser_bridge.shutdown()
     await heartbeat
     await conn.close()
     log.info("worker stopped cleanly")

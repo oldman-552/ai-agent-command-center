@@ -179,6 +179,7 @@ class Bridge:
             page = ctx.pages[0] if ctx.pages else await ctx.new_page()
             rt = Runtime(context=ctx, page=page, adapter=a, profile=(s.organization_id, s.profile_name))
             self._rt[session_id] = rt
+            self._attach_close_handlers(session_id, page, ctx)
             # back to the conversation this window was in, if it had one on the same site (never a new chat)
             with self._db() as db:
                 cur = db.get(BrowserSession, session_id)
@@ -238,13 +239,72 @@ class Bridge:
         with contextlib.suppress(Exception):
             await rt.context.close()
 
+    def _attach_close_handlers(self, session_id: int, page, ctx) -> None:
+        """Register page/context close and crash listeners so a manually closed window is detected immediately,
+        not on the next monitor tick or the next send attempt."""
+
+        def _on_gone(source: str):
+            """Called synchronously by Playwright when the page closes or crashes. Schedules the async cleanup."""
+            rt = self._rt.get(session_id)
+            if rt is None:
+                return  # already cleaned up
+            log.warning("browser session %d: %s — marking DISCONNECTED", session_id, source)
+            asyncio.get_event_loop().call_soon_threadsafe(
+                asyncio.ensure_future, self._on_page_gone(session_id, source))
+
+        page.on("close", lambda _p: _on_gone("page_closed"))
+        page.on("crash", lambda _p: _on_gone("page_crashed"))
+        # context close covers the whole browser profile window being shut
+        ctx.on("close", lambda _c: _on_gone("context_closed"))
+        # if a new tab opens in the same context (some providers do this), attach handlers to it too
+        def _on_new_page(new_page):
+            new_page.on("close", lambda _p: _on_gone("page_closed"))
+            new_page.on("crash", lambda _p: _on_gone("page_crashed"))
+        ctx.on("page", _on_new_page)
+
+    async def _on_page_gone(self, session_id: int, reason: str) -> None:
+        """Async handler: cancel any in-flight monitor, remove runtime, mark session DISCONNECTED in DB.
+
+        DISCONNECTED (not FAILED) so the workforce readiness panel shows 'window closed → reopen' rather than
+        an error state that needs manual reset before the window can be used again."""
+        rt = self._rt.pop(session_id, None)
+        if rt is None:
+            return  # _close() already ran (e.g. explicit stop) — nothing to do
+        if rt.monitor and not rt.monitor.done():
+            rt.monitor.cancel()
+        with self._db() as db:
+            s = db.get(BrowserSession, session_id, with_for_update=True, populate_existing=True)
+            if s is not None and s.state in ACTIVE:
+                # partial answer (if any) goes into history so it is not silently lost
+                if rt.partial:
+                    s.history = [*(s.history or []),
+                                 {"role": "assistant", "text": redact(rt.partial), "cancelled": True,
+                                  "at": datetime.now(UTC).isoformat()}]
+                # DISCONNECTED lets start() reopen it; FAILED would need a manual reset first
+                target = S.DISCONNECTED.value if s.state in (S.READY.value, S.COMPLETED.value,
+                                                             S.AUTH_REQUIRED.value) else S.FAILED.value
+                transition(db, s, target, reason)
+            db.commit()
+
     async def shutdown(self) -> None:
+        """Close every open browser window and mark its session DISCONNECTED.
+
+        Called by the worker's graceful-shutdown path (./stop.sh) so that sessions left in
+        ACTIVE states are cleaned up instead of appearing stuck the next time the bridge starts.
+        DISCONNECTED lets start() reopen them; we do not use STOPPED here because DISCONNECTED
+        carries the same 'can be reopened' meaning while keeping the history intact.
+        """
         for sid in list(self._rt):
             await self._close(sid)
             with self._db() as db:
                 s = db.get(BrowserSession, sid)
                 if s is not None and s.state in ACTIVE:
-                    s.state, s.error = S.DISCONNECTED.value, "bridge shut down"
+                    # Use direct assignment: not every ACTIVE sub-state has a valid TRANSITIONS
+                    # edge to DISCONNECTED (e.g. SENDING has no such edge), and shutdown must
+                    # succeed unconditionally.  We log it as a warning for visibility.
+                    log.warning("browser session %d: bridge shutdown — marking DISCONNECTED (was %s)", sid, s.state)
+                    s.state, s.error, s.last_activity_at = (
+                        S.DISCONNECTED.value, "bridge shut down", datetime.now(UTC))
                 db.commit()
         if self._pw is not None:
             with contextlib.suppress(Exception):

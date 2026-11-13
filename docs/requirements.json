@@ -892,7 +892,7 @@
             "BB-01"
           ],
           "status": "done",
-          "evidence": "backend/tests/test_browser.py (20 tests, real headless Chromium vs local test page): 9-state table, start/prompt/stream/cancel/stop/restart, login/captcha/interface_changed, session limit, orphans; UI e2e/browser-bridge.spec.ts ar+en; disabled by default + EXPERIMENTAL labels"
+          "evidence": "ADR-039: page-close event listeners + worker.py shutdown hook + 4 integration tests"
         },
         {
           "id": "BB-03",

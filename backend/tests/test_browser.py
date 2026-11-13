@@ -615,3 +615,111 @@ async def test_a_profile_is_shared_across_sites_and_deleting_it_removes_its_sign
     finally:
         srv.get_bridge = srv_bridge
     assert not B.profile_dir(1, "emp-1").exists()
+
+
+# ---------------- BB-05: page-close detection (ADR-039) ----------------
+
+async def test_manually_closed_window_marks_session_disconnected(db, page_server):
+    """Scenario 1: user closes the browser window manually — the bridge detects the page close event and
+    transitions the session to DISCONNECTED (not FAILED) so it can be reopened without a manual reset."""
+    _enable(db)
+    bridge = B.Bridge(base_url=page_server, poll=0.05)
+    s = _session(db)
+    try:
+        snap = await bridge.start(s.id)
+        assert snap["state"] == "READY"
+        rt = bridge._rt[s.id]
+        # simulate the user closing the browser window: close the page directly
+        await rt.page.close()
+        # wait for the async handler to propagate
+        for _ in range(50):
+            await asyncio.sleep(0.1)
+            db.expire_all()
+            row = db.get(B.BrowserSession, s.id)
+            if row.state == "DISCONNECTED":
+                break
+        db.expire_all()
+        row = db.get(B.BrowserSession, s.id)
+        assert row.state == "DISCONNECTED", f"expected DISCONNECTED, got {row.state}"
+        assert s.id not in bridge._rt, "runtime entry should be gone after page close"
+    finally:
+        await bridge.shutdown()
+
+
+async def test_page_close_during_sending_marks_session_failed(db, page_server, monkeypatch):
+    """Scenario 2 variant: a page closes while in SENDING state → FAILED (not DISCONNECTED)
+    so the task owner knows the prompt may not have been delivered."""
+    _enable(db)
+    bridge = B.Bridge(base_url=page_server, poll=0.05)
+    s = _session(db)
+    try:
+        snap = await bridge.start(s.id)
+        assert snap["state"] == "READY"
+        # force DB state to SENDING without going through the full send path
+        with bridge._db() as db2:
+            row = db2.get(B.BrowserSession, s.id)
+            row.state = "SENDING"
+            db2.commit()
+        rt = bridge._rt[s.id]
+        await rt.page.close()
+        for _ in range(50):
+            await asyncio.sleep(0.1)
+            db.expire_all()
+            row = db.get(B.BrowserSession, s.id)
+            if row.state in ("FAILED", "DISCONNECTED"):
+                break
+        db.expire_all()
+        row = db.get(B.BrowserSession, s.id)
+        assert row.state == "FAILED", f"mid-send close should be FAILED, got {row.state}"
+    finally:
+        await bridge.shutdown()
+
+
+async def test_new_tabs_opened_in_the_context_also_get_close_handlers(db, page_server):
+    """context.on('page') handler: a new tab opened inside the same context should also trigger
+    _on_page_gone when that tab is closed, keeping the session in sync."""
+    _enable(db)
+    bridge = B.Bridge(base_url=page_server, poll=0.05)
+    s = _session(db)
+    try:
+        snap = await bridge.start(s.id)
+        assert snap["state"] == "READY"
+        rt = bridge._rt[s.id]
+        # open a new tab in the same context
+        new_page = await rt.context.new_page()
+        await asyncio.sleep(0.05)
+        # closing the new tab should fire our _on_page_gone handler
+        await new_page.close()
+        for _ in range(50):
+            await asyncio.sleep(0.1)
+            db.expire_all()
+            row = db.get(B.BrowserSession, s.id)
+            if row.state == "DISCONNECTED":
+                break
+        db.expire_all()
+        row = db.get(B.BrowserSession, s.id)
+        assert row.state == "DISCONNECTED", f"closing new tab should disconnect session, got {row.state}"
+    finally:
+        await bridge.shutdown()
+
+
+async def test_shutdown_closes_all_sessions_and_marks_them_disconnected(db, page_server):
+    """Scenario 3: ./stop.sh → worker calls bridge.shutdown() → all open pages are closed cleanly
+    and all sessions are marked DISCONNECTED so they reopen on next start."""
+    _enable(db)
+    bridge = B.Bridge(base_url=page_server, poll=0.05)
+    sessions = [_session(db) for _ in range(2)]
+    try:
+        for s in sessions:
+            snap = await bridge.start(s.id)
+            assert snap["state"] == "READY", f"session {s.id} not READY: {snap}"
+        assert len(bridge._rt) == 2
+        await bridge.shutdown()
+        assert len(bridge._rt) == 0, "all runtimes should be gone after shutdown"
+        for s in sessions:
+            db.expire_all()
+            row = db.get(B.BrowserSession, s.id)
+            assert row.state == "DISCONNECTED", f"session {s.id} should be DISCONNECTED after shutdown, got {row.state}"
+    finally:
+        # already shut down; second shutdown should be a no-op
+        await bridge.shutdown()

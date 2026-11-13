@@ -786,3 +786,17 @@ and `frontend/src/app/(app)/workforce/bridge/page.tsx`. Inlined `fold_prompt()` 
 `test_workforce_human.py` still reference the removed bridge fixtures (`fake_bridge`, `fakebridge`). These integration
 tests must be rewritten to use the browser-window mock instead (tracked separately).
 **Consequences:** The platform is simpler; workers can only run in browser-window mode. No API key or bridge process needed.
+
+## ADR-039 — Browser-window page-close detection: event listeners + graceful shutdown hook (2026-11-13)
+
+**Context:** Three failure modes left DB state stale after ADR-038 removed the Arena Local Bridge:
+1. User manually closes the browser window → no Playwright event listener existed, session stayed ACTIVE forever.
+2. Playwright closes a page automatically mid-operation (crash, navigation error) → only partially covered by `_monitor()`.
+3. `./stop.sh` → worker exits without calling `bridge.shutdown()` → pages left open, DB still ACTIVE, next start marks them DISCONNECTED via `mark_orphans_disconnected()` but the pages were never closed.
+
+**Decision:**
+- **Scenario 1 & 2 — event listeners**: `_attach_close_handlers(session_id, page, ctx)` registers `page.on("close")`, `page.on("crash")`, `ctx.on("close")` immediately after the runtime entry is created in `start()`. Each fires `_on_page_gone()` which cancels the monitor, removes the runtime, and transitions the DB state. State choice: DISCONNECTED for idle sessions (READY, COMPLETED, AUTH_REQUIRED) so they reopen without manual reset; FAILED for sessions closed mid-send/generation so the task owner sees the error.
+- **New-tab coverage**: `ctx.on("page", _on_new_page)` attaches close/crash handlers to any tab that opens inside the same context — some sites open a new tab for each conversation.
+- **Scenario 3 — graceful shutdown**: `worker.py` now calls `await _browser_bridge.shutdown()` after all consumers drain and before the event loop exits. `shutdown()` iterates `_rt`, closes each context, and writes DISCONNECTED to the DB. Direct state assignment (not `transition()`) is used because not all ACTIVE sub-states have a TRANSITIONS edge to DISCONNECTED; this is intentional and logged at WARNING level.
+
+**Consequences:** Manual window close is detected within one asyncio tick. `./stop.sh` leaves no stale ACTIVE sessions. All three failure modes are covered. No change to the public bridge API; `shutdown()` gains a detailed docstring. Four new integration tests added in `test_browser.py` (BB-05 group). `contextlib` import added to `worker.py`.
