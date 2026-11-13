@@ -139,12 +139,20 @@ class Bridge:
         except Exception:  # noqa: BLE001 — a selector error is "not there"
             return False
 
+    @classmethod
+    async def _captcha_showing(cls, page, a: Adapter) -> bool:
+        """A challenge counts only when it is on screen: sites often keep an invisible challenge frame in the page
+        even after the person is through, and that must not keep the window in 'needs a check'."""
+        for sel in a.captcha:
+            if await cls._visible(page, sel):
+                return True
+        return False
+
     async def _detect(self, rt: Runtime) -> tuple[str, str | None]:
         """READY, or AUTH_REQUIRED (captcha/login), or FAILED (interface changed). Never interacts with the page."""
         page, a = rt.page, rt.adapter
-        for sel in a.captcha:
-            if await page.locator(sel).count() > 0:
-                return S.AUTH_REQUIRED.value, "captcha_detected"
+        if await self._captcha_showing(page, a):
+            return S.AUTH_REQUIRED.value, "captcha_detected"
         with contextlib.suppress(Exception):
             await page.locator(a.input).first.wait_for(state="visible", timeout=5_000)
         # the chat box is the proof of a signed-in page: a "Sign in" link that stays in a header or menu after sign-in
@@ -413,9 +421,8 @@ class Bridge:
                 while asyncio.get_running_loop().time() < deadline:
                     if await page.locator(a.response).count() > before or await self._visible(page, a.generating):
                         break
-                    for sel in a.captcha:
-                        if await page.locator(sel).count() > 0:
-                            raise BridgeError("captcha_detected")
+                    if await self._captcha_showing(page, a):
+                        raise BridgeError("captcha_detected")
                     await asyncio.sleep(self.poll)
                 else:
                     raise BridgeError("interface_changed")
