@@ -15,6 +15,7 @@ import asyncio
 import contextlib
 import logging
 import re
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -51,6 +52,10 @@ ACTIVE = {S.STARTING.value, S.AUTH_REQUIRED.value, S.READY.value, S.SENDING.valu
           S.COMPLETED.value}
 MAX_PROMPT = 100_000
 SEND_WAIT_S = 120  # how long a typed prompt may take to start answering (incl. a person pressing Send by hand)
+# ADR-040 (owner decision): a sign-in kept only by a session cookie (no expiry) is made to last this long inside the
+# profile, so the worker does not have to sign in again after every window is closed.
+SESSION_COOKIE_DAYS = 14
+SIGN_IN_SAVE_S = 60  # how often a live window's session cookies are written into its profile
 
 
 class BridgeError(Exception):
@@ -89,6 +94,7 @@ class Runtime:
     profile: tuple[int, str] = (0, "")
     partial: str = ""
     monitor: asyncio.Task | None = None
+    saver: asyncio.Task | None = None
     cancelled: bool = False
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
@@ -99,6 +105,7 @@ class Bridge:
     def __init__(self, base_url: str | None = None, poll: float = 0.25):
         self.base_url = (base_url or "http://127.0.0.1:8000").rstrip("/")
         self.poll = poll
+        self.save_every = SIGN_IN_SAVE_S
         self._pw = None
         self._rt: dict[int, Runtime] = {}
         self._start_lock = asyncio.Lock()
@@ -180,6 +187,7 @@ class Bridge:
             rt = Runtime(context=ctx, page=page, adapter=a, profile=(s.organization_id, s.profile_name))
             self._rt[session_id] = rt
             self._attach_close_handlers(session_id, page, ctx)
+            rt.saver = asyncio.create_task(self._keep_sign_in(rt))
             # back to the conversation this window was in, if it had one on the same site (never a new chat)
             with self._db() as db:
                 cur = db.get(BrowserSession, session_id)
@@ -236,8 +244,35 @@ class Bridge:
             return
         if rt.monitor and not rt.monitor.done():
             rt.monitor.cancel()
+        if rt.saver and not rt.saver.done():
+            rt.saver.cancel()
+        await self._persist_session_cookies(rt.context)
         with contextlib.suppress(Exception):
             await rt.context.close()
+
+    async def _keep_sign_in(self, rt: Runtime) -> None:
+        """ADR-040: periodically write the window's session cookies into its profile, so a sign-in survives a closed
+        window (also one closed by hand, which gives no chance to save at close)."""
+        while True:
+            await asyncio.sleep(self.save_every)
+            await self._persist_session_cookies(rt.context)
+
+    @staticmethod
+    async def _persist_session_cookies(ctx) -> None:
+        """ADR-040: a session cookie (no expiry) is given an expiry of SESSION_COOKIE_DAYS and written back into the
+        context, so the profile keeps it on disk. Values are never read out, stored by the platform, or logged: the
+        cookies only move from the browser to its own profile directory."""
+        try:
+            cookies = await ctx.cookies()
+            session = [c for c in cookies if c.get("expires", -1) == -1]
+            if not session:
+                return
+            until = time.time() + SESSION_COOKIE_DAYS * 86400
+            for c in session:
+                c["expires"] = until
+            await ctx.add_cookies(session)
+        except Exception:  # noqa: BLE001 — a window already gone has nothing to save; never fail the caller
+            log.debug("sign-in save skipped: window not available")
 
     def _attach_close_handlers(self, session_id: int, page, ctx) -> None:
         """Register page/context close and crash listeners so a manually closed window is detected immediately,
@@ -272,6 +307,8 @@ class Bridge:
             return  # _close() already ran (e.g. explicit stop) — nothing to do
         if rt.monitor and not rt.monitor.done():
             rt.monitor.cancel()
+        if rt.saver and not rt.saver.done():
+            rt.saver.cancel()
         with self._db() as db:
             s = db.get(BrowserSession, session_id, with_for_update=True, populate_existing=True)
             if s is not None and s.state in ACTIVE:

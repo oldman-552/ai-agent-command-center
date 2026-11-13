@@ -800,3 +800,25 @@ tests must be rewritten to use the browser-window mock instead (tracked separate
 - **Scenario 3 — graceful shutdown**: `worker.py` now calls `await _browser_bridge.shutdown()` after all consumers drain and before the event loop exits. `shutdown()` iterates `_rt`, closes each context, and writes DISCONNECTED to the DB. Direct state assignment (not `transition()`) is used because not all ACTIVE sub-states have a TRANSITIONS edge to DISCONNECTED; this is intentional and logged at WARNING level.
 
 **Consequences:** Manual window close is detected within one asyncio tick. `./stop.sh` leaves no stale ACTIVE sessions. All three failure modes are covered. No change to the public bridge API; `shutdown()` gains a detailed docstring. Four new integration tests added in `test_browser.py` (BB-05 group). `contextlib` import added to `worker.py`.
+
+## ADR-040 — Sign-ins survive closing a browser window (owner decision, 2026-11-13)
+
+**Context:** Each worker and the Manager already has its own profile (`agent-<id>`) on disk, so Chromium keeps cookies
+that have an expiry date between window openings. A sign-in kept only by a *session* cookie (no expiry) is dropped
+when the window closes, so the worker had to sign in again each time. Verified locally: a persistent cookie survives a
+reopen, a session cookie does not.
+
+**Decision (owner chose option 1 after the trade-off was shown):** while a window is open, its session cookies are
+given an expiry of `SESSION_COOKIE_DAYS` (14) and written back into the same browser context, so Chromium stores them
+in the profile directory. This runs every `SIGN_IN_SAVE_S` (60 s) and at a normal close. It is needed for a window closed
+by hand, which gives no chance to save at close.
+
+**Boundary kept:** cookie values are never read out to the database, returned by any API, logged, or sent anywhere.
+They only move from the browser to its own profile directory. `storage_state`, `local_storage` and `evaluate(` stay
+forbidden in the bridge. Only `_persist_session_cookies` calls the cookie methods, and a test enforces that it does not log or store values.
+
+**Consequences:** A worker signs in once by hand and the sign-in lasts up to 14 days after the last use of the window.
+This is a deliberate loosening of ADR-025's "no path to cookies" rule, and it also lengthens the life of a session
+cookie stored in a profile directory: anyone with access to `./browser-profiles` gains that sign-in for up to 14 days.
+Access to that directory must stay restricted (it is `chmod 700`). Sites that revoke sessions on the server still require a new sign-in.
+Tests: `test_a_sign_in_kept_by_a_session_cookie_survives_closing_the_window`; the cookie-rule test was narrowed to the bridge's keeper.

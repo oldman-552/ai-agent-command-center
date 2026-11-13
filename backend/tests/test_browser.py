@@ -143,14 +143,43 @@ def test_only_dedicated_profile_directories(name):
 
 
 def test_bridge_code_has_no_path_to_cookies_or_storage():
+    """ADR-025 + ADR-040: only the bridge's session-cookie keeper touches cookies, and only inside the browser. Nothing
+    else reads cookies, storage or runs page scripts, and the cookie keeper never stores or logs a value."""
     import app.browser.api as api_mod
     import app.browser.bridge as bridge_mod
     import app.browser.engine as engine_mod
     import app.browser.server as server_mod
-    for mod in (bridge_mod, api_mod, engine_mod, server_mod):
+    for mod in (api_mod, engine_mod, server_mod):
         src = inspect.getsource(mod)
         for forbidden in (".cookies(", "storage_state", "add_cookies", "local_storage", "evaluate("):
             assert forbidden not in src, (mod.__name__, forbidden)
+    src = inspect.getsource(bridge_mod)
+    assert "storage_state" not in src and "local_storage" not in src and "evaluate(" not in src
+    keeper = inspect.getsource(bridge_mod.Bridge._persist_session_cookies)
+    assert "log." not in keeper.replace("log.debug(\"sign-in save skipped: window not available\")", "")
+    assert "print(" not in keeper and "json" not in keeper
+
+
+async def test_a_sign_in_kept_by_a_session_cookie_survives_closing_the_window(db, page_server):
+    """ADR-040: a session cookie (no expiry) is written into the profile while the window is open, so it is still
+    there when the window is closed and opened again."""
+    _enable(db)
+    bridge = B.Bridge(base_url=page_server, poll=0.05)
+    bridge.save_every = 0.05
+    s = _session(db, profile="signed-in-1")
+    try:
+        assert (await bridge.start(s.id))["state"] == "READY"
+        ctx = bridge._rt[s.id].context
+        host = page_server.split("//", 1)[1].split(":")[0]
+        await ctx.add_cookies([{"name": "sign_in", "value": "yes", "domain": host, "path": "/"}])  # session cookie
+        await asyncio.sleep(0.3)  # the keeper runs
+        await bridge.stop(s.id)
+        assert (await bridge.start(s.id))["state"] == "READY"
+        names = {c["name"] for c in await bridge._rt[s.id].context.cookies()}
+        assert "sign_in" in names, "the sign-in was lost when the window was closed"
+        await bridge.stop(s.id)
+    finally:
+        await bridge.shutdown()
 
 
 # ---------------- BB-02: full lifecycle against the local test page ----------------
