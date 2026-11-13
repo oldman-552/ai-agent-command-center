@@ -121,18 +121,6 @@ def admin_client(client):
 
 
 @pytest.fixture()
-def fake_bridge():
-    """A FAKE Arena Local Bridge with four accounts on a real local port (real HTTP; never Arena)."""
-    from app.connectivity.gateway import service as gw
-    from tests.fakebridge import FakeBridgeServer, four_account_bridge
-
-    gw.HTTP_CLIENTS.pop("arena_local_bridge", None)
-    srv = FakeBridgeServer(four_account_bridge()).start()
-    yield srv
-    srv.stop()
-
-
-@pytest.fixture()
 def make_user(db):
     """Create a user with a given role (optionally in another organization)."""
     from sqlalchemy import select

@@ -103,28 +103,6 @@ async def _bridge() -> dict[str, Any]:
         return {"status": "not_running"}  # optional, experimental service
 
 
-def _arena_bridges() -> dict[str, Any]:
-    """Arena Local Bridge, from the readings the platform stored (no address, no account): this route needs no
-    sign-in, so it only says how many bridges are configured and how many were ready when last checked."""
-    from sqlalchemy import select
-
-    from app.connectivity.arena_bridge import service as bridge
-    from app.models import Provider
-    try:
-        with session_factory()() as s:
-            rows = list(s.scalars(select(Provider).where(Provider.kind == bridge.KIND, Provider.enabled.is_(True))))
-    except Exception:  # noqa: BLE001
-        return {"status": "unknown"}
-    if not rows:
-        return {"status": "not_configured", "configured": 0}  # optional: Human-Assisted mode needs no bridge
-    fresh = [p for p in rows if bridge.health_is_fresh(p, 300)]
-    ready = [p for p in fresh if (p.health or {}).get("ready")]
-    reachable = [p for p in fresh if (p.health or {}).get("reachable")]
-    state = "ok" if len(ready) == len(rows) else "degraded" if reachable else "unreachable" if fresh else "unknown"
-    return {"status": state, "configured": len(rows), "reachable": len(reachable), "ready": len(ready),
-            "mock": sum(1 for p in rows if p.is_mock)}
-
-
 async def health_report() -> tuple[int, dict[str, Any]]:
     db = "ok"
     try:
@@ -141,8 +119,7 @@ async def health_report() -> tuple[int, dict[str, Any]]:
     workers = [b for b in beats if b["service"] == "worker"]
     services = {"database": db, "rabbitmq": rabbit, "redis": redis_state,
                 "workers": {"status": "ok" if workers else "none", "instances": workers},
-                "browser_bridge": bridge,
-                "arena_local_bridge": _arena_bridges() if db == "ok" else {"status": "unknown"}}
+                "browser_bridge": bridge}
     core_ok = db == "ok" and rabbit == "ok" and redis_state == "ok"
     body = {"status": "ok" if core_ok and workers else "degraded", "database": db, "services": services}
     return (200 if db == "ok" else 503), body

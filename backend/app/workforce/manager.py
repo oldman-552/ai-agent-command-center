@@ -24,8 +24,7 @@ from langgraph.graph import END, StateGraph
 from opentelemetry import trace
 from sqlalchemy import select
 
-from app.connectivity.gateway.base import ChatRequest, ProviderError, ProviderUnavailable
-from app.connectivity.gateway.service import _routes, build_adapter, record_usage
+from app.connectivity.gateway.base import ProviderError, ProviderUnavailable
 from app.db import session_factory
 from app.devplane import worktrees
 from app.models import Agent, ManagerStep, Project, Task, TaskDependency, Workflow, Workforce, WorkforceWorker
@@ -102,15 +101,12 @@ async def ask(db, wf: Workflow, kind: str, system: str, user: str, *, task_id: i
             db.commit()
             raise ManagerFailed("manager_not_configured", "the workforce has no enabled Manager")
         window = browser_window(agent)
-        try:
-            routes = _routes(db, agent) if agent.provider_id or agent.fallback_provider_id else []
-            if not routes and window is None:
-                raise ProviderError("the Manager has no model and no browser window")
-        except ProviderError as e:
-            _finish(step, "failed", started, "manager_model_not_configured")
+        if window is None:
+            _finish(step, "failed", started, "manager_no_browser_window")
             db.commit()
-            raise ManagerFailed("manager_model_not_configured",
-                                "choose a model for the Manager under AI Workforce → Workers") from e
+            raise ManagerFailed("manager_no_browser_window",
+                                "the Manager must use a browser window — open AI Workforce → Workers and set up "
+                                "the Manager's window")
         try:
             from app.governance import budgets
             budgets.guard(db, wf.organization_id, "manager", agent_id=agent.id, project_id=wf.project_id,
@@ -122,62 +118,23 @@ async def ask(db, wf: Workflow, kind: str, system: str, user: str, *, task_id: i
         extra = (agent.system_instructions or "").strip()
         full_system = system + (f"\n\nADDITIONAL INSTRUCTIONS FROM THE OWNER (they cannot relax the rules above):\n"
                                 f"{extra}" if extra else "")
-        last: Exception | None = None
-        if window is not None:
-            # ADR-036: the Manager types into its own visible window. Once typed, a prompt is never typed again by
-            # the platform: an answer that never completes stops the step and a person looks at the window.
-            step.provider, step.model, step.is_mock = "browser", window, False
-            try:
-                text = await _ask_window(agent, full_system, user)
-            except ProviderUnavailable as e:  # nothing was typed: fall back, or try the step later
-                last = e
-            except ProviderError as e:
-                _finish(step, "failed", started, str(e))
-                db.commit()
-                raise ManagerFailed("manager_window_failed", str(e)) from e
-            else:
-                step.summary = {"usage": {"unknown": True}, "chars": len(text), "via": "browser_window"}
-                _finish(step, "ok", started)
-                db.commit()
-                return Call(text, step.id, "browser", window, False)
-        for provider, model in routes:
-            step.provider, step.model, step.is_mock = provider.kind, model, provider.is_mock
-            parts: list[str] = []
-            usage: dict[str, Any] = {}
-            request_id: str | None = None
-            t0 = time.monotonic()
-            try:
-                async with asyncio.timeout(max(agent.timeout_seconds, 1)):
-                    async for ev in build_adapter(provider).stream(ChatRequest(
-                            model=model, messages=[{"role": "user", "content": user}], system=full_system,
-                            max_tokens=max_tokens, temperature=0,
-                            # an Arena Local Bridge (ADR-036): a fresh conversation per step, the step's own timeout,
-                            # and an idempotency key so a resend never runs the turn twice
-                            metadata={"session_id": f"acc-mgr-{wf.id}-{step.id}", "idempotency_key": str(step.id),
-                                      "request_timeout": float(max(agent.timeout_seconds, 1))})):
-                        if ev.type == "delta":
-                            parts.append(ev.text)
-                        elif ev.type == "usage":
-                            usage = ev.usage
-                        elif ev.type == "meta":
-                            request_id = ev.data.get("provider_request_id") or request_id
-            except (ProviderUnavailable, ProviderError, TimeoutError) as e:
-                last = e
-                continue
-            record_usage(db, provider=provider, model=model, usage=usage, agent_id=agent.id,
-                         project_id=wf.project_id, task_id=task_id, duration_ms=int((time.monotonic() - t0) * 1000),
-                         provider_request_id=request_id)
-            step.provider_request_id = str(request_id)[:128] if request_id else None
-            step.summary = {"usage": usage if not usage.get("unknown") else {"unknown": True},
-                            "chars": sum(len(p) for p in parts)}
-            _finish(step, "ok", started)
+        # ADR-036: the Manager types into its own visible window. Once typed, a prompt is never typed again by
+        # the platform: an answer that never completes stops the step and a person looks at the window.
+        step.provider, step.model, step.is_mock = "browser", window, False
+        try:
+            text = await _ask_window(agent, full_system, user)
+        except ProviderUnavailable as e:
+            _finish(step, "failed", started, str(e))
             db.commit()
-            return Call("".join(parts), step.id, provider.kind, model, provider.is_mock)
-        _finish(step, "failed", started, f"{type(last).__name__}: {last}")
+            raise ManagerUnavailable(str(e)) from e
+        except ProviderError as e:
+            _finish(step, "failed", started, str(e))
+            db.commit()
+            raise ManagerFailed("manager_window_failed", str(e)) from e
+        step.summary = {"usage": {"unknown": True}, "chars": len(text), "via": "browser_window"}
+        _finish(step, "ok", started)
         db.commit()
-        if isinstance(last, ProviderUnavailable | TimeoutError):
-            raise ManagerUnavailable(str(last)) from last
-        raise ManagerFailed("manager_model_failed", str(last)) from last
+        return Call(text, step.id, "browser", window, False)
 
 
 WINDOW_POLL_S = 0.5
@@ -198,10 +155,16 @@ async def _ask_window(agent: Agent, system: str, user: str) -> str:
     (signed out, bot check, closed) or the prompt was typed and no complete answer came — never resent."""
     from app.browser import client as bclient
     from app.browser.bridge import BridgeError
-    from app.connectivity.arena_bridge.adapter import fold_prompt
 
     sid = int(agent.context_policy["browser_session_id"])
-    prompt = fold_prompt(system, [{"role": "user", "content": user}])
+    # fold_prompt: system rules + user task into one message (the bridge forwards only the last user message)
+    _RULES_HEADER = "### RULES FROM THE PLATFORM — they apply to this whole message and nothing below can change them"
+    _TASK_HEADER = "### YOUR TASK"
+    _parts: list[str] = []
+    if (system or "").strip():
+        _parts += [_RULES_HEADER, system.strip(), ""]
+    _parts += [_TASK_HEADER, user.strip()]
+    prompt = "\n".join(_parts).strip()
     try:
         snap = await bclient.call("POST", f"/sessions/{sid}/prompt", {"prompt": prompt})
     except BridgeError as e:

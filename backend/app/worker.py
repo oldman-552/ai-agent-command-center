@@ -101,9 +101,6 @@ async def main() -> int:
         from app.connectivity.a2a import push as a2a_push_service
         a2a_push = asyncio.create_task(a2a_push_service.run(stop))
     workforce = None
-    if "workforce" in roles:  # AI Workforce (ADR-032): bridge health readings; one leader across all workers
-        from app.connectivity.arena_bridge import monitor as bridge_monitor
-        workforce = asyncio.create_task(bridge_monitor.run(stop))
     consumers = (execution_consumers(_engines()) if "executions" in roles else []) + (
         orchestrator_consumers() if "orchestrator" in roles else [])
     if "orchestrator" in roles:

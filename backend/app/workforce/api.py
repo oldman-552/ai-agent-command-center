@@ -4,7 +4,7 @@ work, reviews, reports and history. Every answer is built from persisted rows.
 Permissions (server-side, see `app.security.rbac`):
     workforce.read    see everything here          workforce.review  review, reassign, reopen, cancel
     workforce.run     give an objective            workforce.manage  configure the Manager and the workers
-    workforce.work    accept and submit task cards (bridges: `app.connectivity.arena_bridge.api`)
+    workforce.work    accept and submit task cards
 Rows of another organization are answered 404.
 """
 from __future__ import annotations
@@ -18,7 +18,6 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.config import get_settings
-from app.connectivity.arena_bridge import service as bridge
 from app.models import (
     Agent,
     Approval,
@@ -103,15 +102,7 @@ def options(db: DB, user: User = Depends(require("workforce.manage"))) -> dict:
         models = [{"name": m.name, "display_name": m.display_name}
                   for m in db.scalars(select(ModelInfo).where(ModelInfo.provider_id == p.id).order_by(ModelInfo.id))]
         entry: dict[str, Any] = {"id": p.id, "name": p.name, "kind": p.kind, "enabled": p.enabled,
-                                 "is_mock": p.is_mock, "is_bridge": bridge.is_bridge(p), "models": models}
-        if bridge.is_bridge(p):
-            health = p.health or {}
-            entry.update(terms_acknowledged=bridge.acknowledged(p), health_fresh=bridge.health_is_fresh(p),
-                         usable=bridge.usable(health),
-                         sessions=[{"id": s["session_id"], "title": s.get("title"), "model": s.get("model"),
-                                    "account": s.get("account"), "account_hash": s.get("account_hash"),
-                                    "state": s.get("state")} for s in health.get("sessions") or []],
-                         pooled_models=["active", "agent"])
+                                 "is_mock": p.is_mock, "models": models}
         out.append(entry)
     people = [{"id": u.id, "username": u.username} for u in db.scalars(
         select(User).where(User.organization_id == user.organization_id, User.is_active.is_(True)).order_by(User.id))
@@ -859,16 +850,6 @@ def dashboard(db: DB, user: User = Depends(require("workforce.read"))) -> dict:
                           .join(Workflow, Workflow.id == Task.workflow_id)
                           .where(Approval.organization_id == org, Approval.status == "pending",
                                  Workflow.kind == KIND)) or 0
-    bridges = []
-    for p in db.scalars(select(Provider).where(Provider.organization_id == org, Provider.kind == bridge.KIND)
-                        .order_by(Provider.id)):
-        h = p.health or {}
-        bridges.append({"id": p.id, "name": p.name, "enabled": p.enabled, "status": p.status, "is_mock": p.is_mock,
-                        "terms_acknowledged": bridge.acknowledged(p), "reachable": h.get("reachable"),
-                        "ready": h.get("ready"), "usable": bridge.usable(h), "checked_at": h.get("checked_at"),
-                        "health_fresh": bridge.health_is_fresh(p),
-                        "accounts": len([a for a in h.get("accounts") or [] if not a.get("disabled")]),
-                        "queue": h.get("queue")})
     recent = [{"id": a.id, "action": a.action, "actor": a.actor, "level": a.level, "task_id": a.task_id,
                "details": a.details, "at": a.ts} for a in db.scalars(
         select(AuditLog).where(AuditLog.organization_id == org, AuditLog.category == "workforce")
@@ -876,7 +857,7 @@ def dashboard(db: DB, user: User = Depends(require("workforce.read"))) -> dict:
     latest = [objective_out(db, w) for w in db.scalars(
         select(Workflow).where(Workflow.organization_id == org, Workflow.kind == KIND)
         .order_by(Workflow.id.desc()).limit(5))]
-    return {"workforce": service.workforce_out(db, force) if force else None, "bridges": bridges,
+    return {"workforce": service.workforce_out(db, force) if force else None,
             "objectives": {"by_status": objectives, "latest": latest},
             "tasks": {"by_lifecycle": by_lifecycle, "open": sum(n for s, n in by_lifecycle.items()
                                                                 if s not in lifecycle.SETTLED)},

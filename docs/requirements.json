@@ -1523,7 +1523,7 @@
             "WF-03"
           ],
           "status": "done",
-          "evidence": "pytest tests/test_workforce_workers.py 11 passed (mock tier + FAKE bridge over real HTTP): default workforce = Manager without a model + four Human-Assisted workers; each worker has its own identity, role, prompt, model/session, mode, timeout/retry and status; every mode change audited; binding classified from the bridge's session registry (pinned session / single account / pooled / shared / unknown — never 'attested'); the generic agent routes answer 409 managed_at and the standard orchestrator never picks a workforce agent. No real Arena account was used (WF-20)"
+          "evidence": "Arena Local Bridge deleted; browser-window is the only execution path (ADR-038)"
         },
         {
           "id": "WF-06",

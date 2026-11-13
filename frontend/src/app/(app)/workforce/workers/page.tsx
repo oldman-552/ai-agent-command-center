@@ -115,7 +115,6 @@ function ManagerCard({ force, onEdit }: { force: Workforce; onEdit?: () => void 
           <dd className="tabular-nums">{force.max_revisions}</dd>
         </dl>
         {m.is_mock && <p className="text-sm">{t("overview.managerMock")}</p>}
-        {m.via_bridge && <p role="note" className="text-sm text-muted-foreground" data-testid="wf-manager-via-bridge">{t("manager.viaBridgeNote")}</p>}
       </Card>
     </section>
   );
@@ -171,7 +170,7 @@ function WorkerCard({ w, onEdit, onArchive }: { w: Worker; onEdit?: () => void; 
   );
 }
 
-/** Provider plus model. For an Arena Local Bridge the "model" is a session of one account, or a pooled name. */
+/** Provider plus model picker. */
 function RoutePicker({ idPrefix, providers, providerId, model, onChange, allowNone }: {
   idPrefix: string; providers: OptionProvider[]; providerId: number | null; model: string;
   onChange: (providerId: number | null, model: string) => void; allowNone?: boolean;
@@ -179,12 +178,7 @@ function RoutePicker({ idPrefix, providers, providerId, model, onChange, allowNo
   const t = useTranslations("workforce.workers");
   const p = providers.find((x) => x.id === providerId);
   const choices: { value: string; label: string }[] = [];
-  if (p?.is_bridge) {
-    for (const s of p.sessions ?? []) {
-      choices.push({ value: s.id, label: [s.title, s.model, s.account && accountTag(s.account, s.account_hash)].filter(Boolean).join(" — ") || s.id });
-    }
-    for (const m of p.pooled_models ?? []) choices.push({ value: m, label: t("pooledModel", { name: m }) });
-  } else if (p) {
+  if (p) {
     for (const m of p.models) {
       const name = typeof m === "string" ? m : m.name;
       choices.push({ value: name, label: typeof m === "string" ? m : (m.display_name || m.name) });
@@ -204,7 +198,7 @@ function RoutePicker({ idPrefix, providers, providerId, model, onChange, allowNo
         </NativeSelect>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`${idPrefix}-model`}>{p?.is_bridge ? t("session") : t("model")}</Label>
+        <Label htmlFor={`${idPrefix}-model`}>{t("model")}</Label>
         {choices.length > 0 ? (
           <NativeSelect id={`${idPrefix}-model`} value={model} onChange={(e) => onChange(providerId, e.target.value)} disabled={!p} data-testid={`${idPrefix}-model`}>
             <option value="">{t("chooseModel")}</option>
@@ -214,7 +208,6 @@ function RoutePicker({ idPrefix, providers, providerId, model, onChange, allowNo
           <Input id={`${idPrefix}-model`} value={model} onChange={(e) => onChange(providerId, e.target.value)} disabled={!p} maxLength={128} dir="ltr"
             data-testid={`${idPrefix}-model`} />
         )}
-        {p?.is_bridge && <p className="text-xs text-muted-foreground">{choices.length > 0 ? t("sessionHelp") : t("sessionHelpEmpty")}</p>}
       </div>
     </div>
   );
@@ -227,7 +220,7 @@ function ManagerDialog({ force, options, onClose }: { force: Workforce; options:
   const fail = useFail();
   const toast = useToasts((s) => s.push);
   const m = force.manager;
-  const usable = options.providers;  // ADR-036: an Arena Local Bridge can be the Manager too
+  const usable = options.providers;
   const [providerId, setProviderId] = useState<number | null>(m.model?.provider_id ?? null);
   const [model, setModel] = useState(m.model?.model ?? "");
   const [fbProvider, setFbProvider] = useState<number | null>(m.fallback?.provider_id ?? null);
@@ -267,14 +260,6 @@ function ManagerDialog({ force, options, onClose }: { force: Workforce; options:
           <RoutePicker idPrefix="wf-m" providers={usable} providerId={providerId} model={model} allowNone
             onChange={(p, mo) => { setProviderId(p); setModel(mo); }} />
           {isWindow && <p className="text-xs text-muted-foreground">{t("manager.windowKeeps")}</p>}
-          {chosen?.is_bridge && (
-            <p role="note" className="flex gap-2 rounded-md border p-3 text-sm" data-testid="wf-manager-bridge-note">
-              <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />{t("manager.bridgeHelp")}
-            </p>
-          )}
-          {chosen?.is_bridge && !chosen.terms_acknowledged && (
-            <p role="alert" className="text-sm text-destructive">{t("manager.bridgeTerms")}</p>
-          )}
           {chosen?.is_mock && (
             <p role="note" className="flex gap-2 rounded-md border border-warning p-3 text-sm">
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />{t("overview.managerMock")}
@@ -398,12 +383,6 @@ function WorkerDialog({ w, options, onClose }: { w: Worker; options: Options; on
           <RoutePicker idPrefix="wf-w" providers={options.providers} providerId={providerId} model={model} allowNone
             onChange={(p, mo) => { setProviderId(p); setModel(mo); }} />
           {missing && <p role="alert" className="text-sm text-destructive">{t("errors.automatic_needs_provider_and_model")}</p>}
-          {mode === "AUTOMATIC" && chosen?.is_bridge && !chosen.terms_acknowledged && (
-            <p role="note" className="flex gap-2 rounded-md border border-warning p-3 text-sm">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
-              <span>{t("workers.termsFirst")} <Link href="/workforce/bridge" className="font-medium text-primary underline underline-offset-4">{t("tabs.bridge")}</Link></span>
-            </p>
-          )}
           <div className="flex items-start gap-3">
             <input id="wf-w-fallback" type="checkbox" checked={fallback} onChange={(e) => setFallback(e.target.checked)} className="mt-1 size-4 accent-primary" />
             <div className="flex flex-col">

@@ -15,7 +15,6 @@ from typing import Any
 import httpx2 as httpx  # the official SDKs use httpx2; one HTTP stack for the whole gateway
 from sqlalchemy import select
 
-from app.connectivity.arena_bridge import adapter as _arena_bridge  # noqa: F401  (registers arena_local_bridge)
 from app.connectivity.gateway import adapters as _adapters  # noqa: F401  (registers adapters)
 from app.connectivity.gateway import toolspec
 from app.connectivity.gateway.base import ChatRequest, ProviderError, ProviderUnavailable, adapter_for

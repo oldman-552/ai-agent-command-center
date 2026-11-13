@@ -62,27 +62,19 @@ def test_every_script_a_guide_names_exists(guide):
 
 
 def test_the_guides_agree_with_the_code_on_names_that_must_match():
-    from app.connectivity.arena_bridge import probe, service
     from app.security import rbac
     from app.workforce import human
 
     guide = (DOCS / "AI_WORKFORCE.md").read_text()
-    bridge = (DOCS / "ARENA_LOCAL_BRIDGE.md").read_text()
     security = (DOCS / "SECURITY.md").read_text()
     # limits a person meets when submitting a result
     assert f"{human.MAX_CONTENT_CHARS:,} characters" in guide and f"{human.MAX_NOTES_CHARS:,} characters" in guide
     assert f"| Files per submission | {human.MAX_ATTACHMENTS} |" in guide
-    # the probe: module path, exit codes and the default address, as the documents state them
-    assert "python -m app.connectivity.arena_bridge.probe" in bridge
-    assert f"`{probe.EXIT_BRIDGE_FAILED}` a configured bridge cannot be used" in bridge
-    assert f"`{probe.EXIT_PROBE_FAILED}` the probe could not run" in bridge
-    assert service.DEFAULT_URL in bridge and service.DEFAULT_URL in (DOCS / "WINDOWS_SETUP.md").read_text()
     # permissions named in the documents exist, and the human-only ones are human-only in the code
-    for perm in ("workforce.read", "workforce.run", "workforce.work", "workforce.review", "workforce.manage", "workforce.bridge"):
+    for perm in ("workforce.read", "workforce.run", "workforce.work", "workforce.review", "workforce.manage"):
         assert perm in rbac.PERMISSIONS, perm
-    for perm in ("workforce.manage", "workforce.bridge"):
+    for perm in ("workforce.manage",):
         assert perm in rbac.HUMAN_ONLY and f"`{perm}`" in security
-    assert "workforce.bridge" not in rbac.role_grants("ORGANIZATION_ADMIN") and "workforce.bridge" in rbac.role_grants("SUPER_ADMIN")
     # the role table of the guide: who may review, and who may only read
     assert "workforce.review" in rbac.role_grants("REVIEWER") and "workforce.run" not in rbac.role_grants("REVIEWER")
     assert "workforce.review" not in rbac.role_grants("DEVELOPER") and "workforce.work" in rbac.role_grants("DEVELOPER")
@@ -90,10 +82,6 @@ def test_the_guides_agree_with_the_code_on_names_that_must_match():
     # every report class the guide explains is a class the platform computes, and none is left out
     from app.workforce import report
     assert set(report.CLASSES) == {"verified", "human_approved", "worker_proposal", "unverified_claim", "failed", "incomplete"}
-    # every bridge diagnostic step the document lists is one the code can produce
-    source = Path(service.__file__).read_text()
-    for step in re.findall(r"^\| `([a-z_]+)` \|", bridge.split("## 3. Diagnostics")[1].split("## 4.")[0], re.MULTILINE):
-        assert f'step("{step}"' in source, f"the document lists a diagnostic step the code never reports: {step}"
 
 
 def test_no_guide_sends_anyone_to_the_removed_arena_site_of_the_browser_bridge():

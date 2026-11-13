@@ -768,3 +768,21 @@ the same for everyone (bridge off, terms missing). Nothing is typed or sent to a
 the script helpers under Xvfb (start → ready, second start → already running, stop → no process left, no screen
 or `ACC_DESKTOP_BRIDGE=0` → skipped); E2E (ar/en) for the panel steps. **Not** tested: the first-run setup itself
 (apt/sudo inside `playwright install --with-deps`) and arena.ai.
+
+## ADR-038 — Arena Local Bridge removed; browser-window is the only execution path (2026-11-13)
+**Context:** The platform originally supported two ways for a worker to reach Arena AI: (1) Arena Local Bridge
+(`connectivity/arena_bridge/`) — an HTTP proxy that called Arena's API directly, and (2) browser window — a Playwright
+window the worker types into. The owner asked to remove the bridge entirely and keep only the browser-window method.
+**Decision:** Deleted `backend/app/connectivity/arena_bridge/` (adapter, api, client, monitor, probe, service),
+`backend/devtools/fake_arena_bridge.py`, `backend/tests/test_arena_bridge*.py`, `backend/tests/fakebridge.py`,
+and `frontend/src/app/(app)/workforce/bridge/page.tsx`. Inlined `fold_prompt()` logic into `manager.py` and
+`scheduler.py`. Simplified `workforce/__init__.py`, `service.py`, `readiness.py`, `api.py`, `scheduler.py`,
+`manager.py`, `main.py`, `config.py`, `worker.py`, `observability/realtime.py`, `connectivity/gateway/service.py`,
+`connectivity/providers.py`. Removed all bridge UI from the frontend. Deleted bridge-only test files
+(`test_real_arena.py`, `test_real_tiers_selftest.py`, `test_launch_scripts.py`).
+**Technical debt:** `tests/wf.py`, `test_workforce_execution.py`, `test_workforce_recovery.py`,
+`test_workforce_security.py`, `test_workforce_modes.py`, `test_workforce_bus.py`, `test_workforce_history.py`,
+`test_workforce_manager.py`, `test_workforce_workers.py`, `test_workforce_report.py`, `test_workforce_review.py`,
+`test_workforce_human.py` still reference the removed bridge fixtures (`fake_bridge`, `fakebridge`). These integration
+tests must be rewritten to use the browser-window mock instead (tracked separately).
+**Consequences:** The platform is simpler; workers can only run in browser-window mode. No API key or bridge process needed.

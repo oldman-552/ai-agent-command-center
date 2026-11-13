@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 // older general-purpose tools, which are hidden until "Show advanced tools" is on in Settings (they still power the
 // Workforce and every address still opens). Items are hidden when the user lacks the permission; the backend enforces
 // every permission regardless.
-type NavKey = "dashboard" | "workforce" | "wfTasks" | "wfWorkers" | "arenaBridge" | "projects" | "agents" | "teams" | "tasks" |
+type NavKey = "dashboard" | "workforce" | "wfTasks" | "wfWorkers" | "projects" | "agents" | "teams" | "tasks" |
   "orchestration" | "supervisor" | "executions" | "bridge" | "integrations" | "providers" | "runtime" | "memory" | "skills" |
   "github" | "approvals" | "evaluations" | "analytics" | "audit" | "settings";
 type NavItem = { href: string; key: NavKey; icon: LucideIcon; perm?: string };
@@ -35,7 +35,6 @@ export const NAV_GROUPS: NavGroup[] = [
   ] },
   { key: "setup", items: [
     { href: "/providers", key: "providers", icon: Plug },
-    { href: "/workforce/bridge", key: "arenaBridge", icon: Cable, perm: "workforce.read" },
     { href: "/browser-bridge", key: "bridge", icon: Globe, perm: "providers.read" },
     { href: "/settings", key: "settings", icon: Settings },
   ] },

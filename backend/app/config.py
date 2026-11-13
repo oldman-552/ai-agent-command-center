@@ -47,10 +47,6 @@ class Settings(BaseSettings):
     browser_executable_path: str = ""  # optional: an installed Chrome/Chromium instead of Playwright's download
     browser_max_sessions: int = 4
     browser_generation_timeout_seconds: int = 300
-    # Arena Local Bridge (ADR-032): extra host names a bridge address may use besides loopback, host.docker.internal
-    # and private IPv4 addresses (comma-separated). Empty in production.
-    arena_bridge_allowed_hosts: str = ""
-    arena_bridge_health_interval_seconds: int = 30
     workforce_attachment_max_bytes: int = 10 * 1024 * 1024
     workforce_attachments_dir: str = "/data/workforce-attachments"  # files people attach to Human-Assisted results
     skills_dir: str = "/data/skills"  # local skill folders that can be inspected and installed (no remote fetch)

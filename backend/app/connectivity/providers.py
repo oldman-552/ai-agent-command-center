@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api", tags=["providers"])
 NEEDS_KEY = {"anthropic", "openai", "google"}
 # Kinds with their own settings API (address allow-list, terms gate, human-only permission): not created, re-keyed,
 # re-addressed or deleted through the generic provider routes.
-MANAGED_ELSEWHERE = {"arena_local_bridge": "/api/workforce/bridges"}
+MANAGED_ELSEWHERE: dict[str, str] = {}
 
 
 def _not_managed_here(kind: str) -> None:

@@ -17,7 +17,7 @@ const TOPICS: Record<string, string[]> = {
   budget: ["budgets", "usage"],
   automation: ["automations", "automation-runs", "workflows-all"],
   browser: ["bridge", "bridge-sessions", "bridge-session", "bridge-status"],
-  workforce: ["wf", "wf-dashboard", "wf-objectives", "wf-objective", "wf-tasks", "wf-task", "wf-bridges", "wf-report", "wf-history", "wf-options"],
+  workforce: ["wf", "wf-dashboard", "wf-objectives", "wf-objective", "wf-tasks", "wf-task", "wf-report", "wf-history", "wf-options"],
   teams: ["teams"],
   projects: ["projects", "analysis"],
 };

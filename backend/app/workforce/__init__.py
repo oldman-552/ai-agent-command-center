@@ -1,16 +1,15 @@
 """AI Workforce (ADR-033): one Manager and its workers handle a prompt as a reviewed set of tasks.
 
-    prompt ─► Manager: analyse ─► plan ─► assign ─► workers (Automatic through a provider · Human-Assisted · Disabled)
+    prompt ─► Manager: analyse ─► plan ─► assign ─► workers (Automatic via browser window · Human-Assisted · Disabled)
                                                         │
               one consolidated result ◄─ consolidate ◄─ review (approve · revise · reject · escalate to a person)
 
-Importing this package wires the workforce into the rest of the platform (gateway hints, bridge health, approvals,
+Importing this package wires the workforce into the rest of the platform (gateway hints, approvals,
 execution status). `app.main` and `app.worker` import it.
 """
 
 from typing import Any
 
-from app.connectivity.arena_bridge import service as _bridge
 from app.connectivity.gateway import service as _gateway
 from app.control import agents as _agents
 from app.models import Agent, Execution, ExecutionMode, Provider, Task
@@ -40,8 +39,6 @@ def _request_metadata(db, ex: Execution, agent: Agent, provider: Provider) -> di
 def _install() -> None:
     if _request_metadata not in _gateway.REQUEST_METADATA_HOOKS:
         _gateway.REQUEST_METADATA_HOOKS.append(_request_metadata)
-    if _service.refresh_bindings not in _bridge.ON_HEALTH:
-        _bridge.ON_HEALTH.append(_service.refresh_bindings)
     if _scheduler.on_execution_status not in _runtime.ON_STATUS:
         _runtime.ON_STATUS.append(_scheduler.on_execution_status)
     if _service.is_managed not in _agents.MANAGED_ELSEWHERE:

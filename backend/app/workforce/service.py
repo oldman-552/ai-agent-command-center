@@ -1,17 +1,13 @@
 """The workforce and its workers: defaults, configuration, eligibility, and what is known about each worker's
 Arena account (WF-05, WF-10).
 
-A worker is an agent (identity, role, prompt, provider + model/session, timeout, retry policy) plus a
-`WorkforceWorker` row (mode, client conversation id, account binding as last read from the bridge).
+A worker is an agent (identity, role, prompt, browser window, timeout, retry policy) plus a
+`WorkforceWorker` row (mode, account binding).
 
 Modes:
-    AUTOMATIC       the platform sends the task to the worker's provider — normally an Arena Local Bridge session
-    HUMAN_ASSISTED  a person takes the task card, does the work by hand (for example in Arena's own page) and
-                    submits the result. Needs no bridge. The default.
+    AUTOMATIC       the platform types the task into the worker's browser window (Arena AI account)
+    HUMAN_ASSISTED  a person takes the task card, does the work by hand and submits the result. The default.
     DISABLED        the worker receives no new tasks; the Manager's plan is redistributed
-
-Nothing here selects or switches an Arena account: the bridge has no such control. The binding shown for a worker is
-what the bridge's own rules imply and is always `attested: False`.
 """
 from __future__ import annotations
 
@@ -23,7 +19,6 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.connectivity.arena_bridge import service as bridge
 from app.models import (
     Agent,
     BrowserSession,
@@ -281,32 +276,12 @@ def browser_problem(db: Session, agent: Agent) -> str | None:
 
 
 def binding_for(db: Session, w: WorkforceWorker, agent: Agent) -> dict[str, Any]:
-    """What can be said about the account behind this worker. Never claims more than the bridge lets anyone know."""
+    """What can be said about the account behind this worker."""
     if agent.execution_engine == "browser":
         return browser_binding(db, agent)
-    provider = db.get(Provider, agent.provider_id) if agent.provider_id else None
-    if provider is None or not agent.model:
-        return {"type": "unconfigured", "attested": False}
-    if not bridge.is_bridge(provider):
-        return {"type": "not_applicable", "attested": False, "provider_kind": provider.kind,
-                "reason": "not an Arena Local Bridge: there is no Arena account behind this worker"}
-    return {**bridge.classify_binding(provider.health, agent.model), "provider_id": provider.id}
+    return {"type": "unconfigured", "attested": False}
 
 
-def refresh_bindings(db: Session, provider: Provider) -> None:
-    """Bridge health hook: store what the new reading says about every worker that uses this bridge."""
-    rows = db.execute(select(WorkforceWorker, Agent).join(Agent, Agent.id == WorkforceWorker.agent_id)
-                      .where(Agent.provider_id == provider.id)).all()
-    for w, agent in rows:
-        new = binding_for(db, w, agent)
-        old = w.account_binding or {}
-        if {k: v for k, v in old.items() if k != "checked_at"} != {k: v for k, v in new.items() if k != "checked_at"}:
-            log_activity(db, "workforce.worker_binding_changed", category="workforce",
-                         organization_id=w.organization_id, agent_id=agent.id,
-                         details={"worker_id": w.id, "slot": w.slot, "from": old.get("type"), "to": new.get("type"),
-                                  "account_changed": old.get("account_hash") != new.get("account_hash")})
-        w.account_binding = new
-        flag_modified(w, "account_binding")
 
 
 # ---------------- eligibility ----------------
@@ -328,21 +303,6 @@ def automatic_problem(db: Session, w: WorkforceWorker, agent: Agent) -> str | No
         if problem is not None:
             return problem
         return None if circuit.available(db, "agent", agent.id) else "circuit_open"
-    provider = db.get(Provider, agent.provider_id) if agent.provider_id else None
-    if provider is None or not agent.model:
-        return "not_configured"
-    if not provider.enabled:
-        return "provider_disabled"
-    if bridge.is_bridge(provider):
-        if not bridge.acknowledged(provider):
-            return "terms_not_acknowledged"
-        # Only a fresh reading may hold a task back; without one the request itself finds out and is classified.
-        if bridge.health_is_fresh(provider) and not bridge.usable(provider.health):
-            return "bridge_unavailable"
-        b = w.account_binding or {}
-        if b.get("type") == "deterministic_session" and b.get("account_usable") is False and (
-                bridge.health_is_fresh(provider)):
-            return "account_unavailable"
     if not circuit.available(db, "agent", agent.id):
         return "circuit_open"
     return None
@@ -394,9 +354,7 @@ def worker_out(db: Session, w: WorkforceWorker, agent: Agent | None = None, *, b
         "name": agent.name, "role": agent.role, "description": agent.description, "skills": agent.skills or [],
         "prompt": agent.system_instructions, "mode": w.mode, "fallback_to_human": w.fallback_to_human,
         "provider": ({"id": provider.id, "name": provider.name, "kind": provider.kind, "is_mock": provider.is_mock,
-                      "enabled": provider.enabled, "is_bridge": bridge.is_bridge(provider),
-                      "terms_acknowledged": bridge.acknowledged(provider) if bridge.is_bridge(provider) else None,
-                      "health_fresh": bridge.health_is_fresh(provider) if bridge.is_bridge(provider) else None}
+                      "enabled": provider.enabled}
                      if provider else None),
         "model": agent.model, "timeout_seconds": agent.timeout_seconds, "retry_policy": agent.retry_policy,
         "concurrency_limit": agent.concurrency_limit, "account_label": w.account_label,
@@ -471,7 +429,7 @@ def manager_out(db: Session, wf: Workforce) -> dict[str, Any]:
             "model": primary, "fallback": route(agent.fallback_provider_id, agent.fallback_model),
             "instructions": agent.system_instructions, "timeout_seconds": agent.timeout_seconds,
             "is_mock": bool(primary and primary["is_mock"]), "engine": agent.execution_engine, "window": window,
-            "via_bridge": bool(primary and primary["kind"] in (bridge.KIND, "browser"))}
+            "via_bridge": bool(primary and primary["kind"] == "browser")}
 
 
 def _development_out(wf: Workforce) -> dict[str, Any]:
@@ -594,11 +552,6 @@ def update_manager(db: Session, wf: Workforce, *, user: User, patch: dict[str, A
     for pid_field, model_field in (("provider_id", "model"), ("fallback_provider_id", "fallback_model")):
         if pid_field in patch:
             p = _provider(db, wf.organization_id, patch[pid_field], pid_field)
-            # ADR-036 (owner decision, reverses ADR-032's refusal): the Manager may run through an Arena Local Bridge.
-            # The bridge folds the system prompt into the message, usage is reported as unknown, and every answer is
-            # still schema- and graph-validated (an invalid one is asked again with the error, then a person acts).
-            if p is not None and bridge.is_bridge(p) and not bridge.acknowledged(p):
-                raise ConfigError("bridge_terms_not_acknowledged")
             setattr(agent, pid_field, p.id if p else None)
             if pid_field == "provider_id" and p is not None:
                 _leave_browser(agent)

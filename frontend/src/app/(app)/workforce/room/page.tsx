@@ -748,11 +748,6 @@ function Rail({ d, tasks, views, effects, wcolors, sound }: {
             </div>
           </div>
         ))}
-        {d.bridges.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-            {d.bridges.map((b) => <span key={b.id}><i className={s.dot} style={{ background: b.usable ? "var(--ok)" : "var(--bad)" }} /> {b.name}{b.is_mock ? " (mock)" : ""}</span>)}
-          </div>
-        )}
       </section>
     </aside>
   );

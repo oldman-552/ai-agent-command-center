@@ -34,8 +34,7 @@ export type Binding = {
 export type Worker = {
   id: number; slot: number; label: string; agent_id: number; identifier: string; name: string; role: string;
   description: string | null; skills: string[]; prompt: string; mode: Mode; fallback_to_human: boolean;
-  provider: { id: number; name: string; kind: string; is_mock: boolean; enabled: boolean; is_bridge: boolean;
-    terms_acknowledged: boolean | null; health_fresh: boolean | null } | null;
+  provider: { id: number; name: string; kind: string; is_mock: boolean; enabled: boolean } | null;
   model: string | null; timeout_seconds: number;
   retry_policy: { max_attempts: number; backoff_seconds: number; backoff_multiplier: number };
   concurrency_limit: number; account_label: string | null; account_binding: Binding;
@@ -47,7 +46,7 @@ export type Route = { provider_id: number; provider: string; kind: string; model
 export type Manager = {
   configured: boolean; problem: string | null; agent_id: number | null; name?: string; model?: Route | null;
   fallback?: Route | null; instructions?: string; timeout_seconds?: number; is_mock?: boolean;
-  engine?: string; via_bridge?: boolean;
+  engine?: string;
   window?: { session_id: number; site: string; profile: string; state: string; error: string | null } | null;
 };
 export type Development = { enabled: boolean; test_command: string[] | null; timeout_seconds: number;
@@ -61,11 +60,8 @@ export type Workforce = {
 export type WorkforceOverview = { workforce: Workforce | null; modes: Mode[]; default_mode: Mode };
 
 export type OptionProvider = {
-  id: number; name: string; kind: string; enabled: boolean; is_mock: boolean; is_bridge: boolean;
+  id: number; name: string; kind: string; enabled: boolean; is_mock: boolean;
   models: { name: string; display_name?: string | null }[] | string[];
-  terms_acknowledged?: boolean | null; health_fresh?: boolean | null; usable?: boolean | null;
-  sessions?: { id: string; title: string | null; model: string | null; account: string | null; account_hash: string | null; state: string }[];
-  pooled_models?: string[];
 };
 export type Options = { providers: OptionProvider[]; people: { id: number; username: string }[] };
 
@@ -207,13 +203,8 @@ export type History = {
   usage_note: string;
 };
 
-export type DashboardBridge = {
-  id: number; name: string; enabled: boolean; status: string; is_mock: boolean; terms_acknowledged: boolean;
-  reachable: boolean | null; ready: boolean | null; usable: boolean; checked_at: string | null; health_fresh: boolean;
-  accounts: number; queue: { depth: number; active: number; max_depth: number } | null;
-};
 export type Dashboard = {
-  workforce: Workforce | null; bridges: DashboardBridge[];
+  workforce: Workforce | null;
   objectives: { by_status: Record<string, number>; latest: Objective[] };
   tasks: { by_lifecycle: Partial<Record<Lifecycle, number>>; open: number };
   queues: { offered_to_me: number; accepted_by_me: number; needs_human_review: number; pending_approvals: number };
@@ -221,39 +212,6 @@ export type Dashboard = {
     details: Record<string, unknown>; at: string }[];
 };
 
-export type BridgeSettings = {
-  host_header: string; effective_host_header: string | null; stream: boolean; connect_timeout_s: number;
-  idle_timeout_s: number; request_timeout_s: number; replay_window_s: number; read_session_registry: boolean;
-  max_prompt_chars: number; max_concurrent: number;
-};
-/** A bridge error as the API reports it (BridgeError.as_dict); older readings may hold a plain string. */
-export type BridgeErrorInfo = { code?: string | null; message?: string | null; status?: number | null; category?: string | null };
-export type BridgeHealth = {
-  checked_at: string; reachable: boolean; ok?: boolean; ready?: boolean; key_ok?: boolean | null; service?: string | null;
-  version?: string | null; mock?: boolean; error?: BridgeErrorInfo | string | null; sessions_error?: BridgeErrorInfo | null;
-  queue?: { depth: number; active: number; max_depth: number } | null;
-  accounts?: { account: string; hash: string; priority: number | null; disabled: boolean; error: string | null }[];
-  sessions?: { session_id: string; model: string | null; title: string | null; account: string | null;
-    account_hash: string | null; state: string }[];
-  sessions_read?: boolean;
-};
-/** One line of text for a bridge error, whatever shape it arrived in. */
-export function bridgeErrorText(e: BridgeErrorInfo | string | null | undefined): string {
-  if (!e) return "";
-  if (typeof e === "string") return e;
-  const head = [e.code, e.status ? `HTTP ${e.status}` : null].filter(Boolean).join(" · ");
-  return [head, e.message].filter(Boolean).join(" — ");
-}
-export type Bridge = {
-  id: number; name: string; kind: string; base_url: string; enabled: boolean; is_mock: boolean; status: string;
-  last_tested_at: string | null; last_error: string | null; has_key: boolean; key_hint: string | null;
-  settings: BridgeSettings;
-  terms: { acknowledged: boolean; by: string | null; at: string | null; terms_url: string; statement: string };
-  health: BridgeHealth | null; health_fresh: boolean; agent_ids: number[];
-};
-export type BridgeList = { default_url: string; in_container: boolean; bridges: Bridge[] };
-export type DiagStep = { step: string; ok: boolean | null; detail: string; hint: string | null; code?: string };
-export type Diagnosis = { ok: boolean; ready: boolean; mock: boolean; steps: DiagStep[]; checked_at: string; bridge: Bridge };
 
 // ---------- queries ----------
 const send = <T,>(path: string, body?: unknown, method = "POST") =>
@@ -299,16 +257,13 @@ export const useWfTask = (id?: number) =>
 export const useExecEvents = (id: string | null | undefined, after: number) =>
   useQuery({ queryKey: ["exec-events", id, after], enabled: !!id, refetchInterval: 2_000,
     queryFn: () => api<ExecEvent[]>(`/api/executions/${id}/events?after=${after}&limit=500`) });
-export const useBridges = () =>
-  useQuery({ queryKey: ["wf-bridges"], queryFn: () => api<BridgeList>(`${W}/bridges`), refetchInterval: 15_000 });
-
-export type ReadinessProblem = "sign_in" | "window_closed" | "no_window" | "old_connection" | "no_connection";
+export type ReadinessProblem = "sign_in" | "window_closed" | "no_window" | "no_connection";
 export type Readiness = {
   ready: boolean; site: string; bridge_error: string | null;
   checks: { bridge_enabled: boolean; bridge_running: boolean; terms: boolean };
   terms: { site: string; acknowledged: boolean; statement: string | null };
   members: { kind: "manager" | "worker"; worker_id: number | null; label: string; name: string; mode: string | null;
-    connection: "window" | "old_bridge" | "provider" | "none"; window_state: string | null; window_error: string | null;
+    connection: "window" | "none"; window_state: string | null; window_error: string | null;
     problem: ReadinessProblem | null }[];
 };
 export const useReadiness = (enabled = true) =>
@@ -316,7 +271,7 @@ export const useReadiness = (enabled = true) =>
 
 // ---------- mutations ----------
 const KEYS = ["wf", "wf-readiness", "wf-options", "wf-dashboard", "wf-objectives", "wf-objective", "wf-report", "wf-history",
-  "wf-tasks", "wf-task", "wf-bridges", "approvals"];
+  "wf-tasks", "wf-task", "approvals"];
 
 export function useWorkforceActions() {
   const qc = useQueryClient();
@@ -355,17 +310,5 @@ export function useWorkforceActions() {
       send<TaskCard>(`${W}/tasks/${id}/reassign`, { worker_id, note })),
     reopen: m(({ id, note }: { id: number; note: string }) => send<TaskCard>(`${W}/tasks/${id}/reopen`, { note })),
     cancelTask: m(({ id, note }: { id: number; note: string }) => send<TaskCard>(`${W}/tasks/${id}/cancel`, { note })),
-    // Arena Local Bridge instances
-    createBridge: m((b: { name: string; base_url: string; api_key: string; settings?: Record<string, unknown> }) =>
-      send<Bridge>(`${W}/bridges`, b)),
-    updateBridge: m(({ id, patch }: { id: number; patch: Record<string, unknown> }) =>
-      send<Bridge>(`${W}/bridges/${id}`, patch, "PATCH")),
-    setBridgeKey: m(({ id, api_key }: { id: number; api_key: string }) => send<Bridge>(`${W}/bridges/${id}/key`, { api_key }, "PUT")),
-    removeBridge: m((id: number) => send(`${W}/bridges/${id}`, undefined, "DELETE")),
-    acknowledge: m(({ id, statement }: { id: number; statement: string }) => send<Bridge>(`${W}/bridges/${id}/terms`, { statement })),
-    revoke: m((id: number) => send<Bridge>(`${W}/bridges/${id}/terms`, undefined, "DELETE")),
-    testBridge: m((id: number) => send<Diagnosis>(`${W}/bridges/${id}/test`)),
-    refreshHealth: m((id: number) => send<Bridge>(`${W}/bridges/${id}/health`)),
-    discover: m((id: number) => send<{ discovered: number; added: number; mock: boolean }>(`${W}/bridges/${id}/discover`)),
   };
 }

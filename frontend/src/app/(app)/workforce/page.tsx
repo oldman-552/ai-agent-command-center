@@ -45,7 +45,6 @@ export default function WorkforceOverviewPage() {
           {can("workforce.run") && <ObjectiveForm d={d} />}
           <Queues d={d} />
           <Team d={d} />
-          <Bridges d={d} />
           <Objectives d={d} />
           <Recent d={d} />
         </>
@@ -207,44 +206,6 @@ function Team({ d }: { d: Dashboard }) {
           {t("overview.accounts", { auto: force.accounts.automatic_workers, distinct: force.accounts.distinct_accounts, pooled: force.accounts.pooled + force.accounts.unknown })}
           {" "}{t("binding.notAttested")}
         </p>
-      )}
-    </section>
-  );
-}
-
-function Bridges({ d }: { d: Dashboard }) {
-  const t = useTranslations("workforce");
-  return (
-    <section aria-labelledby="wf-bridges-h" className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="wf-bridges-h" className="text-lg font-semibold">{t("bridge.title")}</h2>
-        <Link href="/workforce/bridge" className="text-sm font-medium text-primary underline underline-offset-4">{t("overview.bridgeSettings")}</Link>
-      </div>
-      {d.bridges.length === 0 ? (
-        <Card className="flex gap-3 p-4 text-sm" data-testid="wf-no-bridge">
-          <Info className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden /><p>{t("overview.noBridge")}</p>
-        </Card>
-      ) : (
-        <ul className="grid gap-3 md:grid-cols-2">
-          {d.bridges.map((b) => {
-            const state = !b.enabled ? "off" : !b.terms_acknowledged ? "terms" : !b.health_fresh ? "unknown" : b.usable ? "works" : "down";
-            return (
-              <li key={b.id}>
-                <Card className="flex h-full flex-col gap-1 p-4" data-testid={`wf-bridge-${b.id}`}>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="flex items-center gap-2 font-semibold" dir="auto"><Cable className="size-4 text-muted-foreground" aria-hidden />{b.name}</h3>
-                    {b.is_mock && <MockBadge short />}
-                  </div>
-                  <p className="text-sm">{t(`bridge.state.${state}`)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {t("bridge.accountsReady", { n: b.accounts })}
-                    {b.queue ? ` · ${t("bridge.queue", { active: b.queue.active, depth: b.queue.depth, max: b.queue.max_depth })}` : ""}
-                  </p>
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
       )}
     </section>
   );

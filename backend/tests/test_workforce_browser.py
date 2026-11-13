@@ -121,16 +121,16 @@ class _FakeWindow:
 
     async def call(self, method, path, body=None):
         from app.browser.bridge import BridgeError
-        from app.connectivity.arena_bridge.adapter import TASK_HEADER
         from app.connectivity.gateway.adapters import MOCK_RESPONDERS
         from app.connectivity.gateway.base import ChatRequest
+        _TASK_HEADER = "### YOUR TASK"
         if path.endswith("/prompt"):
             if self.behaviour == "signed_out":
                 raise BridgeError("auth_required")
             if self.behaviour == "unreachable":
                 raise BridgeError("bridge_unreachable")
             self.typed.append(body["prompt"])
-            rules, _, task = body["prompt"].partition(TASK_HEADER)
+            rules, _, task = body["prompt"].partition(_TASK_HEADER)
             text = next(r(ChatRequest(model="x", system=rules, messages=[{"role": "user", "content": task.strip()}]))
                         for m, r in MOCK_RESPONDERS.items() if m in rules)
             s = self.db.get(BrowserSession, self.sid)
